@@ -361,6 +361,12 @@ def episode_title(project):
         return project['episode_title']
     if project.get('platform') != 'bilibili':
         return None
+    # A one-part video has no episode to name. The platform's P1 title is frequently the uploader's
+    # raw file name ("video_final"), which reads like a bug next to the real video title, so the
+    # video title wins there. Multi-part catalogs keep their per-part titles.
+    from video_parser.services.library_layout import single_episode
+    if single_episode(project):
+        return None
     return next((item['title'] for item in normalize_episodes(project.get('episodes'))
                  if item['part'] == project.get('part')), None)
 
@@ -565,8 +571,14 @@ def subtitle_inventory(video_id):
         records = subtitle_records(item)
         if records: available.append(part)
         if any(row['kind'] == 'subtitle' for row in records): archived.append(part)
+    # A one-part video's P1 title is the uploader's raw file name, so the video title is the only
+    # meaningful label there. Multi-part catalogs keep their per-part titles.
+    single = len(episodes) <= 1
+    def label(episode):
+        owner = projects.get(episode['part'])
+        return owner.get('title') if single and owner else episode['title']
     return {'video_id': video_id, 'total': len(episodes) or None, 'archived': archived, 'available': available,
-            'episodes': [{'part': episode['part'], 'title': episode['title'], 'subtitles': episode['part'] in available,
+            'episodes': [{'part': episode['part'], 'title': label(episode), 'subtitles': episode['part'] in available,
                           'platform_subtitles': episode['part'] in archived} for episode in episodes]}
 
 

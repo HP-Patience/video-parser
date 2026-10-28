@@ -136,8 +136,9 @@ def inventory(identifier):
         transcripts = [item for item in subtitles if Path(item['source']).suffix.lower() in ('.srt', '.vtt')]
         transcripts.sort(key=lambda item: (item['kind'] == 'translation', item['kind'] != 'subtitle', item['resource']))
         entries.append({'project_id': project['id'], 'part': project.get('part'),
-                        'title': project.get('episode_title') or next((episode['title'] for episode in library.normalize_episodes(project.get('episodes'))
-                                                                     if episode['part'] == project.get('part')), project.get('title', '视频')),
+                        # A one-part video has no episode name: its platform P1 title is the uploader's
+                        # raw file name ("video_final"), so the video title is the only usable label here.
+                        'title': library.episode_title(project) or project.get('title', '视频'),
                         'number': (project.get('hierarchical_name') or {}).get('number', ''),
                         'single_episode': library_layout.single_episode(project, projects),
                         'files': files, 'subtitle_files': subtitles,

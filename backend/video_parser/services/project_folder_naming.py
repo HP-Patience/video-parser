@@ -127,8 +127,11 @@ def propose(plan, directory):
     selected = model_calls.target(plan['agent'])
     settings = ai_settings.current() if selected['engine'] == 'api' else {'model': selected['model'], 'provider': 'custom'}
     if selected['engine'] == 'api': model_calls.check_api_binding(plan.get('api_binding'), settings)
-    episodes = {row['part']: row['title'] for p in projects for row in library.normalize_episodes(p.get('episodes'))}
-    for p in projects:
+    # A one-part video has no episode names to send: its platform P1 title is the uploader's raw
+    # file name, which would only pollute the folder-name request.
+    numbered = [p for p in projects if not library_layout.single_episode(p, projects)]
+    episodes = {row['part']: row['title'] for p in numbered for row in library.normalize_episodes(p.get('episodes'))}
+    for p in numbered:
         if p.get('part'): episodes[p['part']] = library.episode_title(p) or episodes.get(p['part'], '')
     payload = {'title': plan['title'], 'episodes': [{'part': part, 'title': title} for part, title in sorted(episodes.items())]}
     # One bounded text request; no media, private learning records, or speculative content.
