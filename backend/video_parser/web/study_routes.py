@@ -10,6 +10,7 @@ from video_parser.services import anki_export, study
 router = APIRouter(prefix='/api/workspace', dependencies=[Depends(local_request)])
 Project = Annotated[str, Path(pattern=r'^[a-f0-9]{32}$')]
 NoteId = Annotated[str, Path(pattern=r'^[a-f0-9]{32}$')]
+RecordId = Annotated[str, Path(pattern=r'^[0-9A-Za-z_-]{1,64}$')]
 Resource = Annotated[str, Query(min_length=1, max_length=512)]
 
 class ResourceBody(BaseModel):
@@ -24,6 +25,11 @@ class ProgressBody(ResourceBody):
 class NoteBody(ResourceBody):
     time: float = Field(ge=0, le=study.MAX_TIME, strict=True)
     text: str = Field(min_length=1, max_length=5000)
+
+class QuizBody(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    resource: str = Field(min_length=1, max_length=512)
+    answers: dict[str, int] = Field(default_factory=dict)
 
 
 def handled(function, *args):
@@ -71,3 +77,14 @@ def save_note(identifier: Project, note_id: NoteId, body: NoteBody):
 @router.post('/projects/{identifier}/study/notes/{note_id}/delete')
 def delete_note(identifier: Project, note_id: NoteId, body: ResourceBody):
     return handled(study.delete_note, identifier, body.resource, note_id, body.expected_revision)
+
+
+@router.get('/projects/{identifier}/study/quiz/{record_id}')
+def get_quiz(identifier: Project, record_id: RecordId, resource: Resource):
+    """Answers for one analysis record; empty when the learner has not started."""
+    return handled(study.quiz, identifier, resource, record_id)
+
+
+@router.post('/projects/{identifier}/study/quiz/{record_id}')
+def save_quiz(identifier: Project, record_id: RecordId, body: QuizBody):
+    return handled(study.save_quiz, identifier, body.resource, record_id, body.answers)

@@ -153,8 +153,10 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
         <button type="button" onClick={chat.missing.includes('subtitles') ? onGenerateSubtitles : onManage}>
           {chat.missing.includes('subtitles') ? '生成字幕' : '准备学习材料'}</button></div>
       : <>
-        <div className="ai-chat-session-heading"><strong>{session?.title ? <MathText text={session.title} /> : '新对话'}</strong>
-          {!floating && <button type="button" onClick={() => setPicker(value => !value)} aria-expanded={picker}>选择对话</button>}</div>
+        {/* The placeholder "新对话" is not shown: only a generated title carries information. */}
+        {(session?.title_generated || !floating) && <div className="ai-chat-session-heading">
+          {session?.title_generated && <strong><MathText text={session.title} /></strong>}
+          {!floating && <button type="button" onClick={() => setPicker(value => !value)} aria-expanded={picker}>选择对话</button>}</div>}
         {!floating && picker && <div className="conversation-inline-picker">{list}</div>}
         <ol className="ai-chat-log" ref={log}>{session?.messages.map(item => <li key={item.id}>
           <div className="ai-chat-question"><span className="sr-only">我的问题：</span><Markdown text={item.question} onSeek={onSeek} maxSeconds={duration} /></div>

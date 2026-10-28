@@ -85,18 +85,26 @@ class NotesUiTrimTests(unittest.TestCase):
         expect(self.panel.locator('.timestamp-notes-list')).to_contain_text('时间点笔记')
         self.assertAlmostEqual(next(iter(self.f.notes.values()))['time'], 7, delta=.05)
 
+    def test_typing_without_pressing_the_button_saves_at_the_current_time(self):
+        # The box is always on screen now, so the first keystroke is enough to start a note.
+        self.notes()
+        self.page.wait_for_function('document.querySelector("video").readyState >= 1')
+        self.page.locator('video').evaluate('v=>{v.pause();v.currentTime=7}')
+        self.page.wait_for_function('!document.querySelector("video").seeking && document.querySelector("video").currentTime >= 6.95')
+        self.panel.locator('textarea').fill('直接写下的笔记')
+        expect(self.panel.locator('.timestamp-notes-list')).to_contain_text('直接写下的笔记')
+        self.assertAlmostEqual(next(iter(self.f.notes.values()))['time'], 7, delta=.05)
+
     def test_close_without_popup_keeps_failed_save_and_restores_after_reload(self):
         self.notes(); self.f.fail_notes = True; self.create.click()
         self.panel.locator('textarea').fill('关闭也不能丢失的草稿')
         self.panel.get_by_role('button', name='关闭编辑', exact=True).click()
-        expect(self.panel.locator('textarea')).to_have_count(0)
+        # A failed save keeps the draft inside the always-visible box instead of hiding it.
+        expect(self.panel.locator('textarea')).to_have_value('关闭也不能丢失的草稿')
         expect(self.panel.get_by_role('alert')).to_contain_text('模拟保存失败')
         key = 'video-parser:study:' + harness.PROJECT_ID + ':' + quote(self.f.resource, safe='') + ':notes'
         draft = self.page.evaluate('(key)=>JSON.parse(localStorage.getItem(key))', key)
         self.assertEqual(draft['text'], '关闭也不能丢失的草稿')
-        self.panel.get_by_role('button', name='继续编辑', exact=True).click()
-        expect(self.panel.locator('textarea')).to_have_value('关闭也不能丢失的草稿')
-        self.panel.get_by_role('button', name='关闭编辑', exact=True).click()
         self.page.reload()
         self.page.get_by_role('tab', name='个人笔记', exact=True).click()
         expect(self.panel.locator('textarea')).to_have_value('关闭也不能丢失的草稿')
@@ -106,7 +114,7 @@ class NotesUiTrimTests(unittest.TestCase):
         self.panel.locator('textarea').fill('第一条保留')
         self.panel.get_by_role('button', name='关闭编辑', exact=True).click()
         expect(self.panel.locator('.timestamp-notes-list')).to_contain_text('第一条保留')
-        expect(self.panel.locator('textarea')).to_have_count(0)
+        expect(self.panel.locator('textarea')).to_have_value('')
         self.create.click()
         expect(self.panel.locator('textarea')).to_have_value('')
         self.panel.locator('textarea').fill('第二条保留')

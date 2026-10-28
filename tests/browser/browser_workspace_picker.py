@@ -69,9 +69,8 @@ class WorkspacePickerTests(unittest.TestCase):
             {**original(FIRST)['project'], 'archived':True},
             {**original(FIRST)['project'], 'id':'a'*32, 'video_id':'single-video', 'is_single':True, 'title':'独立视频标题', 'episode_title':'独立视频标题', 'archived':True},
         ]}))
-        self.page.locator('.workspace-toolbar summary').click()
         with self.page.expect_response(lambda response: urlsplit(response.url).path == '/api/workspace/projects'):
-            self.page.get_by_role('button',name='刷新项目列表',exact=True).click()
+            self.page.locator('.learning-project-refresh').first.click()
         expect(self.page.locator('.workspace-toolbar .learning-project-picker')).to_have_attribute('aria-busy','false')
         expect(self.picker()).to_be_enabled(); self.picker().press('ArrowDown')
         popup = self.page.locator('.project-picker-popup')
@@ -120,11 +119,13 @@ class WorkspacePickerTests(unittest.TestCase):
         expect(self.page.get_by_role('tab',name='AI 分析',exact=True)).to_have_attribute('aria-selected','true')
         expect(self.page.locator('#prompt')).to_have_value('保留分析要求')
         self.assertNotIn('page=learning',self.page.url)
-        self.page.locator('.workspace-toolbar summary').click()
-        self.page.get_by_role('searchbox',name='搜索归档视频',exact=True).fill('第一讲')
-        self.picker().click();expect(self.page.locator('.project-picker-popup [role=option]')).to_have_count(2); self.page.get_by_role('searchbox',name='筛选视频列表',exact=True).press('Escape')
+        self.picker().click()
+        self.page.get_by_role('searchbox',name='筛选视频列表',exact=True).fill('第一讲')
+        expect(self.page.locator('.project-picker-popup [role=option]')).to_have_count(2); self.page.get_by_role('searchbox',name='筛选视频列表',exact=True).press('Escape')
         select_project(self.picker(), FIRST);expect(self.picker()).to_have_attribute('data-value', FIRST)
-        self.page.get_by_role('searchbox',name='搜索归档视频',exact=True).fill('不存在的分集')
+        self.picker().click()
+        self.page.get_by_role('searchbox',name='筛选视频列表',exact=True).fill('不存在的分集')
+        self.page.get_by_role('searchbox',name='筛选视频列表',exact=True).press('Escape')
         expect(self.page.locator('.workspace-toolbar')).to_contain_text('当前视频保持不变')
         self.page.get_by_role('button',name='学习视图',exact=True).click()
         expect(self.page.get_by_role('combobox',name='学习项目',exact=True)).to_have_attribute('data-value', FIRST)
@@ -148,11 +149,11 @@ class WorkspacePickerTests(unittest.TestCase):
         self.f.empty=True;self.page.goto(self.f.url)
         expect(self.picker()).to_be_disabled()
         expect(self.page.locator('.workspace-toolbar')).to_contain_text('暂无已归档视频')
-        self.f.fail_list=True;self.page.locator('.workspace-toolbar summary').click()
-        self.page.get_by_role('button',name='刷新项目列表',exact=True).click()
+        self.f.fail_list=True
+        self.page.locator('.learning-project-refresh').first.click()
         expect(self.page.locator('.workspace-toolbar [role=alert]')).to_contain_text('模拟项目列表读取失败')
         self.f.fail_list=False;self.f.empty=False
-        self.page.get_by_role('button',name='刷新项目列表',exact=True).click()
+        self.page.locator('.learning-project-refresh').first.click()
         expect(self.picker()).to_be_enabled();select_project(self.picker(), SECOND)
         expect(self.page.locator('.info-title')).to_have_text('第二讲')
     def test_general_alignment_labels_compatibility_and_responsive_picker(self):

@@ -219,6 +219,23 @@ class ProjectFolderNamingTests(unittest.TestCase):
         self.assertEqual(library_migration.inventory(p['directory'].parent), before)
         self.assertEqual(call.call_count, 1)
 
+    def test_single_part_video_uses_video_title_instead_of_raw_p1_title(self):
+        p = self.files(self.project(count=1))
+        self.assertTrue(library.public(p)['is_single'])
+        # B站 reports the uploader's raw file name as the P1 title of a one-part video.
+        p = library.ensure({**p, 'episodes': [{'part': 1, 'title': 'video_final'}]})
+        self.assertEqual(p['episodes'][0]['title'], 'video_final')
+        # Rename preview must not offer the raw file name as the new filename stem.
+        self.assertEqual(names.inventory(p['id'])['entries'][0]['title'], '合成课程')
+        # Folder naming must not send the raw file name to the model as an episode name.
+        plan = folders.new_plan(p['id'], 'analyzing')
+        plan['agent'] = {'engine': 'codex', 'model': 'fixture', 'effort': ''}; names.save_plan(plan)
+        with patch.object(model_calls, 'call', return_value=SimpleNamespace(text='{"title":"简明课程"}')) as call, patch.object(model_calls, 'workspace', return_value=self.root / 'empty'):
+            folders.propose(plan, self.root / 'task')
+        content = json.dumps(call.call_args.args[0], ensure_ascii=False)
+        self.assertIn('合成课程', content)
+        self.assertNotIn('video_final', content)
+
     def test_naming_job_uses_folder_worker_and_safe_task_presentation(self):
         p = self.files(self.project())
         plan = folders.preview(p['id'], '命名任务')

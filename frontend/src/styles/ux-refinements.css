@@ -133,7 +133,9 @@
 .modern-app .study-sidebar .subtitle-toolbar { display:flex; flex-wrap:nowrap; align-items:center; gap:8px; margin:0; }
 .modern-app .subtitle-toolbar select { flex:1; min-width:0; width:0; }
 .modern-app .subtitle-toolbar button { flex:none; font-size: var(--font-size-control); padding-inline:8px; }
-.modern-app .subtitle-toolbar :is(select,button) { min-height:36px; }
+/* Square help trigger: no horizontal padding, so the glyph stays centred in its 30px box. */
+.modern-app .subtitle-toolbar .subtitle-help-trigger { padding:0; }
+.modern-app .subtitle-toolbar :is(select,button) { min-height:30px; }
 .modern-app .study-sidebar :is(.subtitle-scroll-list, .chapter-timeline-list) { flex:1; min-height:0; max-height:none; overflow:auto; }
 @media(max-width:1170px) {
  .modern-app .study-sidebar-body:is([data-tab=subtitles],[data-tab=chapters]) { height:clamp(320px, 60dvh, 560px); max-height:none; }

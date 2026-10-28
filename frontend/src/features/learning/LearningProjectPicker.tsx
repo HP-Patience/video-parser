@@ -35,11 +35,8 @@ export default function LearningProjectPicker({ context = 'learning', current, v
       <ProjectPickerMenu label={selectLabel} current={current} items={options} query={query} setQuery={setQuery}
         disabled={disabled || reading || available.length === 0} onSelect={onSelect} />
     </div>
-    <details className="learning-project-tools" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}><summary title="查找与刷新项目">{compact ? '查找' : '查找与刷新项目'}</summary><div>
-    <input className="learning-project-search" type="search" aria-label={workspace ? '搜索归档视频' : '搜索学习项目'} placeholder="搜索课程、分集或标题" value={query}
-      onChange={event => setQuery(event.target.value)} />
-    <button type="button" disabled={reading || loading} onClick={() => setReload(value => value + 1)}>刷新项目列表</button>
-    </div></details>
+    {/* Stays outside the popup: an empty or failed list disables the picker, and refresh must still be reachable. */}
+    <button type="button" className="learning-project-refresh" disabled={reading || loading} onClick={() => setReload(value => value + 1)}>刷新</button>
     {loading ? <p role="status">正在从本地归档切换视频…</p> : reading ? <p role="status">正在读取项目列表…</p>
       : error ? <p className="error-text" role="alert">{error}</p> : projects.length === 0 ? <p>{workspace ? '暂无已归档视频，可先解析链接并归档。' : '暂无已归档项目。先在视频工作台准备视频，再来这里学习。'}</p>
       : query && matching.length === 0 ? <p>没有匹配的已归档项目；当前视频保持不变。</p> : null}

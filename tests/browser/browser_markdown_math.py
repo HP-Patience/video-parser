@@ -62,6 +62,9 @@ class MarkdownMathBrowserTests(unittest.TestCase):
                 self.progress = {**body, 'revision': body['expected_revision'] + 1}
             route.fulfill(json=self.progress)
         self.page.route('**/api/workspace/projects/*/study/progress', progress)
+        # Scrub-bar thumbnails: answered locally so a hover never waits on ffmpeg.
+        self.page.route('**/preview-frame*', lambda route: route.fulfill(status=200, content_type='image/svg+xml',
+            body=b'<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90"/>'))
         self.network = []
         self.page.on('response', lambda response: self.network.append((response.url, response.status)))
 

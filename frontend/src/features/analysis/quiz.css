@@ -22,6 +22,7 @@
 .quiz-answer p { margin: 0; }
 .quiz-answer p + p { margin-top: 6px; color: var(--color-text-secondary); }
 .quiz-answer-label { margin-right: 8px; font-weight: var(--font-weight-semibold); color: var(--color-text); }
+.quiz-notice { margin: 0; font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
 @media (max-width: 560px) {
   .quiz-options, .quiz-answer { margin-left: 0; }
   .quiz-heading button { width: 100%; }

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field, field_validator
 
-from video_parser.services import ai_analysis, conversations, ai_settings, ai_startup, ai_runtime, ai_files, docx_export, library, task_runtime, workflows, local_agents, model_calls, subtitle_edits
+from video_parser.services import ai_analysis, conversations, ai_settings, ai_startup, ai_runtime, ai_files, docx_export, library, task_runtime, workflows, local_agents, model_calls, subtitle_edits, scrub_frames
 from video_parser.web import routes
 from video_parser.web.security import local_request
 
@@ -452,3 +452,11 @@ def ask_conversation(project_id: str, conversation_id: str, body: ConversationAs
     if agent['engine'] != 'api':
         payload['agent'] = agent
     return handled(workflows.start, 'analysis', project_id, project['title'], payload)
+
+
+@router.get('/projects/{project_id}/preview-frame')
+def preview_frame(project_id: str, resource: str, time: float = 0):
+    """One thumbnail for the player's scrub bar; cached per second on disk."""
+    path = handled(scrub_frames.frame, project_id, resource, time)
+    return Response(path.read_bytes(), media_type='image/jpeg',
+                    headers={'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff'})

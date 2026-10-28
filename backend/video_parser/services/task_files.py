@@ -109,7 +109,9 @@ def filename_labels():
             key = pid or ('part', part)
             title = library.episode_title(data) or ''
             # A single-video platform's title is not a series title. Never use a course title for a missing part.
-            if not title and data and not part and not library.normalize_episodes(data.get('episodes')):
+            # A one-part video has no episode title at all, so its own title is the only useful label.
+            single = part in (None, 1) and len(library.normalize_episodes(data.get('episodes'))) <= 1
+            if not title and data and single:
                 title = data.get('title') or ''
             subjects[key] = {'project_id': pid, 'part': part, 'title': title}
 

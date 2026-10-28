@@ -11,7 +11,6 @@ import './study.css';
 type Props = { projectId: string; media: Media; videoRef: RefObject<HTMLVideoElement | null>; onSeek: (time: number) => void };
 export default function TimestampNotes({ projectId, media, videoRef, onSeek }: Props) {
   const [notes, setNotes] = useState<PersonalNote[]>([]), [draft, setDraft] = useState<NoteDraft | null>(null);
-  const [editorOpen, setEditorOpen] = useState(true);
   const [loading, setLoading] = useState(true), [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('正在读取个人笔记…'), [error, setError] = useState('');
   const current = useRef<NoteDraft | null>(null), mounted = useRef(false), editor = useRef<HTMLTextAreaElement>(null);
@@ -88,8 +87,17 @@ export default function TimestampNotes({ projectId, media, videoRef, onSeek }: P
     window.addEventListener('pagehide', leave); document.addEventListener('visibilitychange', visibility);
     return () => { removeTimer(); leave(); mounted.current = false; controller.abort(); window.removeEventListener('pagehide', leave); document.removeEventListener('visibilitychange', visibility); };
   }, [path, key, media.resource]);
+  // The box is always on screen, so the first keystroke opens a draft stamped with the current time.
+  function begin(text: string) {
+    const video = videoRef.current;
+    const at = Math.max(0, Math.min(video?.currentTime || 0, Math.max(0, (video?.duration || media.duration) - .01)));
+    stage({ id: noteId(), time: at, text, revision: 0, dirty: true });
+    setError(''); setStatus(text.trim() ? '等待自动保存…' : '输入内容后自动保存');
+    removeTimer(); if (text.trim()) timer.current = setTimeout(() => { void flushRef.current(); }, 700);
+  }
   function changed(text: string) {
-    const value = current.current; if (!value) return;
+    const value = current.current;
+    if (!value) { begin(text); return; }
     stage({ ...value, text, dirty: true }); setStatus(text.trim() ? '等待自动保存…' : '输入内容后自动保存');
     removeTimer(); if (text.trim()) timer.current = setTimeout(() => { void flushRef.current(); }, 700);
   }
@@ -99,15 +107,19 @@ export default function TimestampNotes({ projectId, media, videoRef, onSeek }: P
     if (!(await flush()) || !mounted.current) return;
     const target = note && current.current?.id === note.id ? current.current : note;
     stage(target ? { ...target, dirty: false } : { id: noteId(), time: at, text: '', revision: 0, dirty: true });
-    setEditorOpen(true); setError(''); setStatus(note ? '正在编辑；修改后自动保存' : '已记录当前时间，输入内容后自动保存');
+    setError(''); setStatus(note ? '正在编辑；修改后自动保存' : '已记录当前时间，输入内容后自动保存');
     requestAnimationFrame(() => editor.current?.focus());
   }
-  function closeEditor() {
-    removeTimer(); setEditorOpen(false);
+  // Closing only hides the draft once it is safely on the server; a failed save keeps it in the box.
+  async function closeEditor() {
+    removeTimer();
     const value = current.current;
     if (!value || !value.text.trim()) { stage(null); setError(''); setStatus('已关闭编辑'); return; }
-    setStatus(value.dirty ? '草稿已保留，可继续编辑' : '已关闭编辑');
-    if (value.dirty) void flush();
+    if (value.dirty) {
+      const ok = await flush();
+      if (!ok || !mounted.current || current.current?.dirty) return;
+    }
+    stage(null); setError(''); setStatus('已关闭编辑');
   }
   async function remove(note: PersonalNote) {
     if (!window.confirm(t('确定删除这条个人笔记？此操作不能撤销。'))) return;
@@ -129,30 +141,31 @@ export default function TimestampNotes({ projectId, media, videoRef, onSeek }: P
     setError(''); void flush();
   }
   return <section className="timestamp-notes" aria-label="我的时间戳笔记">
-    <div className="timestamp-notes-heading"><strong>个人笔记</strong>
-      {draft && !editorOpen && draft.dirty && <button type="button" disabled={saving} onClick={() => { setEditorOpen(true); requestAnimationFrame(() => editor.current?.focus()); }}>继续编辑</button>}
-      <button type="button" disabled={loading || saving} onClick={() => { void start(); }}>记下当前时刻</button></div>
+    <div className="timestamp-notes-heading"><strong>个人笔记</strong></div>
     {!!notes.length && <div className="timestamp-notes-tools" aria-label="导出个人笔记">
       <a className="button" download href={`/api/workspace/projects/${projectId}/study/notes/export?resource=${encodeURIComponent(media.resource)}&format=md`}>导出笔记</a>
       <a className="button" download href={`/api/workspace/projects/${projectId}/study/notes/export?resource=${encodeURIComponent(media.resource)}&format=csv`}>导出 CSV</a>
       <a className="button" download href={`/api/workspace/projects/${projectId}/study/notes/export?resource=${encodeURIComponent(media.resource)}&format=anki`}>导出 Anki</a>
     </div>}
     {(loading || draft || error) && <p className="study-save-status" role="status">{status}</p>}
-    {!loading && !draft && !error && !notes.length && <p className="study-save-status">还没有个人笔记，点击“记下当前时刻”记录当前播放时刻。</p>}
+    {!loading && !draft && !error && !notes.length && <p className="study-save-status">还没有个人笔记，在下方写下内容即可记录当前播放时刻。</p>}
     {error && <div className="study-error" role="alert"><p>{error}</p>
       {draft && <><button type="button" disabled={saving} onClick={() => { void flush(); }}>重试保存笔记</button>
         <button type="button" disabled={saving || !draft.text.trim()} onClick={copyAsNew}>另存为新笔记</button></>}
       {!draft && <button type="button" onClick={() => reloadNotes.current()}>重新载入笔记</button>}</div>}
-    {draft && editorOpen && <div className="timestamp-note-editor"><label htmlFor="personal-note-text">{draft.revision ? '编辑笔记' : '新笔记'} · {chapterTime(draft.time)}</label>
-      <textarea ref={editor} id="personal-note-text" maxLength={5000} value={draft.text} onChange={event => changed(event.target.value)}
-        placeholder="写下自己的理解、疑问或重点。" rows={4} />
-      <div className="timestamp-note-editor-actions"><small>{draft.text.length} / 5000</small>
-        <button type="button" disabled={saving || !draft.dirty || !draft.text.trim()} onClick={() => { void flush(); }}>立即保存笔记</button>
-        <button type="button" disabled={saving} onClick={closeEditor}>关闭编辑</button></div></div>}
     <ol className="timestamp-notes-list">{notes.map(note => <li key={note.id}>
       <div className="timestamp-note-meta"><button type="button" className="timestamp-note-seek" onClick={() => onSeek(note.time)} aria-label={`跳到笔记 ${chapterTime(note.time)}`}><time>{chapterTime(note.time)}</time></button>
         <button type="button" disabled={saving} onClick={() => { void start(note); }} aria-label={`编辑 ${chapterTime(note.time)} 的笔记`}>编辑</button>
         <button type="button" disabled={saving} onClick={() => { void remove(note); }} aria-label={`删除 ${chapterTime(note.time)} 的笔记`}>删除</button></div>
       <p><MathText text={note.text} /></p></li>)}</ol>
+    <div className="timestamp-note-composer">
+      <label htmlFor="personal-note-text">{draft ? <>{draft.revision ? '编辑笔记' : '新笔记'} · {chapterTime(draft.time)}</> : '新笔记'}</label>
+      <textarea ref={editor} id="personal-note-text" maxLength={5000} value={draft?.text ?? ''} onChange={event => changed(event.target.value)}
+        placeholder="写下自己的理解、疑问或重点。" rows={4} />
+      <div className="timestamp-note-editor-actions"><small>{(draft?.text.length ?? 0)} / 5000</small>
+        {draft && !!draft.text.trim() && <button type="button" disabled={saving || !draft.dirty} onClick={() => { void flush(); }}>立即保存笔记</button>}
+        {draft && <button type="button" disabled={saving} onClick={() => { void closeEditor(); }}>关闭编辑</button>}
+        <button type="button" disabled={loading || saving} onClick={() => { void start(); }}>记下当前时刻</button></div>
+    </div>
   </section>;
 }

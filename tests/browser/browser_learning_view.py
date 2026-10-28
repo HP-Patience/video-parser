@@ -602,7 +602,7 @@ def main(timeline_test=False, study_test=False, agent_test=False):
                 page.get_by_role('button', name='选择或新建对话', exact=True).click()
                 page.get_by_role('button', name='＋ 新建对话', exact=True).click()
                 expect(chat.locator('.ai-chat-answer')).to_have_count(0)
-                expect(chat.locator('.ai-chat-session-heading')).to_contain_text('新对话')
+                expect(chat.locator('.ai-chat-session-heading strong')).to_have_count(0)
                 page.get_by_role('button', name='收起学习侧栏', exact=True).click()
                 expect(chat).to_be_hidden()
                 expect(page.locator('#learning-sidebar-content')).to_be_hidden()

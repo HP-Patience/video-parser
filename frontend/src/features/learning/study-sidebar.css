@@ -20,12 +20,36 @@
 .study-sidebar[data-aligned]:not(.is-collapsed) .study-sidebar-body { flex: 1; min-height: 0; max-height: none; }
 .study-sidebar-empty { padding: 16px; margin: 0; font-size: var(--font-size-caption); line-height: 1.8; color: var(--color-text-secondary); overflow-wrap: anywhere; }
 .study-sidebar .chapter-timeline { margin: 0; padding: 12px; border: 0; border-radius: 0; }
-.study-sidebar .timestamp-notes { margin: 0; padding: 12px; border: 0; border-radius: 0; }
+/* Notes mirror the chat rail: list scrolls in the middle, the note box stays at the bottom.
+   `height` (not `min-height`) keeps the panel from growing past the rail, so the list is the only
+   thing that scrolls and the box cannot be pushed off screen. */
+#study-panel-notes { display: flex; flex-direction: column; height: 100%; }
+.study-sidebar .timestamp-notes { display: flex; flex-direction: column; flex: 1; min-height: 0; margin: 0; padding: 12px 12px 0; border: 0; border-radius: 0; }
+.study-sidebar .timestamp-notes-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.study-sidebar .timestamp-notes-list:empty { display: none; }
+.study-sidebar .timestamp-note-composer { margin: 12px -12px 0; padding: 8px 12px 12px; background: var(--color-surface-raised); }
+.study-sidebar .timestamp-note-composer textarea { min-height: 120px; }
+/* With no notes the box takes the spare height, exactly like an empty chat composer. */
+.study-sidebar .timestamp-notes:not(:has(.timestamp-notes-list > li)) .timestamp-note-composer { flex: 1 1 auto; display: flex; flex-direction: column; }
+.study-sidebar .timestamp-notes:not(:has(.timestamp-notes-list > li)) .timestamp-note-composer textarea { flex: 1 1 auto; height: auto; }
 .timestamp-notes-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--font-size-sm); }
 .timestamp-notes-heading button { min-height: 36px; }
 #study-panel-chat > .ai-chat:first-child { border-top: 0; }
 /* The question box stays at the bottom of the sidebar while the Q&A above it scrolls. */
-.study-sidebar .ai-chat-form { position: sticky; bottom: 0; z-index: 1; margin: 10px -12px -12px; padding: 8px 12px 12px; border-top: 1px solid var(--color-border); background: var(--color-surface-raised); }
+/* The composer is the last flex row of the panel, so it already sits at the bottom: no sticky
+   positioning (that used to cover the tail of a short log and swallow clicks). */
+.study-sidebar .ai-chat-form { margin: 10px -12px -12px; padding: 8px 12px 12px; background: var(--color-surface-raised); }
+/* Chat fills the rail: the input box takes the leftover height and the toolbar sits at the bottom. */
+#study-panel-chat { display: flex; flex-direction: column; height: 100%; }
+#study-panel-chat > .ai-chat { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.study-sidebar .ai-chat-log { flex: 1; min-height: 0; }
+.study-sidebar .ai-chat-form { margin-top: auto; }
+/* Only a chat with no messages hands the spare height to the composer: the input box then fills the
+   rail, so there is no dead band above it. Once the log has content it keeps the space and the
+   composer falls back to its 120px floor, so existing conversations look unchanged. */
+.study-sidebar .ai-chat:not(:has(.ai-chat-log > li)) .ai-chat-form { flex: 1 1 auto; display: flex; flex-direction: column; }
+.study-sidebar .ai-chat:not(:has(.ai-chat-log > li)) .ai-chat-input { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.study-sidebar .ai-chat:not(:has(.ai-chat-log > li)) .ai-chat-input textarea { flex: 1 1 auto; height: auto; min-height: 120px; }
 .study-sidebar .timestamp-note-editor-actions { justify-content: flex-start; }
 .study-sidebar .timestamp-note-meta { gap: 5px; }
 .study-sidebar .timestamp-note-meta > button { padding-inline: 8px; font-size: var(--font-size-control); }

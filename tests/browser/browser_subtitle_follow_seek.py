@@ -20,7 +20,7 @@ class SubtitleFollowSeekTests(unittest.TestCase):
             r.fulfill(headers=headers,body=data)
         self.page.route('**/product-fixture.wav',media)
         self.h.open(learning=True);self.page.get_by_role('tab',name='字幕',exact=True).click()
-        self.list=self.page.locator('.subtitle-scroll-list');self.toggle=self.page.locator('.subtitle-toolbar button');self.video=self.page.locator('video')
+        self.list=self.page.locator('.subtitle-scroll-list');self.toggle=self.page.locator('.subtitle-toolbar button').first;self.video=self.page.locator('video')
         expect(self.list.locator('button')).to_have_count(140);self.page.wait_for_function('()=>{const v=document.querySelector("video");return v.seekable.length&&v.seekable.end(0)>65}')
         self.video.evaluate('(v)=>v.pause()')
     def on(self):expect(self.toggle).to_have_attribute('aria-pressed','true')
@@ -30,15 +30,9 @@ class SubtitleFollowSeekTests(unittest.TestCase):
     def pause_by_wheel(self):
         self.list.hover();self.page.mouse.wheel(0,170);self.off()
     def timeline(self):
-        self.video.hover();client=self.page.context.new_cdp_session(self.page)
-        root=client.send('DOM.getDocument',{'depth':-1,'pierce':True})['root'];found=[]
-        def walk(n):
-            attrs=dict(zip(n.get('attributes',[])[::2],n.get('attributes',[])[1::2]))
-            if n.get('nodeName')=='INPUT' and 'timeline' in str(attrs):found.append(n['nodeId'])
-            for c in n.get('children',[])+n.get('shadowRoots',[]):walk(c)
-        walk(root);self.assertTrue(found,'Native timeline input not found in UA shadow DOM')
-        q=client.send('DOM.getBoxModel',{'nodeId':found[0]})['model']['content'];client.detach()
-        return q[0]+8,(q[1]+q[5])/2,q[2]-q[0]-16
+        # The custom bar replaced the native controls, so the seek surface is .vc-track now.
+        box=self.page.locator('.vc-track').bounding_box()
+        return box['x']+6,(box['y']+box['height']/2),box['width']-12
     def native_click(self,fraction):
         x,y,w=self.timeline();self.page.mouse.click(x+w*fraction,y)
         self.page.wait_for_function('()=>!document.querySelector("video").seeking&&document.querySelector("video").currentTime>5')

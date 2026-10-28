@@ -24,7 +24,7 @@
   gap: var(--action-gap);
   flex-wrap: wrap;
 }
-.modern-app :is(.settings-actions, .subtitle-toolbar, .task-inline-actions, .analysis-actions, .analysis-record-actions, .video-context-actions, .saved-location-actions, .row-action) > :is(button, a.button) {
+.modern-app :is(.settings-actions, .task-inline-actions, .analysis-actions, .analysis-record-actions, .video-context-actions, .saved-location-actions, .row-action) > :is(button, a.button) {
   min-height: var(--control-height-md);
   padding: calc((var(--control-height-md) - 20px - 2px) / 2) var(--space-3);
   line-height: 20px;
@@ -69,6 +69,8 @@
   padding: 4px var(--space-2);
   line-height: 20px;
   font-size: var(--font-size-control);
+  white-space: normal;
+  max-width: 100%;
 }
 .modern-app .subtitle-toolbar input { flex: 1 1 200px; }
 .modern-app :is(.subtitle-scroll-list, .chapter-timeline-list) { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-3); }

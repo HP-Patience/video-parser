@@ -80,7 +80,7 @@ def main():
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=True, channel=os.environ.get('VIDEO_PARSER_BROWSER_CHANNEL'))
             page = browser.new_page(viewport={'width': 1440, 'height': 1000})
             errors = []; page.on('pageerror', lambda error: errors.append(str(error)))
             page.route('**/api/workspace/**', api)
@@ -147,6 +147,16 @@ def main():
             update(state='completed', phase='completed', message='已完成归档', result=media)
             expect(frame).to_have_attribute('data-state', 'player')
             expect(frame.locator('video')).to_be_visible()
+            # The custom bar hides as soon as the pointer leaves the video area (paused included).
+            controls = frame.locator('.video-controls')
+            box = frame.bounding_box()
+            center = (box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+            page.mouse.move(*center); page.wait_for_timeout(250)
+            assert 'is-hidden' not in (controls.get_attribute('class') or ''), 'hovering the video must show the bar'
+            page.mouse.move(2, 2); page.wait_for_timeout(350)
+            assert 'is-hidden' in (controls.get_attribute('class') or ''), 'leaving the video must hide the bar'
+            page.mouse.move(*center); page.wait_for_timeout(250)
+            assert 'is-hidden' not in (controls.get_attribute('class') or ''), 'coming back must show the bar again'
             assert page.evaluate('window.originalMediaStage===document.querySelector("#video-stage")')
             after = frame.bounding_box()
             assert abs(before['height'] - after['height']) < 1 and abs(before['width'] - after['width']) < 1, (before, after)

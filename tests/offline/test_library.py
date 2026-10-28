@@ -56,6 +56,16 @@ class LibraryTests(unittest.TestCase):
             self.assertEqual(result, {'episodes': [], 'learned': learned})
             self.assertEqual(store.public(store.get(project['id']))['learned'], learned)
 
+    def test_single_part_video_ignores_the_platform_p1_title(self):
+        # Bilibili P1 titles are often the uploader's raw file name; a one-part video needs no label.
+        project = store.ensure({**self.meta, 'source_url': 'https://www.bilibili.com/video/BV1JZpd6nEjF',
+                                'episodes': [{'part': 1, 'title': 'video_final', 'duration': 181}]})
+        self.assertIsNone(store.episode_title(project))
+        self.assertIsNone(store.public(project)['episode_title'])
+        self.assertEqual(store.public(project)['title'], '原标题')
+        # A user rename always wins.
+        self.assertEqual(store.episode_title({**project, 'episode_title': '用户自定义章节'}), '用户自定义章节')
+
     def test_episode_title_falls_back_to_selected_catalog_part(self):
         catalog = [{'part': 3, 'title': '3. 向量空间', 'duration': 60}, {'part': 4, 'title': '4. 子空间', 'duration': 80}]
         project = store.ensure({**self.meta, 'episodes': catalog})

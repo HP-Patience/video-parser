@@ -518,11 +518,13 @@ export default function App() {
     requestAnimationFrame(() => {
       if (video !== videoRef.current || video.getAttribute('src') !== sourceURL) return;
       if (pendingSeek.current) pendingSeek.current.video.removeEventListener('loadedmetadata', pendingSeek.current.go);
+      // Seeking a paused video must not start playback; only resume what was already playing.
+      const wasPlaying = !video.paused;
       const go = () => {
         if (video !== videoRef.current || video.getAttribute('src') !== sourceURL) return;
         pendingSeek.current = null;
         video.currentTime = Number.isFinite(video.duration) ? Math.min(seconds, Math.max(0, video.duration - .01)) : seconds;
-        void video.play().catch(() => undefined);
+        if (wasPlaying) void video.play().catch(() => undefined);
       };
       if (video.readyState >= 1) go(); else { pendingSeek.current = { video, go }; video.addEventListener('loadedmetadata', go, { once: true }); video.load(); }
       document.getElementById('video-stage')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });

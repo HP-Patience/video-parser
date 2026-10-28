@@ -71,8 +71,18 @@ class SlashCommandBrowserTests(unittest.TestCase):
         self.field.evaluate("el => el.scrollIntoView({block: 'end'})")
         before = self.field.bounding_box(); self.field.fill('/'); expect(self.menu).to_be_visible(); self.page.wait_for_timeout(50)
         menu, after = self.menu.bounding_box(), self.field.bounding_box()
-        self.assertNotIn('is-below', self.menu.get_attribute('class') or '')
-        self.assertLessEqual(menu['y'] + menu['height'], after['y']); self.assertAlmostEqual(before['y'], after['y'], delta=1)
+        # The composer is deliberately tall, so in a short rail the room below can exceed the room
+        # above and the menu legitimately flips. What must hold either way: no layout shift, no
+        # clipping, and a still-usable list.
+        below = 'is-below' in (self.menu.get_attribute('class') or '')
+        if below:
+            self.assertGreaterEqual(menu['y'], after['y'] + after['height'])
+            rail_bottom = self.page.evaluate("() => document.querySelector('.study-sidebar-body').getBoundingClientRect().bottom")
+            self.assertLessEqual(menu['y'] + menu['height'], rail_bottom + 1)
+        else:
+            self.assertLessEqual(menu['y'] + menu['height'], after['y'])
+        self.assertGreaterEqual(menu['height'], 100, 'the flipped menu must stay usable')
+        self.assertAlmostEqual(before['y'], after['y'], delta=1)
         for y in (menu['y'] + 4, menu['y'] + menu['height'] / 2, menu['y'] + menu['height'] - 4):
             self.assertTrue(self.page.evaluate('([x, y]) => !!document.elementFromPoint(x, y)?.closest(".slash-command-menu")', [menu['x'] + menu['width'] / 2, y]))
         self.page.screenshot(path=str(shots / 'slash-overlay-above.png'))

@@ -48,9 +48,13 @@ SYSTEM_PROMPT = (
 
 TEMPLATES = {
     'summary': {
-        'name': '内容摘要', 'description': '一句话概括、核心要点和结论', 'source': 'both',
-        'prompt': '请为这个视频写一份内容摘要：\n1. 一句话概括视频讲了什么；\n2. 3～6 个核心要点，每个要点后标出对应的时间点；'
-                  '\n3. 视频的结论或作者的观点；\n4. 适合什么人看、看完能得到什么。',
+        'name': '内容摘要', 'description': '一句话概括、关键结论和适合人群', 'source': 'both',
+        'prompt': '请为这个视频写一份结论型摘要。不要逐段复述讲解过程，那是「学习笔记」的职责。\n'
+                  '1. 一句话概括视频讲了什么；\n'
+                  '2. 视频的核心结论或作者的主要观点，2～4 条，每条后标出对应的时间点；\n'
+                  '3. 适合什么人看、看完能得到什么；\n'
+                  '4. 若有需要提醒的前提或局限（例如示例不代表普遍结论），一并说明。\n'
+                  '总长度控制在 600 字以内。',
     },
     'chapters': {
         'name': '章节时间轴', 'description': '按时间分段，每段一个标题和说明', 'source': 'both',
@@ -59,13 +63,14 @@ TEMPLATES = {
                   '章节数量根据内容决定，通常 5～15 个；起始时间要准确对应字幕或画面的时间。',
     },
     'notes': {
-        'name': '学习笔记', 'description': '知识点、公式、易错点和自测题，适合课程', 'source': 'both',
-        'prompt': '请把这个视频整理成一份学习笔记，使用以下结构：\n## 主题概览\n'
+        'name': '学习笔记', 'description': '按讲解顺序整理知识点、公式和易错点', 'source': 'both',
+        'prompt': '请把这个视频整理成一份学习笔记，使用以下结构。不要生成练习题，练习题由「复习自测题」单独生成：\n'
+                  '## 主题概览\n'
                   '## 知识点（按讲解顺序，写清定义、推导或例子，并标出时间点）\n## 关键公式或结论（如有）\n'
-                  '## 容易混淆或出错的地方\n## 复习自测题（3～5 道，附简短答案）',
+                  '## 容易混淆或出错的地方',
     },
     'quiz': {
-        'name': '复习自测题', 'description': '结构化选择题，可逐题作答并导出 Anki', 'source': 'transcript', 'requires': 'transcript',
+        'name': '复习自测题', 'description': '结构化选择题，可逐题作答并导出 Anki', 'source': 'both', 'requires': 'transcript',
         'prompt': '请根据视频内容出 6～10 道复习自测题，覆盖主要知识点，由易到难。\n'
                   '只输出一个 ```json 代码块，不要输出任何其他文字。JSON 结构：\n'
                   '{"title":"这套题的标题","questions":[{"question":"题干","options":["选项内容","选项内容","选项内容","选项内容"],'
@@ -73,18 +78,6 @@ TEMPLATES = {
                   '要求：每题 4 个选项且只有一个正确答案；answer 只写选项字母 A/B/C/D；'
                   '判断题也写成两个选项（A. 正确、B. 错误）；time 是该知识点在视频中的秒数，无法确定时写 null；'
                   '题干、选项和解析都用简体中文；不要编造材料里没有的内容；不要使用 Markdown 或注释。',
-    },
-    'exam': {
-        'name': '模拟测验', 'description': '先作答、后统一判分，含总分与错题回顾', 'source': 'transcript', 'requires': 'transcript',
-        'prompt': '请根据视频内容出一套模拟测验题，用来检验学习成果。\n'
-                  '只输出一个 ```json 代码块，不要输出任何其他文字。JSON 结构：\n'
-                  '{"title":"这套测验的标题","questions":[{"question":"题干","options":["选项内容","选项内容","选项内容","选项内容"],'
-                  '"answer":"A","explanation":"为什么选它，以及常见错误","time":192}]}\n'
-                  '要求：每题 4 个选项且只有一个正确答案；answer 只写选项字母 A/B/C/D；'
-                  '判断题也写成两个选项（A. 正确、B. 错误）；time 是该知识点在视频中的秒数，无法确定时写 null；'
-                  '题干、选项和解析都用简体中文；不要编造材料里没有的内容；不要使用 Markdown 或注释；'
-                  '题干和选项都不能暗示正确答案，不要出现“以上都对”“以上都不对”这类选项；'
-                  '各题之间不要重复考查同一个知识点。未指定题量和难度时，出 8～12 道中等难度的题。',
     },
     'breakdown': {
         'name': '短视频拆解', 'description': '开头钩子、结构节奏、镜头和文案', 'source': 'both',
@@ -112,7 +105,7 @@ TEMPLATES = {
 
 def public_templates():
     return [{'id': key, 'name': item['name'], 'description': item['description'], 'source': item['source'],
-             'requires': item.get('requires')} for key, item in TEMPLATES.items()]
+             'requires': item.get('requires')} for key, item in TEMPLATES.items() if not item.get('hidden')]
 
 
 def ts(seconds):
@@ -202,8 +195,20 @@ def transcript_sources(project, include_translations=False):
             continue
         body, merged = compact(cues)
         rows.append({'resource': name, 'label': transcript_label(item), 'kind': item['kind'], 'language': item.get('language') or '',
-                     'cues': len(cues), 'chars': len(body), 'merged': merged, 'tokens': estimate_text_tokens(body), 'end': ts(cues[-1][0])})
+                     'cues': len(cues), 'chars': len(body), 'merged': merged, 'tokens': estimate_text_tokens(body), 'end': ts(cues[-1][0]),
+                     '_saved': library.resource_from_project(project, name).stat().st_mtime})
     rows.sort(key=lambda row: (row['kind'] != 'subtitle', row['resource']))
+    # Every proofread save adds another file, all labelled "人工校对（中文）". Number them by save time
+    # so the version picker distinguishes them instead of showing identical entries.
+    versions = {}
+    for row in rows:
+        if row['kind'] == 'correction':
+            versions.setdefault(row['language'], []).append(row)
+    for group in versions.values():
+        for index, row in enumerate(sorted(group, key=lambda item: item['_saved']), 1):
+            row['label'] = f"{row['label']} v{index}"
+    for row in rows:
+        row.pop('_saved', None)
     return rows
 
 
@@ -627,7 +632,7 @@ def _record(project, name, item):
             'provider': item.get('provider') or '', 'engine': engine, 'transcript_label': item.get('transcript_label') or '',
             'transcript_merged': bool(item.get('transcript_merged')), 'video_resource': item.get('video_resource'),
             'frame_count': item.get('frame_count') or len(frames), 'frames': frames, 'usage': item.get('usage') or {},
-            'quiz': quiz.parse(text) if template in ('quiz', 'exam') and text else None,
+            'quiz': quiz.parse(text) if template == 'quiz' and text else None,
             'text': text, 'followups': followups(project, record_id), 'context_after': item.get('context_after'), 'legacy': legacy}
 
 
