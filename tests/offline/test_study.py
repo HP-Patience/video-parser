@@ -50,6 +50,49 @@ class StudyTests(unittest.TestCase):
         self.assertNotIn('修改后的理解',study.context(self.identifier,self.resource)[1].read_text(encoding='utf-8'))
         with self.assertRaises(study.Conflict):study.save_note(self.identifier,self.resource,self.note,5,'旧自动保存',0)
 
+    def test_quiz_answers_persist_per_record(self):
+        record = '20261028-161156-79e0ef47'
+        self.assertEqual(study.quiz(self.identifier, self.resource, record), {'answers': {}, 'updated_at': None})
+        saved = study.save_quiz(self.identifier, self.resource, record, {'0': 2, '3': 1})
+        self.assertEqual(saved['answers'], {'0': 2, '3': 1})
+        self.assertEqual(study.quiz(self.identifier, self.resource, record)['answers'], {'0': 2, '3': 1})
+        # Each record owns its answers; notes and progress live in the same sidecar untouched.
+        study.save_note(self.identifier, self.resource, self.note, 5, '笔记', 0)
+        self.assertEqual(study.quiz(self.identifier, self.resource, '20261028-133813-b1bafcb1')['answers'], {})
+        self.assertEqual(study.quiz(self.identifier, self.resource, record)['answers'], {'0': 2, '3': 1})
+        self.assertEqual(len(study.notes(self.identifier, self.resource)), 1)
+        # "重新作答" clears by replacing the whole map.
+        self.assertEqual(study.save_quiz(self.identifier, self.resource, record, {})['answers'], {})
+        self.assertEqual(study.quiz(self.identifier, self.resource, record)['answers'], {})
+
+    def test_quiz_rejects_bad_ids_and_answers(self):
+        for bad in ('', '../x', 'a' * 65, 'has space'):
+            with self.assertRaises(ValueError):
+                study.save_quiz(self.identifier, self.resource, bad, {})
+        for bad in ({'0': 6}, {'0': True}, {'x': 1}, {'0': -1}, {str(i): 0 for i in range(201)}):
+            with self.assertRaises(ValueError):
+                study.save_quiz(self.identifier, self.resource, 'rec-1', bad)
+
+    def test_sidecar_written_before_quizzes_still_reads(self):
+        _, path, fingerprint, _ = study.context(self.identifier, self.resource)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({'version': 1, 'project_id': self.identifier, 'resource': self.resource,
+            'fingerprint': fingerprint, 'progress': {'position': 3.0, 'duration': 20.0, 'revision': 1}, 'notes': {}}), encoding='utf-8')
+        self.assertEqual(study.load(self.identifier, self.resource)['progress']['position'], 3.0)
+        self.assertEqual(study.quiz(self.identifier, self.resource, 'rec-1')['answers'], {})
+        study.save_quiz(self.identifier, self.resource, 'rec-1', {'1': 0})
+        self.assertEqual(study.quiz(self.identifier, self.resource, 'rec-1')['answers'], {'1': 0})
+        self.assertEqual(study.load(self.identifier, self.resource)['progress']['position'], 3.0)
+
+    def test_http_quiz_roundtrip(self):
+        base = f'{self.url}/quiz/rec-1'
+        self.assertEqual(self.client.get(base, params={'resource': self.resource}).json()['answers'], {})
+        saved = self.client.post(base, json={'resource': self.resource, 'answers': {'2': 3}})
+        self.assertEqual(saved.status_code, 200, saved.text)
+        self.assertEqual(self.client.get(base, params={'resource': self.resource}).json()['answers'], {'2': 3})
+        self.assertEqual(self.client.post(base, json={'resource': self.resource, 'answers': {'2': 9}}).status_code, 400)
+        self.assertEqual(self.client.post(f'{self.url}/quiz/bad%20id', json={'resource': self.resource, 'answers': {}}).status_code, 422)
+
     def test_conflicts_are_not_silent_overwrites(self):
         study.progress(self.identifier,self.resource,5,20,0)
         with self.assertRaises(study.Conflict):study.progress(self.identifier,self.resource,1,20,0)

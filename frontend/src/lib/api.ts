@@ -48,6 +48,8 @@ export interface QuizQuestion {
   question: string; options: string[]; answer: number; answer_text: string; explanation: string; time: number | null;
 }
 export interface Quiz { title: string; questions: QuizQuestion[] }
+/** Answers the learner already gave for one analysis record; keys are question indexes. */
+export interface QuizState { answers: Record<string, number>; updated_at: string | null }
 export interface AnalysisRecord {
   id: string; created_at: string | null; template: string; template_name: string; source: AnalysisSource; source_label: string;
   prompt: string; model: string; provider: string; engine?: AgentEngine; transcript_label: string; transcript_merged: boolean; video_resource: string | null;

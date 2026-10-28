@@ -9,6 +9,8 @@ from video_parser.services import anki_export, library
 MAX_TIME = 31 * 86400
 MAX_NOTES = 1000
 MAX_ENTRIES = 10000
+MAX_ANSWERS = 200
+RECORD_ID = re.compile(r'[0-9A-Za-z_-]{1,64}')
 
 class Conflict(ValueError):
     pass
@@ -42,7 +44,7 @@ def context(identifier, resource):
 def read(path, identifier, resource, fingerprint):
     if not path.exists():
         return {'version': 1, 'project_id': identifier, 'resource': resource, 'fingerprint': fingerprint,
-                'progress': {'position': 0, 'duration': 0, 'revision': 0}, 'notes': {}}
+                'progress': {'position': 0, 'duration': 0, 'revision': 0}, 'notes': {}, 'quizzes': {}}
     try:
         if path.stat().st_size > 8 * 1024 * 1024: raise ValueError()
         data = json.loads(path.read_text(encoding='utf-8'))
@@ -55,6 +57,14 @@ def read(path, identifier, resource, fingerprint):
             assert type(note['revision']) is int and note['revision'] > 0
             if not note.get('deleted'):
                 seconds(note['time']); assert isinstance(note['text'], str) and 0 < len(note['text']) <= 5000
+        # Sidecars written before quizzes existed have no key; filling it in keeps old files readable.
+        quizzes = data.setdefault('quizzes', {})
+        assert isinstance(quizzes, dict) and len(quizzes) <= MAX_ENTRIES
+        for key, row in quizzes.items():
+            assert RECORD_ID.fullmatch(key) and isinstance(row.get('answers'), dict)
+            assert len(row['answers']) <= MAX_ANSWERS
+            for index, choice in row['answers'].items():
+                assert re.fullmatch(r'\d{1,3}', str(index)) and type(choice) is int and 0 <= choice <= 5
         return data
     except (ValueError, KeyError, TypeError, AssertionError, AttributeError):
         raise ValueError('学习数据无法读取，原文件已保留；请备份后检查，不会自动覆盖。') from None
@@ -134,7 +144,27 @@ def delete_note(identifier, resource, note_id, expected_revision):
     return mutate(identifier, resource, change)
 
 
-# ---- Export -------------------------------------------------------------------
+def quiz(identifier, resource, record_id):
+    """Answers already given for one analysis record; survives a refresh."""
+    if not RECORD_ID.fullmatch(record_id or ''): raise ValueError('分析记录标识无效。')
+    row = (load(identifier, resource).get('quizzes') or {}).get(record_id)
+    return {'answers': dict(row['answers']) if row else {}, 'updated_at': row.get('updated_at') if row else None}
+
+
+def save_quiz(identifier, resource, record_id, answers):
+    """Whole-map replace: the quiz is small and last write wins, so a stale tab cannot merge silently."""
+    if not RECORD_ID.fullmatch(record_id or ''): raise ValueError('分析记录标识无效。')
+    if not isinstance(answers, dict) or len(answers) > MAX_ANSWERS: raise ValueError('答案数量无效。')
+    clean = {}
+    for index, choice in answers.items():
+        if not re.fullmatch(r'\d{1,3}', str(index)): raise ValueError('题号无效。')
+        if type(choice) is not int or not 0 <= choice <= 5: raise ValueError('选项无效。')
+        clean[str(index)] = choice
+    def change(data, _):
+        row = {'answers': clean, 'updated_at': datetime.now(timezone.utc).isoformat(timespec='seconds')}
+        data.setdefault('quizzes', {})[record_id] = row
+        return row
+    return mutate(identifier, resource, change)
 
 def clock(seconds):
     total = max(0, int(seconds or 0))
