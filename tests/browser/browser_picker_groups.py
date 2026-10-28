@@ -51,11 +51,17 @@ class PickerGroupsTests(unittest.TestCase):
         self.field.fill('');expect(self.popup.get_by_role('option')).to_have_count(0)
         self.assert_no_submission()
     def test_keyboard_controls_do_not_select_and_navigation_skips_hidden_items(self):
-        self.field.press('Tab');all_button=self.popup.get_by_role('button',name='全部收起');expect(all_button).to_be_focused()
+        # The collapse toggle sits on the first heading row, so it follows that heading in tab order.
+        self.field.press('Tab');expect(self.popup.get_by_role('listbox')).to_be_focused()
+        self.page.keyboard.press('Tab');expect(self.headers().first).to_be_focused()
+        self.page.keyboard.press('Tab')
+        all_button=self.popup.get_by_role('button',name='全部收起');expect(all_button).to_be_focused()
         all_button.press('Enter');expect(self.popup.get_by_role('option')).to_have_count(0);expect(self.trigger).to_have_attribute('data-value',picker.FIRST)
-        all_button=self.popup.get_by_role('button',name='全部展开');all_button.press('Space');expect(self.popup.get_by_role('option')).to_have_count(4)
-        self.popup.get_by_role('button',name='全部收起').press('Tab');expect(self.popup.get_by_role('listbox')).to_be_focused()
-        self.page.keyboard.press('Tab');expect(self.headers().first).to_be_focused();self.headers().first.press('Enter')
+        expand=self.popup.get_by_role('button',name='全部展开')
+        expand.focus();self.page.keyboard.press('Space');expect(self.popup.get_by_role('option')).to_have_count(4)
+        self.page.keyboard.press('Tab');expect(self.headers().nth(1)).to_be_focused()
+        # Heading reachability is checked directly; its tab position relative to the toggle is covered above.
+        self.headers().first.focus();self.headers().first.press('Enter')
         expect(self.headers().first).to_have_attribute('aria-expanded','false');expect(self.trigger).to_have_attribute('data-value',picker.FIRST)
         self.field.focus();self.field.press('ArrowDown');active=self.field.get_attribute('aria-activedescendant')
         self.assertEqual(self.page.locator('[id="'+active+'"]').get_attribute('data-project-id'),THIRD)
@@ -76,7 +82,7 @@ class PickerGroupsTests(unittest.TestCase):
     def test_new_group_is_expanded_and_learning_picker_has_same_controls(self):
         self.popup.get_by_role('button',name='全部收起').click();self.field.press('Escape')
         self.rows.append({**self.rows[0],'id':'d'*32,'video_id':'new-course','display_title':'新出现的课程','title':'新出现的课程'})
-        self.page.locator('.workspace-toolbar summary').click();self.page.get_by_role('button',name='刷新项目列表',exact=True).click();expect(self.trigger).to_be_enabled()
+        self.page.locator('.learning-project-refresh').first.click();expect(self.trigger).to_be_enabled()
         self.trigger.click();expect(self.popup.get_by_role('button',name='新出现的课程',exact=True)).to_have_attribute('aria-expanded','true')
         expect(self.popup.get_by_role('option')).to_have_count(1);self.field.press('Escape')
         self.page.get_by_role('button',name='学习视图',exact=True).click();learning=self.page.get_by_role('combobox',name='学习项目',exact=True);expect(learning).to_be_enabled();learning.click()

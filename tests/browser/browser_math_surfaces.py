@@ -36,7 +36,10 @@ class MathSurfacesBrowserTests(unittest.TestCase):
         self.assertIn('x_1',annotations);self.assertIn('|x|',annotations);self.assertIn(r'f:A\to B',annotations)
         target=directory.locator('.chapter-timeline-list button').nth(3)
         target.focus();self.page.keyboard.press('Enter')
-        # The WAV fixture can seek ~80 ms before a boundary; let playback cross it naturally.
+        # A paused player stays paused after a seek by design, and the WAV lands ~80 ms before the
+        # boundary, so start playback from the player to cross into the chapter, then stop again.
+        self.page.wait_for_function('document.querySelector("video").currentTime >= 5.8')
+        self.page.locator('.video-controls .vc-button').first.click()
         self.page.wait_for_function('document.querySelector("video").currentTime >= 6.1')
         self.page.locator('video').evaluate('(v)=>v.pause()')
         expect(target).to_have_attribute('aria-current','true')
@@ -70,7 +73,7 @@ class MathSurfacesBrowserTests(unittest.TestCase):
         rows.locator('button').nth(1).click();self.page.wait_for_function('document.querySelector("video").currentTime>=1.9')
         self.page.locator('video').evaluate('(v)=>v.pause()');self.shot('subtitle-math-narrow')
     def test_conversation_heading_and_picker_render_but_input_keeps_tex(self):
-        self.f.sessions=[{'id':'f'*32,'title':r'讨论 \(Ax=b\)','video_resource':self.f.resource,'origin_record':None,'agent':{'engine':'api','model':'','effort':''},'messages':[],'created_at':'','updated_at':''}]
+        self.f.sessions=[{'id':'f'*32,'title':r'讨论 \(Ax=b\)','title_generated':True,'video_resource':self.f.resource,'origin_record':None,'agent':{'engine':'api','model':'','effort':''},'messages':[],'created_at':'','updated_at':''}]
         self.learn();self.page.get_by_role('tab',name='AI 对话',exact=True).click()
         expect(self.page.locator('.ai-chat-session-heading .katex')).to_have_count(1)
         picker=self.page.get_by_role('button',name='选择或新建对话',exact=True)
@@ -118,7 +121,7 @@ class SubtitleMathReadingTests(unittest.TestCase):
         card.get_by_role('button',name='返回公式阅读',exact=True).click()
         expect(card.locator('.math-reading-body')).to_be_visible()
         expect(card.locator('.subtitle-version-file')).to_contain_text('原始文件_x_1.srt')
-        card.get_by_role('button',name='AI 译文',exact=True).click()
+        card.get_by_role('button',name='AI翻译字幕',exact=True).click()
         expect(card.locator('.math-reading-body .katex')).to_have_count(2)
         for theme in ('light','dark'):
             self.page.evaluate('(v)=>document.documentElement.dataset.theme=v',theme)

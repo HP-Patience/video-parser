@@ -26,6 +26,12 @@ export default function SubtitlePanel({ projectId, mediaKey, videoRef, onSeek, o
   useEffect(() => { setResource(''); setData(null); setCurrent(0); setFollow(true); }, [projectId, mediaKey]);
   useEffect(() => { setEditing(null); setEditError(''); }, [resource, projectId, mediaKey]);
   useEffect(() => () => publishing.current?.abort(), []);
+  // The save confirmation is a corner toast, not a line inside the rail; it clears itself.
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(''), 3000);
+    return () => clearTimeout(timer);
+  }, [notice]);
   useEffect(() => {
     const controller = new AbortController(); setError('');
     request<Data>(`/projects/${projectId}/subtitle-cues?resource=${encodeURIComponent(resource)}`, controller.signal).then(setData)
@@ -117,7 +123,7 @@ export default function SubtitlePanel({ projectId, mediaKey, videoRef, onSeek, o
           .map(([key, text]) => ({ time: Number(key.slice(prefix.length)), text })) });
       if (controller.signal.aborted) return;
       setDrafts(current => Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(prefix))));
-      setNotice(`已另存校对版本「${saved.filename}」，原字幕未改动。`);
+      setNotice('已保存校对版本');
       setResource(saved.resource);
       window.dispatchEvent(new Event('video-parser:subtitles-changed'));
     } catch (reason) {
@@ -168,6 +174,6 @@ export default function SubtitlePanel({ projectId, mediaKey, videoRef, onSeek, o
       {editError && <p className="error-text" role="alert">{editError}</p>}
     </>}
   </section>
-  {notice && <p className="subtitle-edit-notice" role="status">{notice}</p>}
+  {notice && <p className="subtitle-toast" role="status">{notice}</p>}
   </>;
 }

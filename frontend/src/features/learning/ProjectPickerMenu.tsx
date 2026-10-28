@@ -96,13 +96,16 @@ export default function ProjectPickerMenu({ items, current, label, disabled, que
       <div className="project-picker-filter"><input ref={input} type="search" aria-label="筛选视频列表" placeholder="搜索课程、分集或 P 号" value={query}
         aria-controls={id} aria-activedescendant={activeItem ? `${id}-${activeItem.id}` : undefined}
         onChange={e => { setQuery(e.target.value); setActive(''); }} /></div>
-      <div className="project-picker-actions"><button type="button" disabled={!ordered.length} onClick={toggleAll}>{allCollapsed ? '全部展开' : '全部收起'}</button></div>
       <div id={id} role="listbox" aria-label={label} className="project-picker-options" tabIndex={0} aria-activedescendant={activeItem ? `${id}-${activeItem.id}` : undefined}>
         {ordered.map(([key, group], index) => <div key={key} role="group" aria-label={group.full}>
-          <button type="button" className="project-picker-group" aria-expanded={!folded.has(key)} aria-controls={`${id}-group-${index}`} onClick={() => toggleGroup(key)}>
-            <svg className="project-picker-chevron" aria-hidden="true" viewBox="0 0 16 16" fill="none"><path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            <span translate={key === 'single' ? undefined : "no"}>{group.name}</span>
-          </button>
+          {/* The collapse toggle shares the first group's row instead of taking a line of its own. */}
+          <div className="project-picker-group-row">
+            <button type="button" className="project-picker-group" aria-expanded={!folded.has(key)} aria-controls={`${id}-group-${index}`} onClick={() => toggleGroup(key)}>
+              <svg className="project-picker-chevron" aria-hidden="true" viewBox="0 0 16 16" fill="none"><path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <span translate={key === 'single' ? undefined : "no"}>{group.name}</span>
+            </button>
+            {index === 0 && <button type="button" className="project-picker-collapse" onClick={toggleAll}>{allCollapsed ? '全部展开' : '全部收起'}</button>}
+          </div>
           <div id={`${id}-group-${index}`} hidden={folded.has(key)}>
           {group.items.map(p => {
             const canSelect = available(p);

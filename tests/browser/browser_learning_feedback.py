@@ -132,7 +132,7 @@ class LearningFeedbackBrowserTests(unittest.TestCase):
         self.learn()
         self.page.get_by_role('tab', name='AI 对话', exact=True).click()
         panel = self.page.locator('#study-panel-chat')
-        expect(panel.locator('.ai-chat-session-heading')).to_contain_text('新对话')
+        expect(panel.locator('.ai-chat-session-heading strong')).to_have_count(0)
         expect(panel.locator('.ai-chat-log > li')).to_have_count(0)
         field = panel.locator('#ai-chat-question')
         field.fill('第一次对已有章节提问')

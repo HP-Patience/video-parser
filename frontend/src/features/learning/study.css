@@ -7,9 +7,10 @@
 .study-error p { margin: 5px 0; }
 .study-error button { margin: 4px 6px 0 0; }
 .timestamp-notes { min-width: 0; padding: 18px; margin-bottom: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-raised); }
-.timestamp-note-editor { margin-top: 12px; }
-.timestamp-note-editor label { display: block; margin-bottom: 7px; font-size: var(--font-size-control); font-weight: 600; }
-.timestamp-note-editor textarea { width: 100%; min-width: 0; box-sizing: border-box; font-size: var(--font-size-body); line-height: 1.7; }
+/* The note box is always on screen, anchored under the list like the chat composer. */
+.timestamp-note-composer { margin-top: 12px; }
+.timestamp-note-composer label { display: block; margin-bottom: 7px; font-size: var(--font-size-control); font-weight: 600; }
+.timestamp-note-composer textarea { width: 100%; min-width: 0; box-sizing: border-box; font-size: var(--font-size-body); line-height: 1.7; }
 .timestamp-note-editor-actions { justify-content: flex-end; margin-top: 6px; }
 .timestamp-note-editor-actions small { margin-right: auto; color: var(--color-text-secondary); }
 .timestamp-notes-list { list-style: none; padding: 0; margin: 12px 0 0; }

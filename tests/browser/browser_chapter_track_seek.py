@@ -58,7 +58,7 @@ class ChapterTrackSeekTests(unittest.TestCase):
         self.slider.press('End');self.at(70)
         expect(self.slider).to_have_attribute('aria-valuemax','70')
     def test_seek_updates_intro_and_restores_subtitle_follow(self):
-        self.page.get_by_role('tab',name='字幕',exact=True).click();lst=self.page.locator('.subtitle-scroll-list');toggle=self.page.locator('.subtitle-toolbar button')
+        self.page.get_by_role('tab',name='字幕',exact=True).click();lst=self.page.locator('.subtitle-scroll-list');toggle=self.page.locator('.subtitle-toolbar button').first
         expect(lst.locator('button')).to_have_count(140);lst.hover();self.page.mouse.wheel(0,140);expect(toggle).to_have_attribute('aria-pressed','false')
         self.click_track(.37);expect(toggle).to_have_attribute('aria-pressed','true')
         expect(self.timeline.locator('h4')).to_have_text('第3章');details=self.timeline.locator('details');expect(details).to_have_attribute('open','')

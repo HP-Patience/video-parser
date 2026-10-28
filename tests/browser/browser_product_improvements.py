@@ -126,9 +126,24 @@ class ProductImprovementsBrowserTests(unittest.TestCase):
             self.unexpected.append(('external', url.hostname))
             return route.abort()
         if url.path == '/product-fixture.wav':
-            return route.fulfill(content_type='audio/wav', body=self.audio)
+            # Real servers answer range requests; without 206 support Chromium treats the clip as
+            # non-seekable and `currentTime = x` is silently dropped.
+            data = self.audio
+            span = route.request.headers.get('range', '')
+            if span.startswith('bytes='):
+                first, _, last = span[6:].partition('-')
+                start = int(first or 0)
+                end = min(int(last) if last else len(data) - 1, len(data) - 1)
+                return route.fulfill(status=206, content_type='audio/wav', body=data[start:end + 1],
+                                     headers={'Content-Range': f'bytes {start}-{end}/{len(data)}', 'Accept-Ranges': 'bytes'})
+            return route.fulfill(content_type='audio/wav', body=data, headers={'Accept-Ranges': 'bytes'})
         if not url.path.startswith('/api/workspace'):
             return route.continue_()
+        # Scrub-bar thumbnails are static imagery like the media fixture: mocked and never recorded,
+        # so request assertions keep covering real API traffic only.
+        if url.path.endswith('/preview-frame'):
+            return route.fulfill(status=200, content_type='image/svg+xml',
+                                 body=b'<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90"/>')
         path = url.path.removeprefix('/api/workspace')
         method = route.request.method
         body = route.request.post_data_json if route.request.post_data else None

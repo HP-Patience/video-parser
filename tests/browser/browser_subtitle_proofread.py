@@ -79,7 +79,7 @@ class SubtitleProofreadBrowserTests(unittest.TestCase):
         expect(self.list.locator('button').first).to_contain_text('校对后的第一条（Transformer）')
         expect(self.list.locator('.subtitle-draft-mark')).to_have_count(1)
         self.page.get_by_role('button', name='保存为新版本（1 处修改）', exact=True).click()
-        expect(self.page.locator('.subtitle-edit-notice')).to_contain_text('已另存校对版本')
+        expect(self.page.locator('.subtitle-toast')).to_contain_text('已保存校对版本')
         self.assertEqual(self.saved, [{'resource': 'subtitles/fixture.srt', 'edits': [{'time': 0, 'text': '校对后的第一条（Transformer）'}]}])
         # The panel switches to the published version, which is offered next to the original.
         expect(self.page.get_by_label('字幕版本')).to_have_value(CORRECTED)

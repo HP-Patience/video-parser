@@ -207,10 +207,8 @@ class UXImprovementsBrowserTests(unittest.TestCase):
         self.learn()
         expect(self.page.locator('.video-context-more')).to_have_count(0)
         expect(self.page.get_by_role('button', name='视频工作台', exact=True)).to_be_visible()
-        tools = self.page.locator('.learning-project-tools')
-        tools.locator('summary').click()
-        expect(self.page.get_by_role('searchbox', name='搜索学习项目', exact=True)).to_be_visible()
-        tools.locator('summary').click()
+        # The separate find/refresh panel is gone; its reload lives inside the picker popup.
+        expect(self.page.locator('.learning-project-tools')).to_have_count(0)
         for width in (1440, 1024, 390, 320, 280):
             self.page.set_viewport_size({'width': width, 'height': 900})
             self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth<=innerWidth'), width)

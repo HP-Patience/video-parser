@@ -7,7 +7,8 @@
 .subtitle-help-trigger{width:30px;min-width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-weight:600;line-height:1;border-radius:8px}
 .subtitle-help-popover{position:absolute;top:calc(100% + 6px);right:0;z-index:20;display:block;width:min(260px,calc(100vw - 48px));padding:10px 12px;border:1px solid var(--line,#8885);border-radius:8px;background:var(--surface,#1b1b1b);color:inherit;font-size:var(--font-size-control);line-height:1.6;box-shadow:0 8px 24px #0006}
 /* Outside the panel, so align with the panel's own content inset (1px border + 12px padding). */
-.subtitle-edit-notice{margin:8px 0 0;padding:0 13px;color:#468b7b}
+.subtitle-toast{position:fixed;top:16px;right:16px;z-index:300;margin:0;padding:8px 14px;border-radius:8px;background:#468b7b;color:#fff;font-size:var(--font-size-control);box-shadow:0 8px 28px #0006;animation:subtitle-toast-in .16s ease}
+@keyframes subtitle-toast-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 .subtitle-draft-mark{margin-left:auto;flex:none;align-self:flex-start;padding:0 6px;border:1px solid #468b7b66;border-radius:999px;font-size:var(--font-size-control);opacity:.8}
 .subtitle-cue-editor{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid #468b7b66;border-radius:8px;background:#468b7b12}
 .subtitle-cue-editor time{flex:none;font-variant-numeric:tabular-nums;opacity:.7}
