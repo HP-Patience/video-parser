@@ -4,7 +4,7 @@ import { phases } from '../lib/jobs';
 import type { TaskInfo } from '../lib/jobs';
 import Icon from './Icon';
 import ProgressBar from './ProgressBar';
-import PlaybackSpeed from './PlaybackSpeed';
+import VideoControls from './VideoControls';
 
 type Props = {
   projectId?: string; title?: string; coverURL?: string | null; media: Media | null;
@@ -18,7 +18,10 @@ export default function MediaStage({ projectId, title, coverURL, media, videoRef
   const state = media ? 'player' : preparing ? 'progress' : failed ? 'failure' : 'cover';
   const cancelled = task?.state === 'cancelled';
   return <div className={`media-stage unified-media-stage${failed && !media ? ' media-stage-failure' : ''}`} id="video-stage" data-state={state}>
-    {media ? <video ref={videoRef} key={`${projectId}:${media.preview_url}`} controls playsInline preload="metadata" onKeyDownCapture={event => {
+    {media ? <video ref={videoRef} key={`${projectId}:${media.preview_url}`} playsInline preload="metadata" onClick={event => {
+      const video = event.currentTarget;
+      if (video.paused) void video.play().catch(() => undefined); else video.pause();
+    }} onKeyDownCapture={event => {
       if (event.altKey || event.ctrlKey || event.metaKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
       event.preventDefault(); event.stopPropagation();
       const video = event.currentTarget;
@@ -35,6 +38,6 @@ export default function MediaStage({ projectId, title, coverURL, media, videoRef
           {task?.state === 'cancelling' ? '正在取消…' : '取消下载'}</button> : <button type="button" className="primary" disabled={retryDisabled} onClick={onRetry}>重新下载并归档</button>}</div>
       </div></div> : coverURL && !coverError ? <img src={coverURL} alt={`${title || '视频'}的封面`} onError={onCoverError} />
       : <div className="empty-stage"><Icon name="image" className="empty-glyph" /><p>{projectId ? '暂无可用封面，选择画质即可下载归档' : '解析链接后在这里查看视频封面'}</p></div>}
-      {media && <PlaybackSpeed videoRef={videoRef} mediaKey={`${projectId}:${media.preview_url}`} />}
+      {media && <VideoControls videoRef={videoRef} projectId={projectId} resource={media.resource} mediaKey={`${projectId}:${media.preview_url}`} />}
   </div>;
 }
