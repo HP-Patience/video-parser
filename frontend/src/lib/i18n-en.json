@@ -178,6 +178,7 @@
   "当前视频暂无可用字幕，请先获取平台字幕或生成转写字幕；不会自动改为只用画面。": "No subtitles available. Fetch platform subtitles or transcribe first; analysis will not silently switch to frames only.",
   "当前链接为单集视频。": "This link contains one episode.",
   "恢复自动跟随": "Resume auto-follow",
+  "校对说明": "Proofreading help",
   "执行工具": "Execution tool",
   "按时长等间隔抽帧，可能错过短暂出现的内容。": "Extract frames at equal time intervals; brief content may be missed.",
   "时间均分": "Uniform intervals",
@@ -1700,6 +1701,24 @@
   "复习自测题": "Review quiz",
   "解析": "Explanation",
   "重新作答": "Start over",
+  "模拟测验": "Mock exam",
+  "先作答、后统一判分，含总分与错题回顾": "Answer first, then grade once, with a score and a wrong-answer review",
+  "测验设置": "Exam settings",
+  "题目数量": "Questions",
+  "题目难度": "Difficulty",
+  "简单": "Easy",
+  "中等": "Medium",
+  "困难": "Hard",
+  "提交答案": "Submit answers",
+  "重新测验": "Retake",
+  "限时": "Time limit",
+  "不限时": "No limit",
+  "未作答": "Not answered",
+  "全部答对。": "All answers correct.",
+  "时间到，已自动提交": "Time was up; submitted automatically",
+  "提交后统一判分，答题过程中不显示答案；作答时可自行设置限时。": "Graded only after you submit; answers stay hidden while you work. You can set a time limit while answering.",
+  "剩余不足 1 分钟，时间到会自动提交。": "Less than a minute left; it will be submitted automatically.",
+  "例如：只考概念辨析，不要考具体数字": "e.g. concepts only, no specific numbers",
   "导出 CSV": "Export CSV",
   "导出个人笔记": "Export personal notes",
   "导出笔记": "Export notes",
@@ -2360,6 +2379,54 @@
   [
    "^校对第 (\\d+) 条字幕$",
    "Proofread subtitle {1|raw}"
+  ],
+  [
+   "^已答 (\\d+) / (\\d+) 题$",
+   "Answered $1/$2"
+  ],
+  [
+   "^已答 (\\d+) / (\\d+) 题 · 剩余 (.+)$",
+   "Answered $1/$2 · {3|raw} left"
+  ],
+  [
+   "^得分 (\\d+) / (\\d+) · 正确率 (\\d+)%$",
+   "Score $1/$2 · $3% correct"
+  ],
+  [
+   "^得分 (\\d+) / (\\d+) · 正确率 (\\d+)% · 用时 (.+)$",
+   "Score $1/$2 · $3% correct · took {4|raw}"
+  ],
+  [
+   "^得分 (\\d+) / (\\d+)（(\\d+)%）$",
+   "Score $1/$2 ($3%)"
+  ],
+  [
+   "^提交答案（(\\d+) 题未答）$",
+   "Submit answers ($1 unanswered)"
+  ],
+  [
+   "^错题：(.+)$",
+   "Wrong answers: $1"
+  ],
+  [
+   "^用时 (.+)$",
+   "Took {1|raw}"
+  ],
+  [
+   "^(\\d+) 题未作答$",
+   "$1 unanswered"
+  ],
+  [
+   "^(\\d+) 分钟$",
+   "$1 min"
+  ],
+  [
+   "^(\\d+) 道题$",
+   "$1 questions"
+  ],
+  [
+   "^第 (\\d+) 题$",
+   "Question $1"
   ]
  ]
 }

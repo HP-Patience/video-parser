@@ -18,6 +18,7 @@ NOT_UI_TEMPLATES = {
     ('features/analysis/AnalysisPanel.tsx', '`预计发送约 ${…} tokens`'),  # Joined with the next template; the whole
     ('features/analysis/AnalysisPanel.tsx', '`（${…}），输出约 ${…}`'),  # estimate is matched by one pattern.
     ('components/markdownTimeRange.ts', r'`([（(]?)\s*(\[?${…}\]?)\s*[-–—~～至]\s*(\[?${…}\]?)\s*([）)]?)`'),  # Time-range parser regex.
+    ('features/analysis/AnalysisPanel.tsx', '`题量 ${…} 道，难度${…}。`'),  # Exam settings sent to the model, never shown.
 }
 COMPOSED = [
     '预计发送约 1.2 万 tokens（字幕约 3,000 · 画面 8 张），输出约 1,500', '模型分析 · ', '画面 00:05（已选）',

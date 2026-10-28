@@ -3,8 +3,11 @@
 .modern-app :is(.subtitle-scroll-list, .chapter-timeline-list) button{justify-content:flex-start;text-align:left;border:0;white-space:normal;line-height:1.6}.modern-app :is(.subtitle-scroll-list, .chapter-timeline-list) button span{overflow-wrap:anywhere}.modern-app .study-sidebar-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding-right:38px}.modern-app .study-sidebar-tabs>button{min-width:0;padding:8px 4px;font-size: var(--font-size-control)}.modern-app .task-advanced-filters>label{min-width:130px}.modern-app .task-advanced-filters>label select{width:100%}
 
 /* Proofreading: one cue becomes an editor; saving publishes a new "-校对" version. */
-.subtitle-edit-hint{margin:0 0 6px;font-size:var(--font-size-control);opacity:.75}
-.subtitle-edit-notice{margin:8px 0 0;color:#468b7b}
+.subtitle-help{position:relative;flex:none;margin-left:auto;display:inline-flex}
+.subtitle-help-trigger{width:30px;min-width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-weight:600;line-height:1;border-radius:8px}
+.subtitle-help-popover{position:absolute;top:calc(100% + 6px);right:0;z-index:20;display:block;width:min(260px,calc(100vw - 48px));padding:10px 12px;border:1px solid var(--line,#8885);border-radius:8px;background:var(--surface,#1b1b1b);color:inherit;font-size:var(--font-size-control);line-height:1.6;box-shadow:0 8px 24px #0006}
+/* Outside the panel, so align with the panel's own content inset (1px border + 12px padding). */
+.subtitle-edit-notice{margin:8px 0 0;padding:0 13px;color:#468b7b}
 .subtitle-draft-mark{margin-left:auto;flex:none;align-self:flex-start;padding:0 6px;border:1px solid #468b7b66;border-radius:999px;font-size:var(--font-size-control);opacity:.8}
 .subtitle-cue-editor{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid #468b7b66;border-radius:8px;background:#468b7b12}
 .subtitle-cue-editor time{flex:none;font-variant-numeric:tabular-nums;opacity:.7}

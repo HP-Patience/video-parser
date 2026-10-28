@@ -234,7 +234,7 @@ npm.cmd --prefix frontend run dev
 
 开发前端默认在 http://127.0.0.1:5173，API 代理到15001。后端提供 `/health` 与 `/docs`。GPU推理、真实平台访问和需要模型的验收必须显式执行，不能把离线测试通过当成真实转写成功。
 
-[项目架构](docs/architecture.md) · [开发指引](docs/development.md) · [任务与缓存](docs/task-runtime.md) · [术语表](docs/GLOSSARY.md)
+[项目架构](docs/architecture.md) · [开发指引](docs/development.md) · [分支与合并](docs/git-workflow.md) · [任务与缓存](docs/task-runtime.md) · [术语表](docs/GLOSSARY.md)
 
 ## 许可
 

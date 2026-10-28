@@ -1,0 +1,11 @@
+/* Mock exam: same question markup as the quiz, but nothing is graded until the answer is submitted. */
+.exam-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.exam-limit { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.exam-limit select { min-height: 32px; padding: 4px 8px; font-size: var(--font-size-control); }
+.exam-warning { margin: 0; font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
+.exam-summary { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface-sunken); font-size: var(--font-size-sm); }
+.exam-summary p { margin: 0; line-height: 1.7; }
+@media (max-width: 560px) {
+  .exam-actions { width: 100%; }
+  .exam-actions > button { width: 100%; }
+}

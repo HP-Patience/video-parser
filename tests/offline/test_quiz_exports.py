@@ -64,6 +64,22 @@ class QuizParsingTests(unittest.TestCase):
         self.assertIn('video-parser::quiz', data)
 
 
+    def test_exam_template_sits_next_to_the_quiz_and_reuses_its_structure(self):
+        # Only the grading UI differs, so the exam shares the quiz prompt contract and parser.
+        ids = [item['id'] for item in ai_analysis.public_templates()]
+        self.assertIn('exam', ids)
+        self.assertLess(ids.index('quiz'), ids.index('exam'))
+        self.assertEqual(ai_analysis.TEMPLATES['exam']['source'], 'transcript')
+        self.assertEqual(ai_analysis.TEMPLATES['exam']['requires'], 'transcript')
+        self.assertIn('```json', ai_analysis.TEMPLATES['exam']['prompt'])
+
+    def test_exam_settings_arrive_as_an_extra_instruction(self):
+        # AnalysisPanel sends 题量/难度 as prompt text; task_text is what the model actually reads.
+        text = ai_analysis.task_text('exam', '题量 12 道，难度困难。')
+        self.assertIn('模拟测验题', text)
+        self.assertTrue(text.endswith('补充要求：题量 12 道，难度困难。'), text)
+
+
 class ExportTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -97,6 +113,16 @@ class ExportTests(unittest.TestCase):
         csv_content, _ = ai_analysis.export_quiz_csv(self.pid, Path(name).stem)
         self.assertTrue(csv_content.startswith(b'\xef\xbb\xbf'))
         self.assertIn('题号,题干,选项,答案,解析,时间点'.encode(), csv_content)
+
+    def test_exam_record_parses_and_exports_like_a_quiz(self):
+        name = library.save_text(self.pid, 'analysis', QUIZ_TEXT, {'template': 'exam', 'source': 'transcript',
+                                                                  'video_resource': self.video, 'model': 'fixture'})
+        record = ai_analysis.record(self.pid, Path(name).stem)
+        self.assertEqual(record['template_name'], '模拟测验')
+        self.assertEqual(len(record['quiz']['questions']), 2)
+        self.assertFalse(record['legacy'])
+        content, _ = ai_analysis.export_anki(self.pid, Path(name).stem)
+        self.assertIn('线性无关行向量'.encode(), content)
 
     def test_anki_export_refuses_records_without_a_quiz(self):
         name = library.save_text(self.pid, 'analysis', '## 摘要\n- 内容', {'template': 'summary', 'video_resource': self.video})

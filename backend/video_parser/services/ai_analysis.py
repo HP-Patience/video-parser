@@ -74,6 +74,18 @@ TEMPLATES = {
                   '判断题也写成两个选项（A. 正确、B. 错误）；time 是该知识点在视频中的秒数，无法确定时写 null；'
                   '题干、选项和解析都用简体中文；不要编造材料里没有的内容；不要使用 Markdown 或注释。',
     },
+    'exam': {
+        'name': '模拟测验', 'description': '先作答、后统一判分，含总分与错题回顾', 'source': 'transcript', 'requires': 'transcript',
+        'prompt': '请根据视频内容出一套模拟测验题，用来检验学习成果。\n'
+                  '只输出一个 ```json 代码块，不要输出任何其他文字。JSON 结构：\n'
+                  '{"title":"这套测验的标题","questions":[{"question":"题干","options":["选项内容","选项内容","选项内容","选项内容"],'
+                  '"answer":"A","explanation":"为什么选它，以及常见错误","time":192}]}\n'
+                  '要求：每题 4 个选项且只有一个正确答案；answer 只写选项字母 A/B/C/D；'
+                  '判断题也写成两个选项（A. 正确、B. 错误）；time 是该知识点在视频中的秒数，无法确定时写 null；'
+                  '题干、选项和解析都用简体中文；不要编造材料里没有的内容；不要使用 Markdown 或注释；'
+                  '题干和选项都不能暗示正确答案，不要出现“以上都对”“以上都不对”这类选项；'
+                  '各题之间不要重复考查同一个知识点。未指定题量和难度时，出 8～12 道中等难度的题。',
+    },
     'breakdown': {
         'name': '短视频拆解', 'description': '开头钩子、结构节奏、镜头和文案', 'source': 'both',
         'prompt': '请从内容创作的角度拆解这个视频：\n1. 开头钩子：前 3 秒用了什么画面或台词吸引人；\n'
@@ -615,7 +627,7 @@ def _record(project, name, item):
             'provider': item.get('provider') or '', 'engine': engine, 'transcript_label': item.get('transcript_label') or '',
             'transcript_merged': bool(item.get('transcript_merged')), 'video_resource': item.get('video_resource'),
             'frame_count': item.get('frame_count') or len(frames), 'frames': frames, 'usage': item.get('usage') or {},
-            'quiz': quiz.parse(text) if template == 'quiz' and text else None,
+            'quiz': quiz.parse(text) if template in ('quiz', 'exam') and text else None,
             'text': text, 'followups': followups(project, record_id), 'context_after': item.get('context_after'), 'legacy': legacy}
 
 

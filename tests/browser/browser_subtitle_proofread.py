@@ -57,6 +57,20 @@ class SubtitleProofreadBrowserTests(unittest.TestCase):
         expect(self.editor.locator('textarea')).to_be_focused()
         self.editor.locator('textarea').press('Escape')
 
+    def test_help_button_replaces_the_hint_line(self):
+        # The permanent hint line moved into a popover, so the toolbar and list start higher.
+        expect(self.page.locator('.subtitle-edit-hint')).to_have_count(0)
+        trigger = self.page.get_by_role('button', name='校对说明', exact=True)
+        expect(trigger).to_have_attribute('aria-expanded', 'false')
+        trigger.click()
+        popover = self.page.locator('#subtitle-help')
+        expect(popover).to_be_visible()
+        expect(popover).to_contain_text('双击（或按 F2）任意条目可校对')
+        expect(trigger).to_have_attribute('aria-expanded', 'true')
+        self.page.keyboard.press('Escape')
+        expect(popover).to_have_count(0)
+        self.assertEqual(self.saved, [])
+
     def test_draft_publishes_one_new_version_and_keeps_the_rest(self):
         self.list.locator('button').first.dblclick()
         self.editor.locator('textarea').fill('校对后的第一条（Transformer）')

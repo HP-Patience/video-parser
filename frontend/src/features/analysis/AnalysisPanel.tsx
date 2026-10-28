@@ -15,6 +15,7 @@ import useConversations from '../learning/useConversations';
 import useAgentModels from '../learning/useAgentModels';
 import AgentModelPicker from '../learning/AgentModelPicker';
 import QuizView from './Quiz';
+import Exam from './Exam';
 import { chapterMaterial, matchesLearningMedia, readChapterChoice, readMaterialChoice, saveChapterChoice, saveMaterialChoice } from './learningMaterials';
 
 type Props = {
@@ -35,8 +36,11 @@ const PLACEHOLDERS: Record<string, string> = {
   custom: '写下你想让模型做什么，例如：列出视频里出现的所有产品和价格',
   notes: '例如：只整理和特征值有关的部分',
   quiz: '例如：只考计算题，出 8 道，难度中等',
+  exam: '例如：只考概念辨析，不要考具体数字',
   breakdown: '例如：重点分析前 10 秒',
 };
+const EXAM_COUNTS = [5, 8, 10, 12, 15];
+const EXAM_LEVELS: [string, string][] = [['easy', '简单'], ['medium', '中等'], ['hard', '困难']];
 const autoCount = (duration: number) => Math.max(4, Math.min(16, Math.round(4 + duration / 60)));
 const tokens = (value: number) => value >= 10000 ? `${(value / 10000).toFixed(1)} 万` : value.toLocaleString('zh-CN');
 function when(iso: string | null) {
@@ -62,6 +66,8 @@ export default function AnalysisPanel(props: Props) {
   const [chapterChoice, setChapterChoice] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const [template, setTemplate] = useState('summary');
+  const [examCount, setExamCount] = useState(10);
+  const [examLevel, setExamLevel] = useState('medium');
   const [source, setSource] = useState<AnalysisSource>('both');
   const [transcript, setTranscript] = useState('');
   const [frameMode, setFrameMode] = useState<'scene' | 'uniform' | 'ai'>('scene');
@@ -208,11 +214,15 @@ export default function AnalysisPanel(props: Props) {
     const next = templates.find(item => item.id === id);
     if (next) setSource(next.source);
   }
+  // The exam settings travel as an extra instruction; the model reads them from 补充要求 next to its own rules.
+  const examBrief = template === 'exam'
+    ? `题量 ${examCount} 道，难度${EXAM_LEVELS.find(([value]) => value === examLevel)?.[1] || '中等'}。` : '';
   function body(): AnalysisBody {
     return {
       agent: models.selected, template, source: effective, transcript_resource: usesTranscript || frameMode === 'ai' ? chosen?.resource || null : null, frame_mode: frameMode,
       count: usesFrames && frameMode !== 'ai' ? count : 0, preview_token: usesFrames && preview ? preview.token : null,
-      frames: usesFrames && preview ? preview.frames.filter(frame => kept.has(frame.name)).map(frame => frame.name) : null, prompt: prompt.trim(),
+      frames: usesFrames && preview ? preview.frames.filter(frame => kept.has(frame.name)).map(frame => frame.name) : null,
+      prompt: [examBrief, prompt.trim()].filter(Boolean).join(' '),
     };
   }
   async function loadPreview() {
@@ -333,6 +343,19 @@ export default function AnalysisPanel(props: Props) {
         </>}
       </div>}
 
+      {template === 'exam' && <div className="analysis-block">
+        <span className="analysis-label" id="analysis-exam-label">测验设置</span>
+        <div className="analysis-frame-controls" role="group" aria-labelledby="analysis-exam-label">
+          <select aria-label="题目数量" value={examCount} disabled={running} onChange={event => setExamCount(Number(event.target.value))}>
+            {EXAM_COUNTS.map(value => <option key={value} value={value}>{`${value} 道题`}</option>)}
+          </select>
+          <select aria-label="题目难度" value={examLevel} disabled={running} onChange={event => setExamLevel(event.target.value)}>
+            {EXAM_LEVELS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </div>
+        <p className="analysis-hint">提交后统一判分，答题过程中不显示答案；作答时可自行设置限时。</p>
+      </div>}
+
       <div className="analysis-block">
         <label className="analysis-label" htmlFor="prompt">{template === 'custom' ? '分析要求' : <>补充要求 <span className="optional">（选填）</span></>}</label>
         <textarea id="prompt" disabled={running} value={prompt} maxLength={4000} rows={2} placeholder={PLACEHOLDERS[template] || '例如：用英文输出 / 重点关注配色'} onChange={event => setPrompt(event.target.value)} />
@@ -393,9 +416,12 @@ export default function AnalysisPanel(props: Props) {
             <img src={frame.url} alt={`画面 ${frame.label}`} loading="lazy" /><span>{frame.label}</span></button></li>)}
         </ul></details>}
         {record.quiz && record.quiz.questions.length > 0
-          ? <QuizView quiz={record.quiz} onSeek={recordSeek} />
+          ? (record.template === 'exam'
+            // Keyed by record: answers must not survive switching to another quiz.
+            ? <Exam key={record.id} quiz={record.quiz} onSeek={recordSeek} />
+            : <QuizView key={record.id} quiz={record.quiz} onSeek={recordSeek} />)
           : <Markdown text={record.text} onSeek={recordSeek} maxSeconds={duration} className="analysis-markdown" timeRangesFirst />}
-        {record.template === 'quiz' && !record.quiz?.questions.length && <p className="notice" role="status">模型没有返回可解析的题目，下面是原始输出；可以重新生成一次。</p>}
+        {(record.template === 'quiz' || record.template === 'exam') && !record.quiz?.questions.length && <p className="notice" role="status">模型没有返回可解析的题目，下面是原始输出；可以重新生成一次。</p>}
         {record.quiz && record.quiz.questions.length > 0 && <details className="analysis-raw"><summary>查看原始输出</summary>
           <Markdown text={record.text} className="analysis-markdown" /></details>}
 

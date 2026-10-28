@@ -18,6 +18,8 @@ export default function SubtitlePanel({ projectId, mediaKey, videoRef, onSeek, o
   // Proofreading stays local until the user publishes one new "-校对" version; the source file is never rewritten.
   const [drafts, setDrafts] = useState<Record<string, string>>({}), [editing, setEditing] = useState<{ time: number; value: string } | null>(null);
   const [saving, setSaving] = useState(false), [editError, setEditError] = useState(''), [notice, setNotice] = useState('');
+  const [help, setHelp] = useState(false);
+  const helpBox = useRef<HTMLSpanElement>(null);
   const publishing = useRef<AbortController | null>(null);
   const focusBack = useRef<number | null>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -50,6 +52,15 @@ export default function SubtitlePanel({ projectId, mediaKey, videoRef, onSeek, o
     window.addEventListener('video-parser:subtitles-changed', refresh);
     return () => window.removeEventListener('video-parser:subtitles-changed', refresh);
   }, []);
+  // The help popover replaces a permanent hint line under the toolbar, so the cue list starts higher.
+  useEffect(() => {
+    if (!help) return;
+    const dismiss = (event: MouseEvent) => { if (!helpBox.current?.contains(event.target as Node)) setHelp(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setHelp(false); };
+    document.addEventListener('mousedown', dismiss);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('mousedown', dismiss); document.removeEventListener('keydown', escape); };
+  }, [help]);
   let active = -1;
   data?.cues.forEach((cue, i) => { if (cue.time <= current) active = i; });
   useEffect(() => {
@@ -115,15 +126,22 @@ export default function SubtitlePanel({ projectId, mediaKey, videoRef, onSeek, o
       if (!controller.signal.aborted) setSaving(false);
     }
   }
-  return <section className="subtitle-scroll-panel" aria-label="滚动字幕">
+  // The publish notice sits outside the panel: inside, it was pinned under the last cue and read as part of the list.
+  return <>
+  <section className="subtitle-scroll-panel" aria-label="滚动字幕">
     <strong className="sr-only">字幕</strong>
     {error && <p role="alert">{error}</p>}
     {!data?.cues.length ? <p>暂无字幕。<button type="button" onClick={onGenerate}>生成字幕</button></p> : <>
       <div className="subtitle-toolbar"><select aria-label="字幕版本" value={data.resource} onChange={e => { setNotice(''); setResource(e.target.value); }}>{data.sources.map(source => <option key={source.resource} value={source.resource}>{source.label}</option>)}</select>
       <button type="button" aria-pressed={follow} onClick={() => setFollow(!follow)}>{follow ? '自动跟随：开启' : '恢复自动跟随'}</button>
       {pending > 0 && <><button type="button" className="primary" aria-busy={saving} disabled={saving} onClick={() => { void publish(); }}>{saving ? '正在保存…' : `保存为新版本（${pending} 处修改）`}</button>
-        <button type="button" disabled={saving} onClick={() => { setDrafts(current => Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(source + '\u0000')))); setEditError(''); }}>放弃修改</button></>}</div>
-      <p className="subtitle-edit-hint">双击（或按 F2）任意条目可校对；保存会新增「-校对」版本，原字幕文件不变。</p>
+        <button type="button" disabled={saving} onClick={() => { setDrafts(current => Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(source + '\u0000')))); setEditError(''); }}>放弃修改</button></>}
+      <span className="subtitle-help" ref={helpBox}>
+        <button type="button" className="subtitle-help-trigger" aria-label="校对说明" title="校对说明"
+          aria-expanded={help} aria-controls="subtitle-help" onClick={() => setHelp(value => !value)}>?</button>
+        {help && <span id="subtitle-help" className="subtitle-help-popover" role="note">
+          双击（或按 F2）任意条目可校对；保存会新增「-校对」版本，原字幕文件不变。</span>}
+      </span></div>
       <div className="subtitle-scroll-list" ref={list} tabIndex={0} onWheel={() => setFollow(false)} onTouchMove={() => setFollow(false)} onKeyDown={e => { if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(e.key)) setFollow(false); }}>
         {data.cues.map((cue, i) => {
           if (editing && editing.time === cue.time) return <div className="subtitle-cue-editor" key={`edit-${i}`}>
@@ -148,7 +166,8 @@ export default function SubtitlePanel({ projectId, mediaKey, videoRef, onSeek, o
         })}
       </div>
       {editError && <p className="error-text" role="alert">{editError}</p>}
-      {notice && <p className="subtitle-edit-notice" role="status">{notice}</p>}
     </>}
-  </section>;
+  </section>
+  {notice && <p className="subtitle-edit-notice" role="status">{notice}</p>}
+  </>;
 }
