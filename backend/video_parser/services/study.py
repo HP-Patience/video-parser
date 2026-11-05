@@ -4,7 +4,7 @@ import hashlib
 import json
 import math
 import re
-from video_parser.services import anki_export, library
+from video_parser.services import anki_export, attachments, library
 
 MAX_TIME = 31 * 86400
 MAX_NOTES = 1000
@@ -56,7 +56,13 @@ def read(path, identifier, resource, fingerprint):
             assert re.fullmatch('[a-f0-9]{32}', key) and note['id'] == key
             assert type(note['revision']) is int and note['revision'] > 0
             if not note.get('deleted'):
-                seconds(note['time']); assert isinstance(note['text'], str) and 0 < len(note['text']) <= 5000
+                seconds(note['time'])
+                text, images = note.get('text', ''), note.get('images') or []
+                assert isinstance(text, str) and len(text) <= 5000
+                assert isinstance(images, list) and len(images) <= attachments.MAX_COUNT
+                for image in images:
+                    assert isinstance(image, dict) and attachments.NAME.fullmatch(str(image.get('name')))
+                assert text.strip() or images
         # Sidecars written before quizzes existed have no key; filling it in keeps old files readable.
         quizzes = data.setdefault('quizzes', {})
         assert isinstance(quizzes, dict) and len(quizzes) <= MAX_ENTRIES
@@ -111,11 +117,14 @@ def progress(identifier, resource, position, duration, expected_revision):
     return mutate(identifier, resource, change)
 
 
-def save_note(identifier, resource, note_id, at, text, expected_revision):
+def save_note(identifier, resource, note_id, at, text, expected_revision, images=None):
     revision(expected_revision)
     at = seconds(at)
     if not re.fullmatch('[a-f0-9]{32}', note_id): raise ValueError('笔记编号无效。')
-    if not isinstance(text, str) or not text.strip() or len(text) > 5000: raise ValueError('笔记需为 1～5000 字符。')
+    text = text or ''
+    if not isinstance(text, str) or len(text) > 5000: raise ValueError('笔记不能超过 5000 字符。')
+    stored = attachments.resolve(identifier, images)
+    if not text.strip() and not stored: raise ValueError('请写下内容或粘贴至少一张图片。')
     def change(data, duration):
         previous = data['notes'].get(note_id)
         if (previous or {}).get('revision', 0) != expected_revision or (previous and previous.get('deleted')):
@@ -125,6 +134,7 @@ def save_note(identifier, resource, note_id, at, text, expected_revision):
             raise ValueError('此视频笔记数量已达上限，请整理后再添加。')
         now = datetime.now(timezone.utc).isoformat()
         note = {'id': note_id, 'time': at, 'text': text.strip(), 'revision': expected_revision + 1,
+                'images': stored,
                 'created_at': previous['created_at'] if previous else now, 'updated_at': now}
         data['notes'][note_id] = note
         return note
@@ -191,6 +201,8 @@ def export_markdown(identifier, resource):
     lines.append('')
     for note in rows:
         lines += [f"## [{clock(note['time'])}]", '', note['text'], '']
+        for image in note.get('images') or []:
+            lines += [f"![图片]({attachments.FOLDER}/{image['name']})", '']
     return '\n'.join(lines).rstrip() + '\n', library.safe_name(f'{title}_笔记')
 
 
@@ -204,11 +216,14 @@ def note_cards(identifier, resource):
     for note in notes(identifier, resource):
         back = [f"<div>时间点：{clock(note['time'])}</div>", f'<div>来源：{anki_export.html(title)}</div>']
         if link: back.append(link)
-        rows.append({'front': f"<div>{anki_export.html(note['text'])}</div>", 'back': ''.join(back), 'tags': 'video-parser::notes'})
+        front = f"<div>{anki_export.html(note['text'])}</div>"
+        if note.get('images'): front += f"<div>（含 {len(note['images'])} 张图片）</div>"
+        rows.append({'front': front, 'back': ''.join(back), 'tags': 'video-parser::notes'})
     return rows
 
 
 def notes_csv(identifier, resource):
     """Spreadsheet export: time, note, created time."""
-    rows = [[clock(note['time']), note['text'], note.get('created_at') or ''] for note in notes(identifier, resource)]
+    rows = [[clock(note['time']), note['text'] + (f"（含 {len(note['images'])} 张图片）" if note.get('images') else ''),
+             note.get('created_at') or ''] for note in notes(identifier, resource)]
     return anki_export.table_csv(['时间点', '笔记', '创建时间'], rows, bom=True)

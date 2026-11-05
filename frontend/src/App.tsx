@@ -11,6 +11,7 @@ import BiliLogin from './features/subtitles/BiliLogin';
 import Transcription from './features/transcription/Transcription';
 import Accounts from './features/accounts/Accounts';
 import ProjectPanel from './features/library/ProjectPanel';
+import ProjectOverview from './features/library/ProjectOverview';
 import LearningProgress, { LearningToggle } from './features/library/LearningProgress';
 import PlaybackResume from './features/learning/PlaybackResume';
 import StudySidebar from './features/learning/StudySidebar';
@@ -34,7 +35,7 @@ import WorkspaceStart from './features/library/WorkspaceStart';
 import Panel, { PanelTitle } from './components/Panel';
 import FormField from './components/FormField';
 import { pageFromSearch, type Page } from './features/navigation/navigation';
-import type { AgentTarget, AISettings, AnalysisBody, AnalysisResult, Configuration, LearningEpisode, Media, ParsedVideo, VideoProject } from './lib/api';
+import type { AgentTarget, AISettings, AnalysisBody, AnalysisResult, Configuration, LearningEpisode, Media, ParsedVideo, VideoProject, VideoProjectSummary } from './lib/api';
 
 // Re-tested 2026-10-14 (docs/mcp-platform-probe-20261014.md). 小红书 needs a login, so it has no example.
 const examples: Record<string, string> = {
@@ -52,7 +53,10 @@ type Tab = typeof tabs[number]['name'];
 type Operation = 'prepare' | 'analyze';
 // analysisVersion changes when an analysis or follow-up finishes, so the panel reloads its records.
 type ProjectState = { parsed: ParsedVideo; quality: string; status: string; error: boolean; busy: Operation | null; analysisVersion: number; lastRecord?: string; task?: TaskInfo; learningPendingPart: number | null; learningError: string };
-type AnalysisRequest = { kind: 'analyze'; body: AnalysisBody } | { kind: 'ask'; recordId: string; question: string; position: number; agent?: AgentTarget };
+type AnalysisRequest = { kind: 'analyze'; body: AnalysisBody } | { kind: 'ask'; recordId: string; question: string; position: number; agent?: AgentTarget; images?: { name: string }[] };
+/** A Bilibili season (合集): separate BV ids, unlike the pages (分P) behind "解析视频集数". */
+type CollectionItem = { bvid: string; title: string; duration: number | null; current: boolean };
+type VideoCollection = { title: string; total: number; items: CollectionItem[] };
 // Routine states already shown by the stage, button or quality select; the inspector stays quiet for these.
 const QUIET_STATUS = new Set(['等待解析', '解析完成，请选择画质后归档', '已复用归档视频', '已选择归档视频', '所选画质尚未归档', '所选视频已归档', '分析完成', '追问已回答']);
 const validId = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{32}$/.test(value);
@@ -404,14 +408,26 @@ export default function App() {
   }
   const [refreshingEpisodes, setRefreshingEpisodes] = useState(false);
   const [episodeMessage, setEpisodeMessage] = useState('');
+  const [collection, setCollection] = useState<VideoCollection | null>(null);
   async function refreshEpisodes() {
     if (!parsed || refreshingEpisodes) return;
     const id = parsed.project.id; setRefreshingEpisodes(true); setEpisodeMessage('');
-    try { const result = await request<{ episodes: LearningEpisode[] }>(`/projects/${id}/episodes/refresh`, new AbortController().signal, { confirm: true });
+    try { const result = await request<{ episodes: LearningEpisode[]; collection?: VideoCollection | null }>(`/projects/${id}/episodes/refresh`, new AbortController().signal, { confirm: true });
       updateProject(id, current => ({ ...current, parsed: { ...current.parsed, episodes: result.episodes } }));
-      setEpisodeMessage(result.episodes.length ? `已解析 ${result.episodes.length} 集。` : '当前链接为单集视频。');
+      setCollection(result.collection ?? null);
+      setEpisodeMessage(result.episodes.length ? `已解析 ${result.episodes.length} 集。`
+        : result.collection ? `该视频属于合集《${result.collection.title}》，共 ${result.collection.total} 个视频；点击任意一项即可解析导入。`
+        : '当前链接为单集视频。');
     } catch (e) { setEpisodeMessage(e instanceof Error ? e.message : '解析分集失败'); } finally { setRefreshingEpisodes(false); }
   }
+  function importCollectionItem(bvid: string) {
+    if (busy !== null || parsing) return;
+    const url = `https://www.bilibili.com/video/${bvid}`;
+    setSource(url);
+    void parse(url);
+  }
+  // A season belongs to the project that was refreshed; switching projects must not keep it.
+  useEffect(() => { setCollection(null); setEpisodeMessage(''); }, [parsed?.project.id]);
   async function selectEpisode(part: number) {
     const id = selectedRef.current, value = id ? projects.current[id] : undefined;
     if (!id || !value || parsingRequest.current || restoringRequest.current) return;
@@ -488,7 +504,7 @@ export default function App() {
     const path = operation === 'prepare' ? `/videos/${parsedId}/prepare-task`
       : analysis!.kind === 'ask' ? `/projects/${value.parsed.project.id}/conversations/${analysis!.recordId}/ask-task` : `/videos/${parsedId}/analyze-task`;
     const body = operation === 'prepare' ? { quality_id: selectedQuality }
-      : analysis!.kind === 'ask' ? { consent: true, question: analysis!.question, position: analysis!.position, resource: archived!.resource, agent: analysis!.agent } : { ...analysis!.body, consent: true, quality_id: selectedQuality };
+      : analysis!.kind === 'ask' ? { consent: true, question: analysis!.question, position: analysis!.position, resource: archived!.resource, agent: analysis!.agent, images: analysis!.images ?? [] } : { ...analysis!.body, consent: true, quality_id: selectedQuality };
     updateProject(id, current => ({ ...current, busy: operation, task: undefined, error: false,
       status: operation === 'prepare' ? '正在下载所选画质并归档…' : analysis!.kind === 'ask' ? '正在发送追问…' : '正在准备分析材料…' }));
     try {
@@ -552,6 +568,14 @@ export default function App() {
   function openPreparation() { setTab('视频'); navigate('workspace', true); }
   function openAnalysis() { setTab('AI 分析'); navigate('workspace', true); }
   function openLearning() { navigate('learning', true); }
+  async function openOverviewProject(project: VideoProjectSummary, target: 'workspace' | 'subtitles' | 'learning') {
+    videoRef.current?.pause();
+    const restored = await restoreProject(project.id, '', false);
+    if (!restored) throw new Error('无法打开这个视频，请刷新视频总览后重试。');
+    if (target === 'subtitles') { setTab('字幕与转写'); navigate('workspace', true); return; }
+    if (target === 'learning') { setTab('AI 分析'); navigate('learning', true); return; }
+    setTab('视频'); navigate('workspace', true);
+  }
   // Short side, so a 480x852 portrait stream also counts as limited.
   const maxShortSide = Math.max(0, ...(parsed?.qualities.map(item => item.width && item.height ? Math.min(item.width, item.height) : item.height || 0) || []));
   const qualityLimited = maxShortSide > 0 && maxShortSide < 720;
@@ -589,7 +613,11 @@ export default function App() {
       {archiveReminder && <div className="archive-reminder" role="status" aria-live="polite">视频已归档<button type="button" aria-label="关闭归档提醒" onClick={() => setArchiveReminder(false)}>×</button></div>}
     </>}>
         {configError && <p className="error-text configuration-error" role="alert">{configError}</p>}
-        {!learning && learningNavigationError && <p className="error-text configuration-error" role="alert">{learningNavigationError}</p>}
+        {page === 'workspace' && learningNavigationError && <p className="error-text configuration-error" role="alert">{learningNavigationError}</p>}
+        <WorkbenchPage page="overview" activePage={page}>
+          <ProjectOverview visible={page === 'overview'} version={libraryVersion} currentId={parsed?.project.id || null}
+            onOpen={openOverviewProject} />
+        </WorkbenchPage>
         <WorkbenchPage page={page === 'learning' ? 'learning' : 'workspace'} activePage={page}>
         {(page === 'workspace' || page === 'learning') && config && !config.media_ready && <p className="error-text media-setup-error" role="alert">未检测到 ffmpeg 或 ffprobe，请安装并加入 PATH 后重启服务。</p>}
           <div className="workspace-toolbar" hidden={learning}>
@@ -630,9 +658,11 @@ export default function App() {
                   message={selected?.status || ''} task={selected?.task} cancelDisabled={cancelDisabled}
                   retryDisabled={busy !== null || !quality} onCancel={() => { void cancelWorkflow(); }} onRetry={() => { void run('prepare'); }} />
                 {videoError && <p className="error-text" role="alert">浏览器无法播放，请在归档目录中用本地播放器打开。</p>}
-                <div hidden={!learning}>
+                {/* Resume is a player concern, so it also shows on the workspace tab, not only in the study view. */}
                 {parsed && media && <PlaybackResume key={`${parsed.project.id}:${media.resource}`}
-                  projectId={parsed.project.id} media={media} videoRef={videoRef} onSeek={seekVideo} anchorRef={resumeBar} />}
+                  projectId={parsed.project.id} media={media} videoRef={videoRef} onSeek={seekVideo} anchorRef={resumeBar}
+                  showEmpty={learning} />}
+                <div hidden={!learning}>
                 {media && currentTimeline && <ChapterTimeline timeline={currentTimeline} view="player" compact
                   videoRef={videoRef} mediaKey={`${parsed?.project.id}:${media.preview_url}`} duration={media.duration}
                   enabled={timelineEnabled} onSeek={seekVideo} />}
@@ -642,7 +672,7 @@ export default function App() {
                 <AnalysisPanel learning={learning} onManage={openAnalysis} onPrepare={openPreparation} onUseForLearning={openLearning} onTimelineChange={setAnalysisTimeline} onChatChange={setLearningChat} parsed={parsed} media={media} qualityId={quality} config={config} busy={busy} status={selected?.status || ''} error={!!selected?.error}
                   task={selected?.task} version={selected?.analysisVersion || 0} lastRecord={selected?.lastRecord} cancelDisabled={cancelDisabled}
                   onCancel={() => { void cancelWorkflow(); }} onAnalyze={body => { void run('analyze', { kind: 'analyze', body }); }}
-                  onAsk={(recordId, question, position, agent) => { void run('analyze', { kind: 'ask', recordId, question, position, agent }); }}
+                  onAsk={(recordId, question, position, agent, images) => { void run('analyze', { kind: 'ask', recordId, question, position, agent, images }); }}
                   onSeek={media ? seconds => { if (!learning) navigate('learning'); seekVideo(seconds); } : undefined} onOpenSettings={button => openSettings(button, true)} onGenerateSubtitles={generateSubtitles} />
               </section>
             </div>
@@ -655,7 +685,7 @@ export default function App() {
                   version: selected?.analysisVersion }}
                 onToggle={() => setStudyCollapsed(value => !value)} onSeek={seekVideo}
                 assistant={{ chat: currentChat, busy, status: selected?.status || '', error: !!selected?.error, task: selected?.task, cancelDisabled,
-                  onAsk: (recordId, question, position, agent) => { void run('analyze', { kind: 'ask', recordId, question, position, agent }); },
+                  onAsk: (recordId, question, position, agent, images) => { void run('analyze', { kind: 'ask', recordId, question, position, agent, images }); },
                   onCancel: () => { void cancelWorkflow(); }, onOpenSettings: button => openSettings(button, true), onManage: openAnalysis, onGenerateSubtitles: generateSubtitles }} />}
               </div>
             <Panel as="aside" id="project-context" hidden={!parsed || (learning && ((!!media && studyCollapsed) || (parsed?.episodes?.length || 0) <= 1))} className={'details-panel' + (!fullInspector ? ' compact-inspector' : '')} aria-labelledby={learning ? undefined : 'details-heading'} aria-label={learning ? '分集学习上下文' : undefined}>
@@ -707,7 +737,16 @@ export default function App() {
           {qualityLimited && ['missing', 'missing_session', 'expired', 'invalid'].includes(parsed.bilibili_cookie_status || '') && <p className="notice quality-login">{qualityLogin === 'done' ? '已登录 B站，请重新解析链接以获取更高画质。' : <>画质受限：没有登录 B站，最高只有 480p。<button type="button" className="link-button" onClick={() => setQualityLogin('open')}>扫码登录</button><button type="button" className="link-button" onClick={() => openAccounts('bilibili')}>账号与登录</button></>}</p>}
           {qualityLogin === 'open' && <BiliLogin onClose={() => setQualityLogin('closed')} onSuccess={() => setQualityLogin('done')} />}
           </>}
-              {parsed?.platform === '哔哩哔哩' && <div className="episode-refresh"><button type="button" disabled={refreshingEpisodes || busy !== null} onClick={() => { void refreshEpisodes(); }}>{refreshingEpisodes ? '解析分集中…' : '解析视频集数'}</button><p role="status">{episodeMessage}</p></div>}
+              {parsed?.platform === '哔哩哔哩' && <div className="episode-refresh"><button type="button" disabled={refreshingEpisodes || busy !== null} onClick={() => { void refreshEpisodes(); }}>{refreshingEpisodes ? '解析分集中…' : '解析视频集数'}</button><p role="status">{episodeMessage}</p>
+                {collection && <div className="collection-list" aria-label={`合集《${collection.title}》`}>
+                  <ol>{collection.items.map(item => <li key={item.bvid}>
+                    <button type="button" aria-current={item.current || undefined} disabled={item.current || busy !== null || parsing}
+                      onClick={() => importCollectionItem(item.bvid)} title={item.current ? '正在查看这个视频' : '解析并打开这个视频'}>
+                      <span>{item.title}</span>
+                      <small>{item.duration ? formatDuration(item.duration) : ''}{item.current ? ' · 当前' : ''}</small>
+                    </button></li>)}</ol>
+                </div>}
+              </div>}
               {learning && episodeLearning}
             </Panel>
             {!learning && episodeLearning && <Panel as="aside" className="episode-learning-card" aria-label="分集学习">

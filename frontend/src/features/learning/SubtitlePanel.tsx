@@ -22,6 +22,7 @@ export default function SubtitlePanel({ projectId, mediaKey, videoRef, onSeek, o
   const helpBox = useRef<HTMLSpanElement>(null);
   const publishing = useRef<AbortController | null>(null);
   const focusBack = useRef<number | null>(null);
+  const lastClick = useRef<{ time: number; at: number } | null>(null);
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => { setResource(''); setData(null); setCurrent(0); setFollow(true); }, [projectId, mediaKey]);
   useEffect(() => { setEditing(null); setEditError(''); }, [resource, projectId, mediaKey]);
@@ -99,6 +100,18 @@ export default function SubtitlePanel({ projectId, mediaKey, videoRef, onSeek, o
     setEditing({ time, value: draftOf(time) ?? cue.text });
   };
   const close = () => { focusBack.current = editing?.time ?? null; setEditing(null); setEditError(''); };
+  // Native dblclick keys off the DOM node, so a re-rendered list could turn two clicks on
+  // different cues into an edit. Match the cue's own timestamp instead.
+  function activate(time: number) {
+    const now = Date.now(), previous = lastClick.current;
+    if (previous && previous.time === time && now - previous.at < 400) {
+      lastClick.current = null;
+      begin(time);
+      return;
+    }
+    lastClick.current = { time, at: now };
+    onSeek(time);
+  }
   const commit = () => {
     if (!editing) return;
     const cue = data?.cues.find(item => item.time === editing.time); if (!cue) return;
@@ -139,7 +152,7 @@ export default function SubtitlePanel({ projectId, mediaKey, videoRef, onSeek, o
     {error && <p role="alert">{error}</p>}
     {!data?.cues.length ? <p>暂无字幕。<button type="button" onClick={onGenerate}>生成字幕</button></p> : <>
       <div className="subtitle-toolbar"><select aria-label="字幕版本" value={data.resource} onChange={e => { setNotice(''); setResource(e.target.value); }}>{data.sources.map(source => <option key={source.resource} value={source.resource}>{source.label}</option>)}</select>
-      <button type="button" aria-pressed={follow} onClick={() => setFollow(!follow)}>{follow ? '自动跟随：开启' : '恢复自动跟随'}</button>
+      <button type="button" aria-pressed={follow} onClick={() => setFollow(!follow)}>{follow ? '自动跟随：开启' : '自动跟随：关闭'}</button>
       {pending > 0 && <><button type="button" className="primary" aria-busy={saving} disabled={saving} onClick={() => { void publish(); }}>{saving ? '正在保存…' : `保存为新版本（${pending} 处修改）`}</button>
         <button type="button" disabled={saving} onClick={() => { setDrafts(current => Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(source + '\u0000')))); setEditError(''); }}>放弃修改</button></>}
       <span className="subtitle-help" ref={helpBox}>
@@ -150,7 +163,7 @@ export default function SubtitlePanel({ projectId, mediaKey, videoRef, onSeek, o
       </span></div>
       <div className="subtitle-scroll-list" ref={list} tabIndex={0} onWheel={() => setFollow(false)} onTouchMove={() => setFollow(false)} onKeyDown={e => { if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(e.key)) setFollow(false); }}>
         {data.cues.map((cue, i) => {
-          if (editing && editing.time === cue.time) return <div className="subtitle-cue-editor" key={`edit-${i}`}>
+          if (editing && editing.time === cue.time) return <div className="subtitle-cue-editor" key={`edit-${cue.time}`}>
             <time>{stamp(cue.time)}</time>
             <textarea aria-label={`校对第 ${i + 1} 条字幕`} rows={2} maxLength={1000} autoFocus value={editing.value}
               onChange={event => setEditing({ time: cue.time, value: event.target.value })}
@@ -164,8 +177,8 @@ export default function SubtitlePanel({ projectId, mediaKey, videoRef, onSeek, o
               <span>Ctrl+Enter 完成 · Esc 取消</span>
             </div>
           </div>;
-          return <button type="button" key={i} data-cue={cue.time} aria-current={active === i ? 'true' : undefined}
-            onClick={() => onSeek(cue.time)} onDoubleClick={() => begin(cue.time)} onKeyDown={event => { if (event.key === 'F2') { event.preventDefault(); begin(cue.time); } }}>
+          return <button type="button" key={cue.time} data-cue={cue.time} aria-current={active === i ? 'true' : undefined}
+            onClick={() => activate(cue.time)} onKeyDown={event => { if (event.key === 'F2') { event.preventDefault(); begin(cue.time); } }}>
             <time>{stamp(cue.time)}</time><MathText text={draftOf(cue.time) ?? cue.text} />
             {draftOf(cue.time) !== undefined && <span className="subtitle-draft-mark">未保存</span>}
           </button>;

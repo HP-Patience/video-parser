@@ -1,5 +1,6 @@
 export interface PlaybackPoint { position: number; duration: number; revision: number }
-export interface PersonalNote { id: string; time: number; text: string; revision: number; created_at?: string; updated_at?: string }
+export interface NoteImage { name: string; mime?: string; size?: number }
+export interface PersonalNote { id: string; time: number; text: string; revision: number; images?: NoteImage[]; created_at?: string; updated_at?: string }
 export interface NoteDraft extends PersonalNote { dirty: boolean }
 export class StudyError extends Error { constructor(message: string, public status = 0) { super(message); } }
 export async function studyRequest<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {

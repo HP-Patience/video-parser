@@ -1,6 +1,8 @@
 /* One stable media column and one optional learning rail; video DOM never moves between modes. */
 .modern-app .study-workspace { grid-template-columns: minmax(0,1fr) 336px; gap: 20px; align-items: start; }
 .study-main-column, .study-context-rail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+/* The player sits much closer to the material panel below it than the rail's own stacking gap. */
+.study-main-column { gap: 5px; }
 .modern-app .study-workspace .preview-panel { position: static; margin: 0; padding: 0; }
 .modern-app .study-workspace .learning-notes-panel, .modern-app .study-workspace .details-panel { margin: 0; min-width: 0; }
 .modern-app .study-workspace-collapsed { grid-template-columns: minmax(0,1fr) 48px; }
@@ -32,8 +34,6 @@
 /* With no notes the box takes the spare height, exactly like an empty chat composer. */
 .study-sidebar .timestamp-notes:not(:has(.timestamp-notes-list > li)) .timestamp-note-composer { flex: 1 1 auto; display: flex; flex-direction: column; }
 .study-sidebar .timestamp-notes:not(:has(.timestamp-notes-list > li)) .timestamp-note-composer textarea { flex: 1 1 auto; height: auto; }
-.timestamp-notes-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--font-size-sm); }
-.timestamp-notes-heading button { min-height: 36px; }
 #study-panel-chat > .ai-chat:first-child { border-top: 0; }
 /* The question box stays at the bottom of the sidebar while the Q&A above it scrolls. */
 /* The composer is the last flex row of the panel, so it already sits at the bottom: no sticky

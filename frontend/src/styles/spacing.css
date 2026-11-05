@@ -59,8 +59,9 @@
 .modern-app .task-advanced-filters :is(input, select) { width: 100%; max-width: none; }
 .modern-app .task-advanced-filters > button { min-height: var(--control-height-md); padding: 7px var(--space-3); line-height: 20px; }
 
-/* Analysis cards and subtitle tools follow the same section/field scale. */
-.learning-notes-panel > :is(.analysis-records, .independent-conversations) { margin-top: var(--section-gap); }
+/* Analysis cards and subtitle tools follow the same section/field scale.
+   The study column's own flex gap already separates the player from this panel, so no extra top margin. */
+.learning-notes-panel > :is(.analysis-records, .independent-conversations) { margin-top: 0; }
 .modern-app :is(.subtitle-scroll-panel, .chapter-timeline-directory) { margin-top: var(--space-4); padding: var(--space-3); border-color: var(--color-border); border-radius: var(--radius-lg); }
 .modern-app .subtitle-toolbar { gap: var(--action-gap); margin-bottom: var(--space-3); }
 /* Compact enough that the version picker, follow toggle and help button share one row in the narrow rail. */
@@ -88,6 +89,20 @@
 .modern-app .episode-refresh > button { width: 100%; min-height: var(--control-height-md); padding: 7px var(--space-3); line-height: 20px; }
 .episode-refresh > p { margin: var(--space-2) 0 0; }
 .episode-refresh > p:empty { display: none; }
+
+/* Bilibili season (合集): a scrollable list of separate videos the user can import one by one.
+   The three-level selector is deliberate — `.modern-app :is(button, a.button)` also scores 0,2,1. */
+.modern-app .episode-refresh .collection-list { margin-top: var(--space-2); max-height: 320px; overflow: auto; overscroll-behavior: contain;
+  border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.modern-app .episode-refresh .collection-list ol { display: grid; gap: 2px; margin: 0; padding: 4px; list-style: none; }
+.modern-app .episode-refresh .collection-list button { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--color-text);
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-regular); line-height: 1.5; text-align: left; }
+.modern-app .episode-refresh .collection-list button:hover:not(:disabled) { background: var(--color-fill-hover); }
+.modern-app .episode-refresh .collection-list button[aria-current="true"] { background: var(--color-fill-hover);
+  font-weight: var(--font-weight-semibold); cursor: default; }
+.modern-app .episode-refresh .collection-list button span { min-width: 0; overflow-wrap: anywhere; }
+.modern-app .episode-refresh .collection-list button small { flex: none; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
 
 /* Keep controls separated after wrapping, including dialogs and the narrow subtitle rail. */
 .modern-app :is(.subtitle-scroll-panel, .chapter-timeline-directory) > select + button { display: block; margin-top: var(--space-2); }

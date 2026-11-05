@@ -17,3 +17,11 @@
 .subtitle-cue-actions span{font-size:var(--font-size-control);opacity:.65}
 :is(.subtitle-scroll-list, .chapter-timeline-list) .subtitle-cue-actions button{width:auto;flex:none;justify-content:center;padding:4px 12px;border:1px solid var(--border,#8885);border-radius:6px}
 .modern-app :is(.subtitle-scroll-list, .chapter-timeline-list) .subtitle-cue-actions button{justify-content:center;text-align:center;border:1px solid var(--border,#8885)}
+
+/* 自动跟随开启时的选中态：沿用播放速度预设的中性样式（加粗 + 边框 + 淡底），不用强调色。
+   选择器需压过全局 `.modern-app :is(button, a.button)` 的底色。 */
+.modern-app .subtitle-toolbar button[aria-pressed="true"] {
+  border-color: var(--color-border-strong);
+  background: var(--color-fill-hover);
+  font-weight: 600;
+}

@@ -5,7 +5,7 @@ import type { AgentTarget, Conversation, ConversationContext } from '../../lib/a
 import { useConversationDrafts } from './conversationDrafts';
 export { QUESTION_LIMIT } from './conversationDrafts';
 
-export type PendingQuestion = { conversationId: string; question: string; count: number };
+export type PendingQuestion = { conversationId: string; question: string; count: number; images?: { name: string }[] };
 const selectionKey = (project: string) => `video-parser:conversation:${project}`;
 function savedSelection(project: string) { try { return localStorage.getItem(selectionKey(project)); } catch { return null; } }
 

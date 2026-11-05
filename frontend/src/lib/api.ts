@@ -69,6 +69,7 @@ export interface AnalysisResult { text: string; record?: AnalysisRecord; convers
 
 export interface ConversationMessage {
   id: string; question: string; answer: string; created_at: string | null; position?: number;
+  images?: { name: string; mime?: string; size?: number }[];
   context?: { frame_times?: number[]; subtitle_ranges?: number[][]; warning?: string };
 }
 export interface Conversation {
@@ -169,7 +170,15 @@ export interface SubtitleInventory {
   episodes: { part: number; title: string; subtitles: boolean }[];
 }
 
-/** Lightweight /projects rows deliberately do not contain resource inventories. */
+/** One archived AI report; duplicate templates are intentionally kept as separate material rows. */
+export interface VideoMaterialSummary {
+  id: string;
+  name: string;
+  template: string;
+  created_at: string;
+}
+
+/** Lightweight /projects rows for the all-video status overview. */
 export interface VideoProjectSummary {
   id: string;
   title: string;
@@ -182,6 +191,12 @@ export interface VideoProjectSummary {
   display_title?: string;
   is_single?: boolean;
   archived: boolean;
+  learned?: boolean;
+  has_subtitles?: boolean;
+  subtitle_count?: number;
+  translation_count?: number;
+  analysis_count?: number;
+  materials?: VideoMaterialSummary[];
 }
 
 export interface VideoProject {

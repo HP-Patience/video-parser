@@ -6,7 +6,8 @@ from video_parser.services import model_calls
 
 
 def validate_times(text, duration, maximum=16):
-    text = text.strip()
+    raw = (text or '').strip()
+    text = raw
     if text.startswith('```'):
         text = re.sub(r'^```(?:json)?\s*|\s*```$', '', text)
     try:
@@ -20,7 +21,10 @@ def validate_times(text, duration, maximum=16):
         last_millisecond = max(0, (math.ceil(duration * 1000) - 1) / 1000)
         return sorted(set(min(round(float(t), 3), last_millisecond) for t in values))
     except (ValueError, TypeError):
-        raise ValueError('AI 选帧结果无效：需要 1–16 个视频范围内的秒数。未自动改用时间均分，请重试或选择其他选帧方式。') from None
+        # The model's own words are the only way to tell a format slip from a truncated reply.
+        preview = ' '.join(raw.split())[:120]
+        detail = f' 模型返回：{preview}' if preview else ' 模型没有返回内容。'
+        raise ValueError('AI 选帧结果无效：需要 1–16 个视频范围内的秒数。未自动改用时间均分，请重试或选择其他选帧方式。' + detail) from None
 
 
 def plan(transcript, duration, settings, agent, directory):

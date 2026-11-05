@@ -85,6 +85,43 @@ class BilibiliDownloader(BaseDownloader):
             episodes[number] = {'part': number, 'title': title or f'P{number}', 'duration': duration}
         return [episodes[number] for number in sorted(episodes)]
 
+    def get_collection(self):
+        """The uploader's season (合集) this video belongs to, or None when it is not in one.
+
+        A season is a list of separate BV ids; it is not the same thing as the pages (分P)
+        handled by get_episodes, and one video can have pages:1 while sitting in a 37-item season.
+        """
+        try:
+            state = json.loads(self.data2) if isinstance(self.data2, str) else self.data2
+            video = state.get('videoData') or {}
+            season = video.get('ugc_season')
+            current = video.get('bvid')
+        except (AttributeError, TypeError, json.JSONDecodeError):
+            return None
+        if not isinstance(season, dict):
+            return None
+        items, seen = [], set()
+        for section in season.get('sections') or []:
+            if not isinstance(section, dict):
+                continue
+            for episode in section.get('episodes') or []:
+                if not isinstance(episode, dict):
+                    continue
+                bvid = episode.get('bvid')
+                if not isinstance(bvid, str) or not re.fullmatch(r'BV[A-Za-z0-9]{10}', bvid) or bvid in seen:
+                    continue
+                seen.add(bvid)
+                arc = episode.get('arc') or {}
+                title = episode.get('title') or arc.get('title') or bvid
+                items.append({'bvid': bvid, 'title': ' '.join(str(title).split())[:200],
+                              'duration': _positive_duration(arc.get('duration')),
+                              'current': bvid == current})
+        if len(items) < 2:
+            return None
+        name = season.get('title')
+        return {'title': ' '.join(name.split())[:120] if isinstance(name, str) and name.strip() else '合集',
+                'total': len(items), 'items': items}
+
     def get_cover_photo_url(self):
         try:
             data_dict = json.loads(self.data2)

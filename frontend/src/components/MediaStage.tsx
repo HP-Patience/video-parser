@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { RefObject } from 'react';
 import type { Media } from '../lib/api';
 import { phases } from '../lib/jobs';
@@ -5,6 +6,9 @@ import type { TaskInfo } from '../lib/jobs';
 import Icon from './Icon';
 import ProgressBar from './ProgressBar';
 import VideoControls from './VideoControls';
+
+/** Typing surfaces and controls own the space bar; the player only claims it elsewhere. */
+const SPACE_OWNERS = 'input, textarea, select, button, a, [contenteditable="true"], [role="slider"], [role="textbox"], [role="tablist"]';
 
 type Props = {
   projectId?: string; title?: string; coverURL?: string | null; media: Media | null;
@@ -17,9 +21,29 @@ export default function MediaStage({ projectId, title, coverURL, media, videoRef
   onVideoError, preparing, failed, message, task, cancelDisabled, retryDisabled, onCancel, onRetry }: Props) {
   const state = media ? 'player' : preparing ? 'progress' : failed ? 'failure' : 'cover';
   const cancelled = task?.state === 'cancelled';
+  // Space toggles playback like a normal player, but never while typing, on a control, or off-screen.
+  useEffect(() => {
+    if (!media) return;
+    function space(event: KeyboardEvent) {
+      if (event.key !== ' ' && event.code !== 'Space') return;
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.isComposing || event.defaultPrevented) return;
+      if ((event.target as HTMLElement | null)?.closest(SPACE_OWNERS)) return;
+      const video = videoRef.current;
+      if (!video) return;
+      const box = video.getBoundingClientRect();
+      if (box.bottom < 0 || box.top > window.innerHeight) return;
+      event.preventDefault();
+      if (video.paused || video.ended) void video.play().catch(() => undefined);
+      else video.pause();
+    }
+    window.addEventListener('keydown', space);
+    return () => window.removeEventListener('keydown', space);
+  }, [videoRef, media]);
   return <div className={`media-stage unified-media-stage${failed && !media ? ' media-stage-failure' : ''}`} id="video-stage" data-state={state}>
-    {media ? <video ref={videoRef} key={`${projectId}:${media.preview_url}`} playsInline preload="metadata" onClick={event => {
+    {media ? <video ref={videoRef} key={`${projectId}:${media.preview_url}`} playsInline preload="metadata" tabIndex={0} onClick={event => {
       const video = event.currentTarget;
+      // A click must also hand the player keyboard focus, otherwise the arrow keys below never fire.
+      video.focus({ preventScroll: true });
       if (video.paused) void video.play().catch(() => undefined); else video.pause();
     }} onKeyDownCapture={event => {
       if (event.altKey || event.ctrlKey || event.metaKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;

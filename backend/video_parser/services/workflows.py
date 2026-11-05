@@ -112,6 +112,8 @@ def worker(job):
         if record.get('frame_count') is not None: job.details['count'] = record['frame_count']
         job.state='completed';job.message='视频已校验归档。' if job.kind=='video' else '分析结果与画面已归档。'
     # Only this task's owned scratch directory; no library/models/Cookies/transcription outputs.
+    # The result is already archived, so nothing raised here may demote it: some environments wrap
+    # shutil.rmtree with a guard that raises SystemExit, which is not an OSError.
     try:shutil.rmtree(directory)
-    except OSError:job.message+=' 临时副本清理失败，可在缓存管理中查看。'
+    except (Exception, SystemExit):job.message+=' 临时副本清理失败，可在缓存管理中查看。'
     job.payload.clear()

@@ -386,19 +386,40 @@ def output_destination(kind, target_project_id=None, folder=None, source_project
     raise HTTPException(400, '未知的保存位置。')
 
 
-def has_local_video(project):
-    """Cheap archive availability for list rows; full media validation belongs to resume."""
+def available_resource_count(project, kinds):
+    """Cheap archive badges for list rows; no subtitle or video digest is read."""
+    count = 0
     for name, info in project.get('resources', {}).items():
-        if info.get('kind') != 'video':
+        if not isinstance(info, dict) or info.get('kind') not in kinds:
             continue
         try:
             path = library.resource_path(project, name)
             if path.is_file() and path.stat().st_size == info.get('size_bytes'):
-                return True
+                count += 1
         except (OSError, ValueError, KeyError, TypeError):
             continue
-    return False
+    return count
 
+
+def material_summaries(project):
+    from video_parser.services import ai_analysis
+    materials = []
+    for name, info in project.get('resources', {}).items():
+        if not isinstance(info, dict) or info.get('kind') != 'analysis':
+            continue
+        template = info.get('template') if isinstance(info.get('template'), str) else ''
+        materials.append({
+            'id': Path(name).stem,
+            'name': ai_analysis.TEMPLATES.get(template, {}).get('name', '画面分析（旧版）'),
+            'template': template or 'legacy',
+            'created_at': info.get('created_at') if isinstance(info.get('created_at'), str) else '',
+        })
+    return sorted(materials, key=lambda item: (item['created_at'], item['id']), reverse=True)
+
+
+def has_local_video(project):
+    """Cheap archive availability for list rows; full media validation belongs to resume."""
+    return available_resource_count(project, ('video',)) > 0
 
 @router.get('/projects')
 def list_projects():
@@ -409,12 +430,17 @@ def list_projects():
         try: project = library.load(manifest)
         except (ValueError, OSError, KeyError): continue
         platform = next((label for label, slug in library.PLATFORMS.items() if slug == project.get('platform')), project.get('platform', ''))
+        materials = material_summaries(project)
+        subtitle_count = available_resource_count(project, library.TRANSCRIPT_KINDS)
+        translation_count = available_resource_count(project, ('translation',))
         projects.append({'id': project['id'], 'title': project.get('title', ''), 'platform': platform, 'part': project.get('part'),
                          'location': project['directory'].relative_to(library.LIBRARY_ROOT).as_posix(), 'created_at': project.get('created_at', ''),
                          'video_id': project.get('video_id'), 'episode_title': library.episode_title(project),
                          'is_single': library_layout.single_episode(project),
                          'display_title': project_folder_naming.display_title(project, applied_titles),
-                         'archived': has_local_video(project)})
+                         'archived': has_local_video(project), 'learned': project.get('learned') is True,
+                         'has_subtitles': subtitle_count > 0, 'subtitle_count': subtitle_count,
+                         'translation_count': translation_count, 'analysis_count': len(materials), 'materials': materials})
     projects.sort(key=lambda item: (item['created_at'], -(item['part'] or 0)), reverse=True)
     return {'projects': projects}
 

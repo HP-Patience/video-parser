@@ -21,7 +21,7 @@ def execute(payload):
     agent_options = {'agent': payload['agent']} if payload.get('agent') else {}
     if payload.get('mode')=='conversation':
         from video_parser.services import conversations
-        session=conversations.ask(project_id,payload['conversation'],payload['question'],payload['resource'],payload['position'],directory,**agent_options)
+        session=conversations.ask(project_id,payload['conversation'],payload['question'],payload['resource'],payload['position'],directory,images=payload.get('images'),**agent_options)
         return {'text':session['messages'][-1]['answer'],'conversation':session,'mode':'conversation',
                 'project':library.public(library.get(project_id))}
     if payload.get('mode')=='ask':

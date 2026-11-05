@@ -163,6 +163,9 @@ def parse_link(text, require_video=True):
         metadata['bilibili_cookie_status'] = getattr(downloader, 'cookie_status', 'not_checked')
         get_episodes = getattr(downloader, 'get_episodes', None)
         metadata['episodes'] = get_episodes() if callable(get_episodes) else []
+        # A season is not a page list: it is a separate set of BV ids the user may want to import.
+        get_collection = getattr(downloader, 'get_collection', None)
+        metadata['collection'] = get_collection() if callable(get_collection) else None
     if platform == '哔哩哔哩' and require_video:
         play = json.loads(downloader.data or '{}').get('data', {})
         dash = play.get('dash', {})

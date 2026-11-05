@@ -21,7 +21,7 @@
   .learning-progress-heading h3, .workspace-continue h3) {
   font-size: var(--font-size-subheading); font-weight: var(--font-weight-semibold); line-height: 1.5;
 }
-.modern-app :is(.panel-title-secondary, .timestamp-notes-heading,
+.modern-app :is(.panel-title-secondary,
   .naming-final-preview h4, .conversation-picker-heading) {
   font-size: var(--font-size-md); font-weight: var(--font-weight-semibold);
 }

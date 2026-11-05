@@ -245,7 +245,8 @@ def refresh_episodes(project_id: str, body: ConfirmBody):
     if library.identity(parsed.metadata)['key'] != project['key']:
         raise HTTPException(400, '分集解析返回了不同视频，未更新当前项目。')
     handled(library.ensure, parsed.metadata)
-    return {'episodes': handled(library.learning_episodes, project_id)}
+    return {'episodes': handled(library.learning_episodes, project_id),
+            'collection': parsed.metadata.get('collection')}
 
 
 @router.get('/projects/{project_id}/subtitle-cues')
@@ -375,10 +376,16 @@ class ConversationBody(BaseModel):
     resource: str = Field(min_length=1, max_length=1000)
 
 
+class ImageRef(BaseModel):
+    model_config = {'extra': 'forbid'}
+    name: str = Field(pattern=r'^[a-f0-9]{64}\.(?:jpg|png|webp|gif)$')
+
+
 class ConversationAskBody(AskBody):
     model_config = {'extra': 'forbid'}
     resource: str = Field(min_length=1, max_length=1000)
     position: float = Field(ge=0, allow_inf_nan=False)
+    images: list[ImageRef] = Field(default_factory=list, max_length=4)
 
     @field_validator('question')
     @classmethod
@@ -448,7 +455,8 @@ def ask_conversation(project_id: str, conversation_id: str, body: ConversationAs
         raise HTTPException(400, '视频时间超出时长，请重新提问。')
     handled(model_calls.consent, agent)
     payload = {'mode': 'conversation', 'conversation': conversation_id, 'resource': body.resource,
-        'position': body.position, 'question': body.question, 'consent': True}
+        'position': body.position, 'question': body.question, 'consent': True,
+        'images': [image.model_dump() for image in body.images]}
     if agent['engine'] != 'api':
         payload['agent'] = agent
     return handled(workflows.start, 'analysis', project_id, project['title'], payload)

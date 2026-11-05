@@ -10,8 +10,10 @@ type Props = {
   projectId: string; media: Media; videoRef: RefObject<HTMLVideoElement | null>; onSeek: (time: number) => void;
   /** The study sidebar lines its bottom up with this bar. */
   anchorRef: RefObject<HTMLElement | null>; children?: ReactNode;
+  /** The study view keeps an empty anchor for layout; other views render nothing until there is an offer. */
+  showEmpty?: boolean;
 };
-export default function PlaybackResume({ projectId, media, videoRef, onSeek, anchorRef, children }: Props) {
+export default function PlaybackResume({ projectId, media, videoRef, onSeek, anchorRef, children, showEmpty = true }: Props) {
   const [offer, setOffer] = useState<number | null>(null);
   const [status, setStatus] = useState('正在读取播放位置…');
   const [error, setError] = useState('');
@@ -83,6 +85,7 @@ export default function PlaybackResume({ projectId, media, videoRef, onSeek, anc
   }, [projectId, media.resource, media.preview_url, media.duration, videoRef]);
   // The effect is keyed by immutable media identity; onSeek only performs a guarded player operation.
   // The resume offer only appears until the learner chooses.
+  if (!showEmpty && offer === null && !error && !children) return null;
   return <section ref={anchorRef} className={'playback-resume' + (offer === null && !error && !children ? ' is-empty' : '')} aria-label="播放进度">
     <div className="playback-resume-offer">
       {/* Routine saving is silent; only the resume offer and failures are shown. */}

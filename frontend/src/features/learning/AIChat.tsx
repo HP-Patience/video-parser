@@ -15,6 +15,9 @@ import AgentModelPicker from './AgentModelPicker';
 import SlashCommandMenu from './SlashCommandMenu';
 import { completeCommand, matchingCommands, slashToken } from './slashCommands';
 import type { SlashCommand } from './slashCommands';
+import ImageTray from './ImageTray';
+import { IMAGE_LIMIT, clipboardImages, uploadClipboard } from './pastedImages';
+import type { StoredImage } from './pastedImages';
 import './ai-chat.css';
 
 export type LearningChat = ConversationState & {
@@ -22,7 +25,7 @@ export type LearningChat = ConversationState & {
 };
 export type AIChatProps = {
   chat: LearningChat | null; busy: 'prepare' | 'analyze' | null; status: string; error: boolean; task?: TaskInfo;
-  cancelDisabled: boolean; onAsk: (conversationId: string, question: string, position: number, agent?: AgentTarget) => void; onCancel: () => void;
+  cancelDisabled: boolean; onAsk: (conversationId: string, question: string, position: number, agent?: AgentTarget, images?: StoredImage[]) => void; onCancel: () => void;
   onOpenSettings: (button: HTMLButtonElement) => void; onManage: () => void; onGenerateSubtitles: () => void;
 };
 type Props = AIChatProps & {
@@ -34,6 +37,7 @@ const LIMIT = QUESTION_LIMIT;
 export default function AIChat({ chat, busy, status, error, task, cancelDisabled, onAsk, onCancel, onOpenSettings, onManage, onGenerateSubtitles, videoRef, duration, onSeek, floating = false, visible = true, pickerVisible = visible, onReveal }: Props) {
   const [failure, setFailure] = useState('');
   const [picker, setPicker] = useState(false), [sending, setSending] = useState(false);
+  const [images, setImages] = useState<StoredImage[]>([]), [pasting, setPasting] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null), log = useRef<HTMLOListElement>(null);
   const popup = useRef<HTMLDivElement>(null), ball = useRef<HTMLButtonElement>(null);
   const sendingNow = useRef(false), composingNow = useRef(false);
@@ -72,6 +76,8 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
   }
   useEffect(() => { setFailure(''); setPicker(false); }, [chat?.projectId, chat?.resource, session?.id, chat?.host, chat?.provider, chat?.models.key]);
   useEffect(() => { composingNow.current = false; setComposing(false); }, [chat?.projectId, chat?.resource, draftId]);
+  // Images belong to the question being typed, not to the conversation draft.
+  useEffect(() => { setImages([]); }, [chat?.projectId, chat?.resource, draftId]);
   useEffect(() => { if (!pickerVisible) setPicker(false); }, [pickerVisible]);
   useEffect(() => {
     if (!picker) return;
@@ -100,15 +106,30 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
     const text = (input.current?.value ?? question).trim(), position = videoRef?.current?.currentTime || 0;
     if (!chat || !text || blocked || composingNow.current || sendingNow.current) return;
     sendingNow.current = true; setSending(true); setFailure('');
+    const attached = images;
     try {
       const selected = chat.models.selected;
       const differentEngine = !!session?.messages.length && (session.agent?.engine || 'api') !== selected.engine;
       const target = session && !differentEngine ? session : await chat.newConversation(selected);
       setDraft(draftId, '');
-      chat.setPending({ conversationId: target.id, question: text, count: target.messages.length });
-      onAsk(target.id, text, position, selected);
+      chat.setPending({ conversationId: target.id, question: text, count: target.messages.length, images: attached });
+      setImages([]);
+      onAsk(target.id, text, position, selected, attached);
     } catch (reason) { setFailure(reason instanceof Error ? reason.message : '创建对话失败，请重试。'); }
     finally { sendingNow.current = false; setSending(false); }
+  }
+  // Pasting uploads straight away so only short file names reach the worker payload.
+  async function pasteImages(files: File[]) {
+    if (!chat || !files.length || pasting) return;
+    const room = IMAGE_LIMIT - images.length;
+    if (room <= 0) { setFailure(`每条提问最多 ${IMAGE_LIMIT} 张图片。`); return; }
+    setPasting(true); setFailure('');
+    try {
+      const stored = await uploadClipboard(chat.projectId, files, room);
+      setImages(current => [...current, ...stored].slice(0, IMAGE_LIMIT));
+    }
+    catch (reason) { setFailure(reason instanceof Error ? reason.message : '图片上传失败，请重试。'); }
+    finally { setPasting(false); }
   }
   async function newConversation() {
     if (!chat || busy !== null || chat.creating || chat.clearing) return;
@@ -159,11 +180,13 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
           {!floating && <button type="button" onClick={() => setPicker(value => !value)} aria-expanded={picker}>选择对话</button>}</div>}
         {!floating && picker && <div className="conversation-inline-picker">{list}</div>}
         <ol className="ai-chat-log" ref={log}>{session?.messages.map(item => <li key={item.id}>
-          <div className="ai-chat-question"><span className="sr-only">我的问题：</span><Markdown text={item.question} onSeek={onSeek} maxSeconds={duration} /></div>
+          <div className="ai-chat-question"><span className="sr-only">我的问题：</span><Markdown text={item.question} onSeek={onSeek} maxSeconds={duration} />
+            <ImageTray projectId={chat.projectId} images={item.images ?? []} label="提问附带的图片" /></div>
           <div className="ai-chat-answer"><span className="sr-only">AI 回答：</span><Markdown text={item.answer} onSeek={onSeek} maxSeconds={duration} className="ai-chat-md" /></div>
           {session.context_after === item.id && <p className="ai-chat-reset" role="status">上下文已清空</p>}
         </li>)}
-          {waiting && <li className="is-pending"><div className="ai-chat-question"><Markdown text={pending.question} onSeek={onSeek} maxSeconds={duration} /></div>
+          {waiting && <li className="is-pending"><div className="ai-chat-question"><Markdown text={pending.question} onSeek={onSeek} maxSeconds={duration} />
+            <ImageTray projectId={chat.projectId} images={pending.images ?? []} label="提问附带的图片" /></div>
             <p className="ai-chat-thinking" role="status"><Icon name="loader-circle" className="spinner" />{busy ? <>{phase}{status || 'AI 正在回答…'}</> : '正在载入回答…'}</p></li>}
         </ol>
         {(failure || chat.failure) && <p className="error-text ai-chat-failure" role="alert">{failure || chat.failure}</p>}
@@ -174,7 +197,10 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
           {commandToken && <SlashCommandMenu id={commandId} commands={commands} selected={commandIndex}
             refreshing={chat.models.refreshing} hasCommands={chat.models.commands.length > 0} onPick={pickCommand}
             onSelect={index => setCommandState(old => old.index === index ? old : { ...old, index })} />}
+          <ImageTray projectId={chat.projectId} images={images} disabled={sending || pasting}
+            onRemove={name => setImages(current => current.filter(image => image.name !== name))} />
           <textarea ref={input} id={floating ? 'ai-chat-question' : 'analysis-conversation-question'} rows={3} maxLength={LIMIT} value={question} disabled={!chat.configured || sending || chat.clearing}
+            onPaste={event => { const files = clipboardImages(event); if (!files.length) return; event.preventDefault(); void pasteImages(files); }}
             aria-autocomplete="list" aria-controls={commandToken ? commandId + '-list' : undefined}
             aria-activedescendant={commandToken && commands.length ? `${commandId}-option-${commandIndex}` : undefined}
             placeholder={chat.models.native ? '输入 / 查找命令或 Skills，也可以直接提问…' : '问问 AI，例如：这一段的公式是怎么推出来的？'}
@@ -211,6 +237,7 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
             }} />
           </div>
           <div className="ai-chat-actions">
+            {pasting && <small role="status">正在保存图片…</small>}
             {videoRef && <button type="button" disabled={!chat.configured || composing} onClick={insertTime}>插入当前时间</button>}
             <button type="button" disabled={busy !== null || sending || waiting || chat.creating || chat.clearing || !session?.messages.length || session.context_after === session.messages.at(-1)?.id}
               aria-busy={chat.clearing} onClick={() => { void clearContext(); }}>清空上下文</button>

@@ -23,7 +23,7 @@ type Props = {
   busy: 'prepare' | 'analyze' | null; status: string; error: boolean; task?: TaskInfo;
   version: number; lastRecord?: string; cancelDisabled: boolean;
   onCancel: () => void; onAnalyze: (body: AnalysisBody) => void;
-  onAsk: (conversationId: string, question: string, position: number, agent?: AgentTarget) => void; onSeek?: (seconds: number) => void;
+  onAsk: (conversationId: string, question: string, position: number, agent?: AgentTarget, images?: { name: string }[]) => void; onSeek?: (seconds: number) => void;
   onTimelineChange: (timeline: AnalysisTimeline | null) => void; onChatChange?: (chat: LearningChat | null) => void;
   onOpenSettings: (button: HTMLButtonElement) => void; onGenerateSubtitles: () => void;
 };

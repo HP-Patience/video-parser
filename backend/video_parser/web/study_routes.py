@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 from video_parser.web.security import local_request
-from video_parser.services import anki_export, study
+from video_parser.services import anki_export, attachments, study
 
 router = APIRouter(prefix='/api/workspace', dependencies=[Depends(local_request)])
 Project = Annotated[str, Path(pattern=r'^[a-f0-9]{32}$')]
@@ -22,9 +22,18 @@ class ProgressBody(ResourceBody):
     position: float = Field(ge=0, le=study.MAX_TIME, strict=True)
     duration: float = Field(gt=0, le=study.MAX_TIME, strict=True)
 
+class ImageRef(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: str = Field(pattern=r'^[a-f0-9]{64}\.(?:jpg|png|webp|gif)$')
+
 class NoteBody(ResourceBody):
     time: float = Field(ge=0, le=study.MAX_TIME, strict=True)
-    text: str = Field(min_length=1, max_length=5000)
+    text: str = Field(default='', max_length=5000)
+    images: list[ImageRef] = Field(default_factory=list, max_length=attachments.MAX_COUNT)
+
+class ImageBody(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    data: str = Field(min_length=32, max_length=8 * 1024 * 1024)
 
 class QuizBody(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -72,7 +81,23 @@ def get_notes(identifier: Project, resource: Resource):
 
 @router.post('/projects/{identifier}/study/notes/{note_id}')
 def save_note(identifier: Project, note_id: NoteId, body: NoteBody):
-    return handled(study.save_note, identifier, body.resource, note_id, body.time, body.text, body.expected_revision)
+    return handled(study.save_note, identifier, body.resource, note_id, body.time, body.text, body.expected_revision,
+                   [image.model_dump() for image in body.images])
+
+
+@router.post('/projects/{identifier}/attachments')
+def upload_attachment(identifier: Project, body: ImageBody):
+    """Paste-to-upload: the browser sends one data URL, the archive keeps the bytes."""
+    return handled(attachments.save, identifier, body.data)
+
+
+@router.get('/projects/{identifier}/attachments/{name}')
+def get_attachment(identifier: Project, name: str):
+    path = handled(attachments.path, identifier, name)
+    # Names are content hashes, so the bytes behind one URL never change.
+    return Response(path.read_bytes(), media_type=attachments.media_type(name),
+                    headers={'Cache-Control': 'private, max-age=31536000, immutable',
+                             'X-Content-Type-Options': 'nosniff'})
 
 @router.post('/projects/{identifier}/study/notes/{note_id}/delete')
 def delete_note(identifier: Project, note_id: NoteId, body: ResourceBody):

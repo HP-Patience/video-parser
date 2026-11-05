@@ -203,6 +203,7 @@
   "纳入分析": "Include in analysis",
   "结束日期": "To date",
   "自动跟随：开启": "Auto-follow: on",
+  "自动跟随：关闭": "Auto-follow: off",
   "播放速度": "Playback speed",
   "常用速度": "Common speeds",
   "自定义速度": "Custom speed",
@@ -1782,9 +1783,33 @@
   "选帧规划": "Frame planning",
   "未记录": "Not recorded",
   "未命名项目": "Untitled project",
-  "仅统计已归档的分析、追问、对话、选帧规划，以及已归档到项目的 AI 翻译；旧版记录和未归档到项目的翻译、命名、对话标题生成没有保存 token 用量，因此不计入。费用按当前单价估算，实际账单以服务商为准。": "Only archived analyses, follow-ups, conversations, frame planning and AI translations saved into a project are counted. Legacy records, translations not saved into a project, naming and conversation titles do not store token usage, so they are excluded. Costs use the current prices; actual provider bills take precedence."
+  "仅统计已归档的分析、追问、对话、选帧规划，以及已归档到项目的 AI 翻译；旧版记录和未归档到项目的翻译、命名、对话标题生成没有保存 token 用量，因此不计入。费用按当前单价估算，实际账单以服务商为准。": "Only archived analyses, follow-ups, conversations, frame planning and AI translations saved into a project are counted. Legacy records, translations not saved into a project, naming and conversation titles do not store token usage, so they are excluded. Costs use the current prices; actual provider bills take precedence.",
+  "图片上传失败，请重试。": "Image upload failed. Try again.",
+  "提问附带的图片": "Images attached to the question",
+  "正在保存图片…": "Saving images…",
+  "已添加的图片": "Added images",
+  "移除这张图片": "Remove this image",
+  "写下自己的理解、疑问或重点，也可以直接粘贴图片。": "Write your understanding, questions or key points, or paste an image.",
+  "单张图片不能超过 4 MB，请压缩后重试。": "Each image must be 4 MB or smaller. Compress it and try again.",
+  "无法读取这张图片，请重新粘贴。": "This image could not be read. Paste it again."
  },
  "patterns": [
+  [
+   "^每条提问最多 (\\d+) 张图片。$",
+   "At most $1 images per question."
+  ],
+  [
+   "^每条笔记最多 (\\d+) 张图片。$",
+   "At most $1 images per note."
+  ],
+  [
+   "^最多添加 (\\d+) 张图片。$",
+   "Add at most $1 images."
+  ],
+  [
+   "^(.+) 的笔记图片$",
+   "Images in the note at $1"
+  ],
   [
    "^· 正确答案 (.+)\\. (.+)$",
    "· Correct answer {1|raw}. {2|raw}"
