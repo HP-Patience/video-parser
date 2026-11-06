@@ -7,6 +7,10 @@ export const pageNames: Record<Page, string> = {
 export const pageIcons: Record<Page, IconName> = {
   workspace: 'circle-play', overview: 'layout-dashboard', learning: 'book-open', transcription: 'captions', tasks: 'list-checks', accounts: 'user-round', settings: 'settings',
 };
+export const navigationGroups: { id: string; label: string; pages: readonly Page[] }[] = [
+  { id: 'video', label: '处理视频', pages: ['workspace', 'overview'] },
+  { id: 'learning', label: '学习与任务', pages: ['learning', 'tasks'] },
+];
 
 export function pageFromSearch(search: string): Page {
   const value = new URLSearchParams(search).get('page');

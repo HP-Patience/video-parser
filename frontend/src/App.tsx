@@ -91,6 +91,11 @@ export default function App() {
   const restoringRequest = useRef<AbortController | null>(null);
   const [parseStatus, setParseStatus] = useState('等待解析');
   const [parseError, setParseError] = useState(false);
+  useEffect(() => {
+    if (!parsing) return;
+    const timer = window.setTimeout(() => setParseStatus('仍在读取视频信息。部分平台响应较慢，请保留当前页面，不要重复提交。'), 3000);
+    return () => window.clearTimeout(timer);
+  }, [parsing]);
   const [tab, setTab] = useState<Tab>(() => new URLSearchParams(location.search).get('page') === 'transcription' ? '字幕与转写' : '视频');
   // Both entry points share mounted content; the workbench keeps its own selected tab.
   const activeTab: Tab = page === 'learning' ? 'AI 分析' : tab;
@@ -782,7 +787,7 @@ export default function App() {
             if (!restored) throw new Error('无法打开检索结果对应的视频，请刷新项目列表。');
             navigate('learning', true); requestAnimationFrame(() => seekVideo(time));
           }} />
-          <TaskCenter onActivityChange={setActiveCount} />
+          <TaskCenter onActivityChange={setActiveCount} onOpenWorkspace={() => navigate('workspace', true)} />
           </WorkbenchPage>
         <WorkbenchPage page="accounts" activePage={page}>
           <Accounts visible={page === 'accounts'} focusPlatform={accountFocus} />

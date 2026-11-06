@@ -1,3 +1,4 @@
+import Icon from '../../components/Icon';
 import Panel from '../../components/Panel';
 import ProgressBar from '../../components/ProgressBar';
 import useTaskCenter from './useTaskCenter';
@@ -25,8 +26,10 @@ const progressText = (job: TaskInfo) => {
   return ` · ${done}/${total}`;
 };
 const restore = (detail: { kind?: string; id?: string; projectId?: string }) => window.dispatchEvent(new CustomEvent('video-parser:restore-task',{detail}));
-export default function TaskCenter({ onActivityChange }: { onActivityChange?: (count: number | null) => void }) {
-  const { jobs, error, notice, facets, setFacets, resetFilters, filter, setFilter, kind, setKind, query, setQuery, statusCounts, kindCount, retrying,
+export default function TaskCenter({ onActivityChange, onOpenWorkspace }: {
+  onActivityChange?: (count: number | null) => void; onOpenWorkspace?: () => void;
+}) {
+  const { jobs, error, loaded, reload, notice, facets, setFacets, resetFilters, filter, setFilter, kind, setKind, query, setQuery, statusCounts, kindCount, retrying,
     pendingCancels, visible, cancel, retry, deadCount, clearing, clearDead } = useTaskCenter(onActivityChange);
   const [confirmClear, setConfirmClear] = useState(false);
   const list = useRef<HTMLUListElement>(null);
@@ -50,7 +53,7 @@ export default function TaskCenter({ onActivityChange }: { onActivityChange?: (c
     ['model', '模型', {}], ['after', '开始日期', {}], ['before', '结束日期', {}]] as const)
     .filter(([key]) => !!facets[key]).map(([key, label, labels]) => ({ key, label, value: (labels as Record<string, string>)[facets[key]] || facets[key] }));
   return <Panel className="task-center" aria-labelledby="page-title-tasks">
-    {error && <p className="error-text" role="status">{error}</p>}
+    {error && <div className="task-error" role="alert"><p>{error}</p><button type="button" onClick={reload}>重新读取</button></div>}
     {jobs.length > 0 && <div className="task-search"><input type="search" aria-label="搜索任务" placeholder="搜索文件名、分集（如 P3）或任务 ID" maxLength={100}
       value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && query) { event.preventDefault(); setQuery(''); } }} />
       {narrowed && <span className="task-result-count" role="status" aria-live="polite">{`显示 ${visible.length} / ${jobs.length} 项`}</span>}</div>}
@@ -127,8 +130,17 @@ export default function TaskCenter({ onActivityChange }: { onActivityChange?: (c
       </div>
       <span className="task-page-size">每页 {pageSize} 条，第 {page} / {pages} 页</span>
     </nav>}
-    {!jobs.length && !error && <p className="notice">暂无任务。</p>}
-    {!visible.length && jobs.length > 0 && <p className="notice">{query.trim() ? '没有匹配的任务。' : '此筛选下暂无任务。'}</p>}
+    {!loaded && !jobs.length && !error && <div className="task-empty" role="status">
+      <Icon name="loader-circle" className="spinner" /><strong>正在读取任务记录</strong><p>处理进度和最近结果会显示在这里。</p>
+    </div>}
+    {loaded && !jobs.length && !error && <div className="task-empty">
+      <Icon name="list-checks" /><strong>还没有任务记录</strong><p>解析视频、生成字幕或 AI 分析后，进度会自动出现在这里。</p>
+      {onOpenWorkspace && <button type="button" className="primary" onClick={onOpenWorkspace}>去视频工作台</button>}
+    </div>}
+    {jobs.length > 0 && !visible.length && <div className="task-empty">
+      <Icon name="scan-eye" /><strong>没有匹配的任务</strong><p>可以清除搜索或筛选条件后重新查看。</p>
+      <button type="button" onClick={resetFilters}>清除筛选</button>
+    </div>}
     {jobs.length >= 100 && <p className="task-catalog-note">最多展示最近100项。</p>}
     {notice && <p role="status">{notice}</p>}
   </Panel>;

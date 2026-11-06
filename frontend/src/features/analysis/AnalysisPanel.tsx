@@ -4,6 +4,7 @@ import type { AgentTarget, AISettings, AnalysisBody, AnalysisContext, AnalysisFr
 import { phases } from '../../lib/jobs';
 import type { TaskInfo } from '../../lib/jobs';
 import Icon from '../../components/Icon';
+import ProgressiveImage from '../../components/ProgressiveImage';
 import Panel, { PanelTitle } from '../../components/Panel';
 import Markdown from '../../components/Markdown';
 import FrameLightbox from '../../components/FrameLightbox';
@@ -328,7 +329,7 @@ export default function AnalysisPanel(props: Props) {
           <ul className="analysis-frames analysis-picker" aria-label="预览画面">
             {preview.frames.map(frame => <li key={frame.name}><label><input type="checkbox" checked={kept.has(frame.name)} disabled={running} onChange={() => toggleFrame(frame.name)} aria-label={`选择画面 ${frame.label}`} />纳入分析</label><button type="button" onClick={() => setLargeFrame(frame)}
               aria-label={`画面 ${frame.label}${kept.has(frame.name) ? '（已选）' : '（未选）'}`}>
-              <img src={frame.url} alt="" /><span>{frame.label}</span></button></li>)}
+              <ProgressiveImage src={frame.url} alt="" loading="lazy" decoding="async" /><span>{frame.label}</span></button></li>)}
           </ul>
         </>}
       </div>}

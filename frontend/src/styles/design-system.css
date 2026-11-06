@@ -57,7 +57,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: var
 .brand-mark { background: var(--color-fill-primary); color: var(--color-on-primary); border-radius: var(--radius-sm); box-shadow: none; }
 .nav-caption { color: var(--color-text-tertiary); font-family: var(--font-family-mono); }
 .nav-button { color: var(--color-text-secondary); border-radius: var(--radius-md); }
-.modern-app button.nav-button[aria-current=page] { --button-edge: transparent; color: var(--color-text); background: var(--color-fill-hover); font-weight: var(--font-weight-semibold); box-shadow: inset 2px 0 0 var(--color-text); border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+.modern-app button.nav-button[aria-current=page] { --button-edge: var(--color-fill-primary); color: var(--color-on-primary); background: var(--color-fill-primary); font-weight: var(--font-weight-semibold); box-shadow: none; border-radius: var(--radius-md); }
+.modern-app button.nav-button[aria-current=page]:hover:not(:disabled) { --button-edge: var(--color-fill-primary-hover); color: var(--color-on-primary); background: var(--color-fill-primary-hover); }
 .nav-button[aria-current=page]::after { display: none; }
 .sidebar-bottom p { color: var(--color-text-tertiary); border-top-color: var(--color-border); }
 

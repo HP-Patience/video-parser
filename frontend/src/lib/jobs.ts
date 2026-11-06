@@ -52,7 +52,17 @@ export async function runWorkflow<T>(path: string, body: unknown, signal: AbortS
   const initial = await request<WorkflowJob<T>>(path, signal, body);
   update(initial);
   const job = isActive(initial.state) ? await pollJob<WorkflowJob<T>>('/tasks/' + initial.id, signal, update) : initial;
-  if (job.state !== 'completed') throw new Error(job.message + (job.error_code ? ' [' + job.error_code + ']' : ''));
+  if (job.state !== 'completed') {
+    const message = job.message?.trim();
+    const fallback = job.state === 'login_required' ? '平台要求登录，请到“账号与登录”完成登录后重试。'
+      : job.state === 'cancelled' ? '任务已取消，可以重新开始。'
+      : job.state === 'interrupted' ? '应用重启导致任务中断，请重新开始。'
+      : job.state === 'partial' ? '任务只完成了一部分，请到任务中心查看并重试未完成部分。'
+      : '任务没有完成，请检查网络、登录状态或本机工具后重试。';
+    const readable = message && !/traceback|stack trace|request id|sqlite|sqlalchemy|typeerror|referenceerror|undefined|null/i.test(message) && /[\u3400-\u9fff]/.test(message)
+      ? message.replace(/\s*\[(?:[A-Z][A-Z0-9_-]{1,}|[45]\d{2})\]\s*$/, '') : fallback;
+    throw new Error(readable);
+  }
   return job.result;
 }
 export function cancelTask(kind: string, id: string, signal = new AbortController().signal) {

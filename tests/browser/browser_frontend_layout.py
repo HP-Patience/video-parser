@@ -50,7 +50,10 @@ def main():
    def settle():page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
    def nav(name):
     if page.locator('.mobile-menu').is_visible() and not page.locator('.app-sidebar').evaluate('(e)=>e.classList.contains("open")'):page.locator('.mobile-menu').click()
-    page.locator('.app-sidebar nav').get_by_role('button',name=name,exact=True).click();settle()
+    if name=='字幕与转写':
+      page.locator('.app-sidebar').get_by_role('button',name='视频工作台',exact=True).click();settle()
+      page.get_by_role('tab',name='字幕与转写',exact=True).click();settle();return
+    page.locator('.app-sidebar').get_by_role('button',name=name,exact=True).click();settle()
    def metrics(key):
     return page.evaluate('''key => {const box=e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}};
       const section=document.querySelector(`[data-testid="page-${key}"]`), main=document.querySelector('.modern-main'), title=document.querySelector('.topbar-title');

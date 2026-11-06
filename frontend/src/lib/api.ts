@@ -140,6 +140,20 @@ export interface LearningEpisode {
   learned: boolean;
 }
 
+function requestFailure(status: number, detail: unknown, requestId: string | null): Error {
+  if (requestId) console.warn('Workspace request failed', { status, requestId });
+  const value = typeof detail === 'string' ? detail.trim() : '';
+  const readable = value && !/traceback|stack trace|request id|sqlite|sqlalchemy|typeerror|referenceerror|undefined|null/i.test(value)
+    ? value.replace(/\s*\[(?:[A-Z][A-Z0-9_-]{1,}|[45]\d{2})\]\s*$/, '') : '';
+  if (readable && /[\u3400-\u9fff]/.test(readable)) return new Error(readable);
+  if (status === 401 || status === 403) return new Error('当前账号或权限不可用，请到“账号与登录”检查后重试。');
+  if (status === 404) return new Error('没有找到需要的数据，可能已被移动或删除。请刷新后重试。');
+  if (status === 408 || status === 429) return new Error('服务响应较慢或请求过于频繁，请稍等后重试。');
+  if (status === 422) return new Error('提交的内容不符合要求，请检查必填项和隐私确认后重试。');
+  if (status >= 500) return new Error('本机服务暂时没有完成操作，请稍后重试；若持续失败，请查看任务中心或本机诊断。');
+  return new Error('服务没有完成这次操作，请稍后重试。');
+}
+
 export async function request<T>(path: string, signal: AbortSignal, body?: unknown): Promise<T> {
   const uploading = body instanceof File;
   const response = await fetch(`/api/workspace${path}`, {
@@ -153,8 +167,7 @@ export async function request<T>(path: string, signal: AbortSignal, body?: unkno
   });
   const data = await response.json().catch(() => null);
   if (!response.ok || data === null) {
-    throw new Error(typeof data?.detail === 'string' ? data.detail :
-      response.status === 422 ? '输入不符合要求，请检查填写内容与隐私确认。' : `服务处理失败（HTTP ${response.status}，请求 ${response.headers.get('X-Request-ID')?.slice(0,12) || 'unknown'}）。请检查任务中心或本机诊断。`);
+    throw requestFailure(response.status, data?.detail, response.headers.get('X-Request-ID'));
   }
   return data as T;
 }

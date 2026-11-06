@@ -89,7 +89,8 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
   useEffect(() => {
     if (!chat || !pending || busy || !error || composingNow.current) return;
     setDraft(pending.conversationId, drafts[pending.conversationId] || pending.question);
-    chat.setPending(null); setFailure(status || '提问失败，请重试。');
+    setImages(pending.images ?? []);
+    chat.setPending(null); setFailure(status || '提问失败，内容和图片已保留，可以重试。');
   }, [pending, busy, error, status, chat, drafts, setDraft, composing]);
   const lastResponse = useRef({ answered, waiting, session: session?.id });
   useEffect(() => {

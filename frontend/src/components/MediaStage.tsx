@@ -5,6 +5,7 @@ import { phases } from '../lib/jobs';
 import type { TaskInfo } from '../lib/jobs';
 import Icon from './Icon';
 import ProgressBar from './ProgressBar';
+import ProgressiveImage from './ProgressiveImage';
 import VideoControls from './VideoControls';
 
 /** Typing surfaces and controls own the space bar; the player only claims it elsewhere. */
@@ -60,7 +61,7 @@ export default function MediaStage({ projectId, title, coverURL, media, videoRef
         {preparing && task?.phase === 'downloading' && task.progress && <ProgressBar progress={task.progress} />}
         <div className="media-feedback-actions">{preparing ? <button type="button" disabled={cancelDisabled} onClick={onCancel}>
           {task?.state === 'cancelling' ? '正在取消…' : '取消下载'}</button> : <button type="button" className="primary" disabled={retryDisabled} onClick={onRetry}>重新下载并归档</button>}</div>
-      </div></div> : coverURL && !coverError ? <img src={coverURL} alt={`${title || '视频'}的封面`} onError={onCoverError} />
+      </div></div> : coverURL && !coverError ? <ProgressiveImage src={coverURL} alt={`${title || '视频'}的封面`} decoding="async" onError={onCoverError} />
       : <div className="empty-stage"><Icon name="image" className="empty-glyph" /><p>{projectId ? '暂无可用封面，选择画质即可下载归档' : '解析链接后在这里查看视频封面'}</p></div>}
       {media && <VideoControls videoRef={videoRef} projectId={projectId} resource={media.resource} mediaKey={`${projectId}:${media.preview_url}`} />}
   </div>;

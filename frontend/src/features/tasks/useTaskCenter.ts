@@ -11,7 +11,7 @@ export function hasStatus(job: TaskInfo, key: string) {
 }
 
 export default function useTaskCenter(onActivityChange?: (count: number | null) => void) {
-  const { jobs: polled, error, loaded } = useTaskHistory(onActivityChange);
+  const { jobs: polled, error, loaded, reload } = useTaskHistory(onActivityChange);
   // Records removed by "清理" are hidden at once instead of waiting for the next 2 s poll.
   const [cleared,setCleared] = useState<string[]>([]);
   const jobs = cleared.length ? polled.filter(job => !cleared.includes(job.id)) : polled;
@@ -75,6 +75,6 @@ export default function useTaskCenter(onActivityChange?: (count: number | null) 
     } catch (reason) { setNotice(reason instanceof Error ? reason.message : '重试失败，请检查后再试。'); }
     finally { retries.current.delete(job.id);setRetrying(current => current.filter(id => id !== job.id)); }
   }
-  return { jobs, error, loaded, facets, setFacets, resetFilters, notice, filter, setFilter, kind, setKind, query, setQuery, statusCounts, kindCount, retrying,
+  return { jobs, error, loaded, reload, facets, setFacets, resetFilters, notice, filter, setFilter, kind, setKind, query, setQuery, statusCounts, kindCount, retrying,
     pendingCancels, visible, cancel, retry, deadCount: dead.length, clearing, clearDead };
 }

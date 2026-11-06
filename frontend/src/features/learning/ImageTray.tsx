@@ -1,3 +1,4 @@
+import ProgressiveImage from '../../components/ProgressiveImage';
 import { attachmentUrl } from './pastedImages';
 import type { StoredImage } from './pastedImages';
 import './image-tray.css';
@@ -11,7 +12,7 @@ export default function ImageTray({ projectId, images, onRemove, disabled, label
   if (!images.length) return null;
   return <ul className="image-tray" aria-label={label}>
     {images.map(image => <li key={image.name}>
-      <img src={attachmentUrl(projectId, image.name)} alt="" loading="lazy" />
+      <ProgressiveImage src={attachmentUrl(projectId, image.name)} alt="" loading="lazy" decoding="async" />
       {onRemove && <button type="button" disabled={disabled} aria-label="移除这张图片"
         onClick={() => onRemove(image.name)}>×</button>}
     </li>)}

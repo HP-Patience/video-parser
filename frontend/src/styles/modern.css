@@ -77,13 +77,15 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,t
   border-right:1px solid var(--color-border);
   display:flex;
   flex-direction:column;
-  padding:27px 16px 20px
+  overflow:hidden;
+  padding:24px 14px 16px
 }
 .brand {
+  flex:0 0 auto;
   display:flex;
   align-items:center;
   gap:10px;
-  padding:0 9px 37px;
+  padding:0 9px 28px;
   font-size: var(--font-size-lg)
 }
 .brand-mark {
@@ -96,15 +98,38 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,t
   width:22px;
   height:22px
 }
+.sidebar-nav {
+  flex:1 1 0;
+  height:0;
+  min-height:0;
+  display:grid;
+  align-content:start;
+  gap:24px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:2px 4px 16px 0;
+  scrollbar-gutter:stable
+}
+.nav-group {
+  display:grid;
+  gap:6px
+}
 .nav-caption {
-  padding:0 12px 10px;
+  padding:0 10px 4px;
   font-size: var(--font-size-caption);
   letter-spacing:1.4px;
   color:var(--color-text-tertiary)
 }
-.app-sidebar nav {
+.nav-group-items {
   display:grid;
-  gap:5px
+  gap:4px
+}
+.sidebar-utility {
+  flex:0 0 auto;
+  display:grid;
+  gap:4px;
+  padding-top:12px;
+  border-top:1px solid var(--color-border)
 }
 .nav-button {
   display:flex;
@@ -112,37 +137,23 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,t
   justify-content:flex-start;
   gap:12px;
   text-decoration:none;
-  min-height:45px;
+  min-height:44px;
   border:1px solid transparent;
   background:transparent;
   color:var(--color-text-secondary);
-  padding:12px;
+  padding:11px 12px;
   font-size: var(--font-size-sm);
   line-height:1.4
 }
 .nav-button[aria-current=page] {
-  color:var(--mint);
-  background:var(--color-fill-hover);
-  border-color:var(--color-border)
-}
-.nav-button[aria-current=page]::after {
-  content:'';
-  width:5px;
-  height:5px;
-  border-radius:50%;
+  color:var(--color-on-primary);
   background:var(--color-fill-primary);
-  margin-left:auto
+  border-color:var(--color-fill-primary);
+  font-weight:var(--font-weight-semibold)
 }
-.sidebar-bottom {
-  margin-top:auto;
-  padding-top:32px
-}
-.sidebar-bottom p {
-  font-size: var(--font-size-caption);
-  color:var(--color-text-tertiary);
-  border-top:1px solid var(--color-border);
-  margin-top:16px;
-  padding:18px 12px 0
+.nav-button[aria-current=page] .nav-count {
+  background:var(--color-on-primary);
+  color:var(--color-fill-primary)
 }
 .app-shell {
   margin-left:var(--sidebar-width);

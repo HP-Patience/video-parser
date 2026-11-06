@@ -2,7 +2,7 @@ import type { ReactNode, RefObject } from 'react';
 import Icon from './Icon';
 import ThemeMorphIcon from './ThemeMorphIcon';
 import { useTheme } from '../lib/theme';
-import { pageIcons, pageNames, type Page } from '../features/navigation/navigation';
+import { navigationGroups, pageIcons, pageNames, type Page } from '../features/navigation/navigation';
 
 type Props = {
   page: Page; mobile: boolean; menuOpen: boolean; activeCount: number | null;
@@ -19,18 +19,27 @@ export default function WorkbenchLayout({ page, mobile, menuOpen, activeCount,
   children, overlays }: Props) {
   const { theme, toggleTheme } = useTheme();
   const running = activeCount ?? 0;
+  const navButton = (name: Page) => <button key={name}
+    className="nav-button" type="button" aria-current={page === name ? 'page' : undefined}
+    onClick={() => onNavigate(name, mobile)}><Icon name={pageIcons[name]} />{pageNames[name]}
+    {name === 'tasks' && running > 0 && <b className="nav-count">{running}<span className="sr-only"> 项进行中</span></b>}</button>;
   return <div className="modern-app">
     {menuOpen && <button className="nav-scrim" aria-label="关闭导航菜单" onClick={onCloseMenu} />}
     <aside ref={sidebarRef} className={'app-sidebar' + (menuOpen ? ' open' : '')}
       aria-label="主导航" inert={mobile && !menuOpen}
       role={menuOpen ? 'dialog' : undefined} aria-modal={menuOpen || undefined}>
       <div className="brand"><span className="brand-mark"><Icon name="clapperboard" /></span><strong>Video Parser</strong></div>
-      <nav>{(Object.keys(pageNames) as Page[]).filter(name => name !== 'settings' && name !== 'transcription').map(name => <button key={name}
-        className="nav-button" type="button" aria-current={page === name ? 'page' : undefined}
-        onClick={() => onNavigate(name, mobile)}><Icon name={pageIcons[name]} />{pageNames[name]}
-        {name === 'tasks' && running > 0 && <b className="nav-count">{running}<span className="sr-only"> 项进行中</span></b>}</button>)}</nav>
-      <nav className="sidebar-settings" aria-label="应用与项目"><a className="nav-button" href="https://github.com/HP-Patience/video-parser" target="_blank" rel="noopener noreferrer" title="打开 GitHub 项目页面"><Icon name="github" />GitHub</a><button className="nav-button" type="button" title="设置"
-        aria-current={page === 'settings' ? 'page' : undefined} onClick={() => onNavigate('settings', mobile)}><Icon name="settings" />设置</button></nav>
+      <nav className="sidebar-nav" aria-label="工作区导航">{navigationGroups.map(group => <div className="nav-group" key={group.id}
+        role="group" aria-labelledby={`nav-group-${group.id}`}>
+        <p className="nav-caption" id={`nav-group-${group.id}`}>{group.label}</p>
+        <div className="nav-group-items">{group.pages.map(navButton)}</div>
+      </div>)}</nav>
+      <nav className="sidebar-utility sidebar-settings" aria-label="账号、帮助与设置">
+        {navButton('accounts')}
+        <a className="nav-button" href="https://github.com/HP-Patience/video-parser" target="_blank" rel="noopener noreferrer"
+          title="打开 GitHub 项目页面，查看使用说明与问题反馈"><Icon name="github" />GitHub<span className="sr-only">（帮助与项目页面）</span></a>
+        {navButton('settings')}
+      </nav>
     </aside>
     <div className="app-shell" inert={menuOpen}>
       <header className="app-topbar">
