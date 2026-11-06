@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-parser"
-version = "3.4.0"
+version = "3.4.1"
 description = "Local React workspace and CLI for video parsing and organization"
 requires-python = ">=3.11"
 dependencies = [
