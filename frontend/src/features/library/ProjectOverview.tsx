@@ -245,7 +245,7 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
                     <span className="overview-video-meta">
                       <span>{project.platform}</span>{project.part ? <span>P{project.part}</span> : null}
                       <span className={project.archived ? 'is-ready' : 'is-missing'}>{project.archived ? '已归档' : '未归档'}</span>
-                      {project.learned ? <span>已学完</span> : null}{isSelected ? <span>上方预览</span> : null}
+                      {project.learned ? <span>已学完</span> : null}
                     </span>
                   </button>
                 </th>
