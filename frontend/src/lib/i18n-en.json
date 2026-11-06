@@ -1896,6 +1896,7 @@
   "当前没有其他视频项目。": "There are no other video projects right now.",
   "当前账号或权限不可用，请到“账号与登录”检查后重试。": "The current account or permission is unavailable. Check Account and sign-in, then try again.",
   "当前选中 ·": "Selected · ",
+  "上方预览": "Shown above",
   "当前项目资料进度": "Current project material progress",
   "待分析": "Analysis pending",
   "所有项目都具备归档、字幕和分析材料。": "Every project has archival, subtitles and analysis materials.",
@@ -1930,6 +1931,10 @@
   "还没有任务记录": "No task records yet"
  },
  "patterns": [
+  [
+   "^在上方预览 (.+)$",
+   "Preview $1 above"
+  ],
   [
    "^合集《(.+)》$",
    "Collection: $1"
