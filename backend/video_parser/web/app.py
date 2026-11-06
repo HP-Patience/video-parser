@@ -13,7 +13,7 @@ from video_parser.core.paths import FRONTEND_DIR, instance_id
 app = FastAPI(
     title='Video Parser 工作台',
     description='本地视频解析、归档、画面分析、字幕与转写服务',
-    version='3.0.0',
+    version='3.1.0',
 )
 app.include_router(workspace_router)
 from video_parser.web.task_routes import router as task_router
