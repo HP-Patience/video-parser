@@ -1,0 +1,421 @@
+/* =========================================================
+   Soft Mono workbench layer
+   Final visual pass: warm surfaces, soft cards and calmer chrome.
+   This file changes presentation only; feature layout contracts stay intact.
+   ========================================================= */
+
+:root {
+  --sidebar-width: 218px;
+  --topbar-height: 82px;
+  --page-inset: 30px;
+  --page-top-gap: 26px;
+  --panel-pad: 22px;
+  --panel-title-gap: 12px;
+  --control-label-gap: 8px;
+  --page-bg: var(--color-bg);
+  --surface: var(--color-surface-raised);
+  --inset: var(--color-surface-sunken);
+  --line: var(--color-border);
+  --mint: var(--color-text);
+  --muted: var(--color-text-secondary);
+  --soft-shell-gap: 16px;
+  --soft-shell-inset: 18px;
+}
+
+html { background: var(--color-bg); }
+body {
+  background:
+    radial-gradient(circle at 17% 105%, var(--ambient-glow), transparent 32rem),
+    radial-gradient(circle at 104% 8%, color-mix(in srgb, var(--color-accent-soft) 54%, transparent), transparent 28rem),
+    var(--color-bg);
+  background-attachment: fixed;
+}
+
+.modern-app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--soft-shell-inset);
+}
+
+/* ---------- App frame ---------- */
+.app-sidebar {
+  top: var(--soft-shell-inset);
+  bottom: var(--soft-shell-inset);
+  left: var(--soft-shell-inset);
+  width: var(--sidebar-width);
+  padding: 19px 13px 15px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+  border-radius: 27px;
+  background: color-mix(in srgb, var(--color-surface-raised) 84%, transparent);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(18px) saturate(1.05);
+}
+
+.brand {
+  gap: 11px;
+  padding: 2px 8px 27px;
+  font-size: var(--font-size-control);
+}
+
+.brand-copy { display: grid; gap: 2px; min-width: 0; line-height: 1.2; }
+.brand-copy strong { font-size: 15px; font-weight: 650; letter-spacing: -0.02em; }
+.brand-copy small { color: var(--color-text-tertiary); font-size: 10px; letter-spacing: 0.075em; text-transform: uppercase; white-space: nowrap; }
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--color-fill-primary);
+  color: var(--color-on-primary);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 8px 18px rgb(45 42 34 / 0.12);
+}
+
+.brand-mark .icon { width: 23px; height: 23px; }
+
+.sidebar-nav { gap: 25px; padding: 2px 1px 18px; }
+.nav-group { gap: 7px; }
+.nav-caption {
+  padding: 0 12px 5px;
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.nav-group-items { gap: 5px; }
+
+.nav-button {
+  min-height: 43px;
+  gap: 11px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-control);
+}
+
+.modern-app .nav-button:hover:not(:disabled) {
+  color: var(--color-text);
+  background: var(--color-fill-hover);
+}
+
+.modern-app .nav-button[aria-current=page],
+.modern-app .nav-button[aria-current=page]:hover:not(:disabled) {
+  color: var(--color-on-primary);
+  background: var(--color-fill-primary);
+  border-color: var(--color-fill-primary);
+  box-shadow: 0 8px 18px rgb(45 42 34 / 0.12);
+}
+
+.nav-button[aria-current=page] .icon { opacity: 1; }
+.nav-button .icon { width: 17px; height: 17px; opacity: 0.8; }
+.nav-count { border-radius: var(--radius-full); font-size: 11px; }
+
+.sidebar-utility {
+  gap: 4px;
+  padding-top: 13px;
+  border-top-color: color-mix(in srgb, var(--color-border) 78%, transparent);
+}
+
+.app-shell {
+  margin-left: calc(var(--sidebar-width) + var(--soft-shell-gap));
+  min-height: calc(100vh - var(--soft-shell-inset) * 2);
+  min-height: calc(100dvh - var(--soft-shell-inset) * 2);
+  border: 1px solid color-mix(in srgb, var(--color-border) 84%, transparent);
+  border-radius: 29px;
+  background: color-mix(in srgb, var(--color-surface-raised) 64%, var(--color-bg));
+  box-shadow: var(--shadow-lg);
+}
+
+.app-topbar {
+  height: var(--topbar-height);
+  padding: 0 var(--page-inset);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+  border-radius: 29px 29px 0 0;
+  background: color-mix(in srgb, var(--color-surface-raised) 82%, transparent);
+  gap: 14px;
+  backdrop-filter: saturate(1.05) blur(18px);
+}
+
+.topbar-heading { display: grid; gap: 1px; min-width: 0; }
+.topbar-kicker {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+.topbar-title {
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+}
+.top-actions { gap: 10px; }
+.topbar-github,
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-surface-raised) 78%, transparent);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+.topbar-github:hover {
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+  background: var(--color-fill-hover);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+}
+.topbar-github .icon { width: 17px; height: 17px; }
+.global-task-badge {
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-surface-raised) 78%, transparent);
+}
+.global-task-badge b { min-width: 22px; padding: 2px 7px; border-radius: var(--radius-full); }
+.status-dot { width: 7px; height: 7px; background: var(--color-accent); box-shadow: 0 0 0 4px var(--color-accent-soft); }
+
+.modern-main {
+  max-width: 1560px;
+  min-height: calc(100vh - var(--soft-shell-inset) * 2 - var(--topbar-height));
+  min-height: calc(100dvh - var(--soft-shell-inset) * 2 - var(--topbar-height));
+  padding: var(--page-top-gap) var(--page-inset) 34px;
+}
+
+/* ---------- Shared surfaces ---------- */
+.modern-app :is(.panel, .settings-card, .subtitle-naming-panel, .project-folder-naming,
+  .study-sidebar, .learning-materials, .settings-dialog, .login-dialog) {
+  border-color: color-mix(in srgb, var(--color-border) 84%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-surface-raised) 96%, var(--color-bg));
+  box-shadow: var(--shadow-sm);
+}
+
+.modern-app :is(.details-panel .project-panel, .subtitle-embedded,
+  .workspace-source-editor > .source-panel, .episode-learning-card .learning-progress) {
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+.modern-app .panel { padding: var(--panel-pad); }
+.modern-app .panel-title { letter-spacing: -0.015em; }
+.modern-app .panel-title-secondary { color: var(--color-text-secondary); }
+
+.inset, .archive-root, .folder-path, .status {
+  border-radius: 14px;
+  background: var(--color-surface-sunken);
+}
+
+.media-stage {
+  border-color: color-mix(in srgb, var(--color-border-strong) 72%, transparent);
+  border-radius: 22px;
+  background: var(--color-surface-sunken);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  overflow: hidden;
+}
+
+/* ---------- Controls ---------- */
+.modern-app :is(button, a.button) {
+  min-height: 38px;
+  padding: 8px 15px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface-raised) 92%, var(--color-bg));
+  font-weight: 550;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+.modern-app :is(button, a.button):hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  background: var(--color-fill-hover);
+  box-shadow: var(--shadow-sm);
+}
+.modern-app :is(button, a.button).primary {
+  border-color: var(--color-fill-primary);
+  border-radius: var(--radius-full);
+  background: var(--color-fill-primary);
+  color: var(--color-on-primary);
+  box-shadow: 0 8px 18px rgb(45 42 34 / 0.12);
+}
+.modern-app :is(button, a.button).primary:hover:not(:disabled) {
+  border-color: var(--color-fill-primary-hover);
+  background: var(--color-fill-primary-hover);
+  box-shadow: 0 10px 22px rgb(45 42 34 / 0.15);
+}
+.modern-app :is(button, a.button).chip { border-radius: var(--radius-full); background: var(--color-surface-raised); }
+.modern-app :is(.theme-toggle, .global-task-badge, .nav-button, .mobile-menu) { box-shadow: none; }
+
+textarea, select,
+input:where([type=text], [type=number], [type=search], [type=url], [type=password], :not([type])) {
+  border-color: var(--color-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-surface-raised) 70%, var(--color-surface-sunken));
+}
+textarea:hover:not(:disabled):not(:focus),
+select:hover:not(:disabled):not(:focus),
+input:where([type=text], [type=number], [type=search], [type=url], [type=password], :not([type])):hover:not(:disabled):not(:focus) {
+  border-color: var(--color-border-strong);
+}
+
+/* ---------- Page toolbar and tabs ---------- */
+.modern-app .workspace-toolbar {
+  margin-bottom: 18px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-surface-raised) 84%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+.modern-app .workspace-toolbar > .tabs { gap: 4px; min-height: 38px; }
+.modern-app .workspace-toolbar > .tabs button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+}
+.modern-app .workspace-toolbar > .tabs button[aria-selected=true],
+.modern-app .workspace-toolbar > .tabs button[aria-selected=true]:hover:not(:disabled) {
+  color: var(--color-on-primary);
+  background: var(--color-fill-primary);
+}
+.modern-app .workspace-toolbar > .tabs button[aria-selected=true]::after { display: none; }
+.modern-app .workspace-toolbar > .learning-project-picker { max-width: 390px; }
+
+.modern-app .tabs button { border-radius: var(--radius-full); }
+.modern-app .task-filters button,
+.modern-app .overview-filters button { border-radius: var(--radius-full); }
+.modern-app .task-filters button[aria-pressed=true],
+.modern-app .overview-filters button[aria-pressed=true] {
+  border-color: var(--color-fill-primary);
+  background: var(--color-fill-primary);
+  color: var(--color-on-primary);
+}
+
+/* ---------- Workspace rhythm ---------- */
+.modern-app .source-panel {
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.modern-app .source-row textarea { height: 39px; min-height: 39px; }
+.modern-app .source-row .parse-button { min-height: 40px; border-radius: var(--radius-full); }
+.modern-app .work-grid { gap: 20px; }
+.modern-app .details-panel { border-radius: 22px; }
+.modern-app .preview-panel { border-radius: 22px; }
+
+.workspace-start {
+  gap: 22px;
+  padding: clamp(26px, 4vw, 48px);
+  border: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 96% 8%, var(--color-accent-soft), transparent 18rem),
+    color-mix(in srgb, var(--color-surface-raised) 95%, var(--color-bg));
+  box-shadow: var(--shadow-md);
+}
+.workspace-start-intro h2 { font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.045em; }
+.workspace-start .source-panel { box-shadow: none; }
+.workspace-continue { border-top-color: color-mix(in srgb, var(--color-border) 75%, transparent); }
+
+/* ---------- Common content highlights ---------- */
+.platform-mark { border-radius: var(--radius-full); padding: 2px 9px; background: var(--color-surface-sunken); }
+.modern-app .status-dot { border-radius: var(--radius-full); }
+.modern-app .archive-reminder { border-radius: var(--radius-full); background: var(--color-surface-raised); }
+.modern-app .settings-section-nav button[aria-current=true] { border-radius: var(--radius-full); background: var(--color-fill-primary); color: var(--color-on-primary); }
+.modern-app .task-list > li { border-color: color-mix(in srgb, var(--color-border) 82%, transparent); }
+.modern-app .study-sidebar { border-radius: 22px; }
+.modern-app .study-sidebar-tabs button { border-radius: var(--radius-full); }
+.modern-app .study-sidebar-tabs button[aria-selected=true] { background: var(--color-fill-primary); color: var(--color-on-primary); border-color: var(--color-fill-primary); }
+.modern-app .learning-materials { border-radius: 22px; }
+.modern-app .analysis-record-bar { border-radius: 18px; }
+.modern-app .settings-card { border-radius: 22px; }
+
+/* Keep the generation and record panels visually separate even inside the legacy learning-notes wrapper. */
+.modern-app .learning-notes-panel > .analysis-form + .analysis-records { margin-top: 24px; }
+
+/* Subtle entrance rhythm; disabled for reduced-motion users. */
+@keyframes soft-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.modern-main > :is(.video-overview, section, div) { animation: soft-rise var(--duration-slow) var(--ease-standard) both; }
+
+/* ---------- Responsive shell ---------- */
+@media (max-width: 1170px) {
+  :root { --sidebar-width: 196px; --page-inset: 24px; --page-top-gap: 23px; }
+  .app-sidebar { padding-inline: 11px; }
+  .brand { padding-inline: 7px; }
+  .modern-main { padding-bottom: 28px; }
+  .modern-app .workspace-toolbar > .learning-project-picker { max-width: 320px; }
+}
+
+@media (max-width: 1000px) {
+  .modern-app .work-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 760px) {
+  :root { --sidebar-width: 238px; --topbar-height: 68px; --page-inset: 17px; --page-top-gap: 20px; --soft-shell-inset: 10px; --soft-shell-gap: 0px; }
+  .modern-app { padding: 10px; }
+  .app-sidebar {
+    top: 10px;
+    bottom: 10px;
+    left: 10px;
+    width: var(--sidebar-width);
+    border-radius: 25px;
+  }
+  .app-shell {
+    margin-left: 0;
+    min-height: calc(100vh - 20px);
+    min-height: calc(100dvh - 20px);
+    border-radius: 25px;
+  }
+  .app-topbar { height: var(--topbar-height); padding-inline: 17px; border-radius: 25px 25px 0 0; }
+  .topbar-kicker { display: none; }
+  .topbar-title { font-size: var(--font-size-page-compact); }
+  .modern-main { padding: 20px 17px 26px; }
+  .modern-app .workspace-toolbar { padding: 7px 8px; border-radius: 16px; }
+  .modern-app .workspace-toolbar > .learning-project-picker { max-width: none; }
+  .modern-app .panel { padding: 18px 16px; border-radius: 20px; }
+  .workspace-start { padding: 27px 20px; border-radius: 24px; }
+  .workspace-start-intro h2 { font-size: 31px; }
+}
+
+@media (max-width: 480px) {
+  .global-task-badge .task-label { display: none; }
+}
+
+@media (max-width: 420px) {
+  :root { --page-inset: 13px; --soft-shell-inset: 7px; }
+  .modern-app { padding: 7px; }
+  .app-sidebar { top: 7px; bottom: 7px; left: 7px; }
+  .app-shell { min-height: calc(100vh - 14px); min-height: calc(100dvh - 14px); }
+  .app-topbar { padding-inline: 12px; }
+  .modern-main { padding-inline: 13px; }
+  .workspace-start { padding: 24px 16px; }
+  .workspace-start-intro h2 { font-size: 27px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modern-main > :is(.video-overview, section, div) { animation: none; }
+}

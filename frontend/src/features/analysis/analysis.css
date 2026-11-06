@@ -37,10 +37,10 @@
 .analysis-status { margin: 0; font-size: var(--font-size-sm); color: var(--color-text); }
 .analysis-form .error-text { margin: 0; }
 
-.analysis-records { margin-top: 16px; }
-.analysis-record-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.analysis-records { margin-top: 24px; }
+.analysis-record-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; }
 .analysis-record-bar select { width: auto; min-width: 220px; max-width: 100%; }
-.analysis-record { display: grid; gap: 12px; margin-top: 12px; min-width: 0; }
+.analysis-record { display: grid; gap: 12px; margin-top: 16px; min-width: 0; }
 .analysis-meta { margin: 0; font-size: var(--font-size-xs); color: var(--color-text-tertiary); overflow-wrap: anywhere; }
 .analysis-record-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .modern-app .analysis-record-actions :is(button, a.button) { min-height: 30px; padding: 4px 12px; font-size: var(--font-size-control); box-shadow: none; }

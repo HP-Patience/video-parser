@@ -11,3 +11,4 @@ import './styles/design-system.css';
 import './styles/ux-refinements.css';
 import './styles/spacing.css';
 import './styles/typography.css';
+import './styles/soft-workbench.css';

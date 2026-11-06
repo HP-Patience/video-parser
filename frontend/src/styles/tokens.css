@@ -1,24 +1,31 @@
 /* =========================================================
-   Video Parser · Mono Design Tokens v0.1
-   黑白设计系统的唯一真值来源；页面与组件只引用第 2 层语义变量。
+   Video Parser · Soft Mono Design Tokens
+   暖中性灰视觉系统：所有页面只引用第 2 层语义变量。
    主题由 <html data-theme="light|dark"> 决定（见 index.html 与 lib/theme.ts）。
-   第 1 层 · 原始值（Primitive）：描述“是什么”，组件不直接引用
    ========================================================= */
+
+/* 第 1 层 · 原始值：描述“是什么”，组件不直接引用 */
 :root {
-  /* 灰阶 · 13 级，纯中性、无色偏 */
-  --gray-0: #ffffff;
-  --gray-50: #fafafa;
-  --gray-100: #f4f4f4;
-  --gray-200: #e6e6e6;
-  --gray-300: #d4d4d4;
-  --gray-400: #a3a3a3;
-  --gray-500: #737373;
-  --gray-600: #525252;
-  --gray-700: #3d3d3d;
-  --gray-800: #262626;
-  --gray-900: #171717;
-  --gray-950: #0a0a0a;
-  --gray-1000: #000000;
+  /* 暖灰阶 · 低饱和、低眩光 */
+  --gray-0: #fffdf8;
+  --gray-50: #fbfaf6;
+  --gray-100: #f5f3ed;
+  --gray-200: #e9e6de;
+  --gray-300: #d8d4ca;
+  --gray-400: #aaa49a;
+  --gray-500: #7b766d;
+  --gray-600: #625e57;
+  --gray-700: #4b4842;
+  --gray-800: #35332e;
+  --gray-900: #272622;
+  --gray-950: #1d1c19;
+  --gray-1000: #121210;
+
+  /* 柔和强调色：只用于氛围、完成状态与少量数据强调 */
+  --sage-100: #e3e9df;
+  --sage-300: #b9c6b2;
+  --sage-500: #879881;
+  --sage-700: #52604d;
 
   /* 字体 */
   --font-family-sans: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, sans-serif;
@@ -35,8 +42,8 @@
   --font-size-4xl: 44px;
 
   /* Semantic typography roles. Compact layouts wrap instead of shrinking text. */
-  --font-size-page: 24px;
-  --font-size-page-compact: 22px;
+  --font-size-page: 28px;
+  --font-size-page-compact: 23px;
   --font-size-section: 18px;
   --font-size-subheading: 15px;
   --font-size-body: var(--font-size-md);
@@ -48,12 +55,12 @@
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
-  --line-height-tight: 1.2;
+  --line-height-tight: 1.18;
   --line-height-snug: 1.4;
-  --line-height-normal: 1.6;
-  --letter-spacing-tight: -0.02em;
+  --line-height-normal: 1.65;
+  --letter-spacing-tight: -0.025em;
   --letter-spacing-normal: 0;
-  --letter-spacing-wide: 0.08em;
+  --letter-spacing-wide: 0.1em;
 
   /* 间距 · 4px 基准 */
   --space-0: 0px;
@@ -68,11 +75,13 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* 圆角 */
+  /* 圆角：参考图的柔和卡片语言 */
   --radius-none: 0px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-2xl: 30px;
   --radius-full: 9999px;
 
   /* 线宽 */
@@ -80,15 +89,15 @@
   --border-width-thick: 2px;
 
   /* 控件高度 */
-  --control-height-sm: 28px;
-  --control-height-md: 36px;
-  --control-height-lg: 44px;
+  --control-height-sm: 32px;
+  --control-height-md: 40px;
+  --control-height-lg: 46px;
 
   /* 动效 */
-  --duration-fast: 120ms;
-  --duration-base: 200ms;
-  --duration-slow: 320ms;
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --duration-slow: 360ms;
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 
   /* 层级 */
@@ -100,57 +109,64 @@
   --z-toast: 500;
 
   /* 布局 */
-  --container-max: 1280px;
+  --container-max: 1440px;
 }
 
 /* =========================================================
-   第 2 层 · 语义值（Semantic）：描述“用在哪”，组件只引用这一层
-   切换主题 = 只替换这一层的映射
+   第 2 层 · 语义值：描述“用在哪”，组件只引用这一层
    ========================================================= */
 :root, [data-theme="light"] {
   color-scheme: light;
-  --color-bg: var(--gray-0);
-  --color-surface: var(--gray-50);
-  --color-surface-sunken: var(--gray-100);
-  --color-surface-raised: var(--gray-0);
-  --color-text: var(--gray-950);
-  --color-text-secondary: var(--gray-600);
-  --color-text-tertiary: var(--gray-500);
-  --color-text-disabled: var(--gray-400);
-  --color-border: var(--gray-200);
-  --color-border-strong: var(--gray-500);
-  --color-border-focus: var(--gray-1000);
-  --color-fill-primary: var(--gray-950);
-  --color-fill-primary-hover: var(--gray-700);
-  --color-on-primary: var(--gray-0);
-  --color-fill-hover: var(--gray-100);
-  --color-fill-disabled: var(--gray-100);
-  --color-overlay: rgb(0 0 0 / 0.45);
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
-  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
-  --shadow-lg: 0 16px 48px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.06);
+  --color-bg: #f1f0eb;
+  --color-surface: #ebe9e3;
+  --color-surface-sunken: #e4e1da;
+  --color-surface-raised: #fbfaf7;
+  --color-text: #282724;
+  --color-text-secondary: #615e57;
+  --color-text-tertiary: #756f66;
+  --color-text-disabled: #aaa49a;
+  --color-border: #dedbd3;
+  --color-border-strong: #aaa59a;
+  --color-border-focus: #292824;
+  --color-fill-primary: #302f2b;
+  --color-fill-primary-hover: #4a4842;
+  --color-on-primary: #fffdf8;
+  --color-fill-hover: #e7e4dc;
+  --color-fill-disabled: #e4e1da;
+  --color-overlay: rgb(34 32 28 / 0.5);
+  --color-accent: var(--sage-500);
+  --color-accent-soft: var(--sage-100);
+  --color-accent-ink: var(--sage-700);
+  --shadow-sm: 0 2px 8px rgb(80 74 62 / 0.055), 0 1px 2px rgb(80 74 62 / 0.04);
+  --shadow-md: 0 12px 30px rgb(80 74 62 / 0.07), 0 2px 6px rgb(80 74 62 / 0.035);
+  --shadow-lg: 0 28px 70px rgb(67 61 50 / 0.14), 0 6px 18px rgb(67 61 50 / 0.06);
+  --ambient-glow: rgb(176 192 166 / 0.36);
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --color-bg: var(--gray-950);
-  --color-surface: var(--gray-900);
-  --color-surface-sunken: var(--gray-1000);
-  --color-surface-raised: var(--gray-900);
-  --color-text: var(--gray-50);
-  --color-text-secondary: var(--gray-300);
-  --color-text-tertiary: var(--gray-400);
-  --color-text-disabled: var(--gray-600);
-  --color-border: var(--gray-800);
-  --color-border-strong: var(--gray-500);
-  --color-border-focus: var(--gray-0);
-  --color-fill-primary: var(--gray-50);
-  --color-fill-primary-hover: var(--gray-300);
-  --color-on-primary: var(--gray-950);
-  --color-fill-hover: var(--gray-800);
-  --color-fill-disabled: var(--gray-800);
+  --color-bg: #191815;
+  --color-surface: #22211d;
+  --color-surface-sunken: #151411;
+  --color-surface-raised: #2a2824;
+  --color-text: #f7f3eb;
+  --color-text-secondary: #c6c0b5;
+  --color-text-tertiary: #a29b90;
+  --color-text-disabled: #6f6a61;
+  --color-border: #3d3a33;
+  --color-border-strong: #6e685e;
+  --color-border-focus: #f5efe4;
+  --color-fill-primary: #f3eee4;
+  --color-fill-primary-hover: #dcd5c8;
+  --color-on-primary: #1d1c19;
+  --color-fill-hover: #35322d;
+  --color-fill-disabled: #292722;
   --color-overlay: rgb(0 0 0 / 0.7);
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
-  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.6);
-  --shadow-lg: 0 16px 48px rgb(0 0 0 / 0.8);
+  --color-accent: var(--sage-300);
+  --color-accent-soft: #30382d;
+  --color-accent-ink: #d8e1d2;
+  --shadow-sm: 0 2px 10px rgb(0 0 0 / 0.18), 0 1px 2px rgb(0 0 0 / 0.22);
+  --shadow-md: 0 14px 36px rgb(0 0 0 / 0.24), 0 2px 8px rgb(0 0 0 / 0.16);
+  --shadow-lg: 0 30px 80px rgb(0 0 0 / 0.42), 0 8px 22px rgb(0 0 0 / 0.24);
+  --ambient-glow: rgb(102 119 94 / 0.2);
 }
