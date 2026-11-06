@@ -362,7 +362,7 @@ export default function App() {
     const key = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); setMenuOpen(false); requestAnimationFrame(() => menuButton.current?.focus()); }
       if (event.key !== 'Tab') return;
-      const buttons = Array.from(sidebar.current?.querySelectorAll<HTMLButtonElement>('button') || []);
+      const buttons = Array.from(sidebar.current?.querySelectorAll<HTMLElement>('button, a[href]') || []);
       if (event.shiftKey && document.activeElement === buttons[0]) { event.preventDefault(); buttons.at(-1)?.focus(); }
       else if (!event.shiftKey && document.activeElement === buttons.at(-1)) { event.preventDefault(); buttons[0]?.focus(); }
     };

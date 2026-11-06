@@ -111,12 +111,14 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,t
   width:100%;
   justify-content:flex-start;
   gap:12px;
+  text-decoration:none;
   min-height:45px;
-  border-color:transparent;
+  border:1px solid transparent;
   background:transparent;
   color:var(--color-text-secondary);
   padding:12px;
-  font-size: var(--font-size-sm)
+  font-size: var(--font-size-sm);
+  line-height:1.4
 }
 .nav-button[aria-current=page] {
   color:var(--mint);

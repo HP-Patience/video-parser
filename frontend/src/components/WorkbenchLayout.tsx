@@ -29,7 +29,7 @@ export default function WorkbenchLayout({ page, mobile, menuOpen, activeCount,
         className="nav-button" type="button" aria-current={page === name ? 'page' : undefined}
         onClick={() => onNavigate(name, mobile)}><Icon name={pageIcons[name]} />{pageNames[name]}
         {name === 'tasks' && running > 0 && <b className="nav-count">{running}<span className="sr-only"> 项进行中</span></b>}</button>)}</nav>
-      <nav className="sidebar-settings" aria-label="应用设置"><button className="nav-button" type="button" title="设置"
+      <nav className="sidebar-settings" aria-label="应用与项目"><a className="nav-button" href="https://github.com/HP-Patience/video-parser" target="_blank" rel="noopener noreferrer" title="打开 GitHub 项目页面"><Icon name="github" />GitHub</a><button className="nav-button" type="button" title="设置"
         aria-current={page === 'settings' ? 'page' : undefined} onClick={() => onNavigate('settings', mobile)}><Icon name="settings" />设置</button></nav>
     </aside>
     <div className="app-shell" inert={menuOpen}>
