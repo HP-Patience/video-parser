@@ -57,6 +57,7 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
   const [filter, setFilter] = useState<Filter>('all');
   const [reload, setReload] = useState(0);
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -71,18 +72,17 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
   }, [visible, version, reload]);
 
   const metrics = useMemo(() => ({
-    archived: projects.filter(project => project.archived).length,
     subtitles: projects.filter(project => subtitleCount(project) > 0).length,
     analyzed: projects.filter(project => analysisCount(project) > 0).length,
     attention: projects.filter(project => completionCount(project) < 3).length,
   }), [projects]);
 
-  const current = useMemo(() => projects.find(project => project.id === currentId) || projects[0], [currentId, projects]);
+  const current = useMemo(() => projects.find(project => project.id === (selectedId || currentId)) || projects[0],
+    [currentId, projects, selectedId]);
   const attention = useMemo(() => projects
     .filter(project => completionCount(project) < 3)
     .sort((a, b) => completionCount(a) - completionCount(b))
     .slice(0, 4), [projects]);
-  const recent = useMemo(() => projects.filter(project => project.id !== current?.id).slice(0, 5), [current?.id, projects]);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLocaleLowerCase();
@@ -96,6 +96,7 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
   async function open(project: VideoProjectSummary) {
     if (openingId) return;
     const action = actionFor(project);
+    setSelectedId(project.id);
     setOpeningId(project.id);
     setError('');
     try {
@@ -113,7 +114,6 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
     { label: '字幕资料', done: subtitleCount(current) > 0 },
     { label: 'AI 分析', done: analysisCount(current) > 0 },
   ] : [];
-  const percentage = (value: number) => projects.length ? Math.round(value / projects.length * 100) : 0;
 
   return <section className="video-overview" aria-labelledby="video-overview-title">
     <header className="overview-intro">
@@ -144,10 +144,9 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
               <p className="overview-card-kicker">继续处理</p>
               <span className="overview-project-index">当前选中 · {current.platform}</span>
             </div>
-            <span className={`overview-status-pill ${completionCount(current) === 3 ? 'is-ready' : 'is-missing'}`}>{statusLabel(current)}</span>
           </div>
 
-          <div className="overview-current-heading">
+          <div className="overview-current-heading" aria-live="polite" aria-atomic="true">
             <h3 id="overview-current-title" translate="no" title={projectDisplayTitle(current)}>{videoDisplayTitle(current)}</h3>
             <span className="overview-completion-value">{completionPercent(current)}%</span>
           </div>
@@ -162,7 +161,6 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
               <span className="overview-visual-orbit orbit-two" />
               <span className="overview-visual-play"><Icon name="circle-play" /></span>
               <span className="overview-visual-caption">VIDEO PARSER · PROJECT MAP</span>
-              <span className="overview-visual-number">{String(completionCount(current)).padStart(2, '0')} / 03</span>
             </div>
 
             <div className="overview-progress-list" aria-label="当前项目资料进度">
@@ -179,7 +177,6 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
           <div className="overview-current-actions">
             <button type="button" className="overview-primary-action" disabled={openingId !== null} aria-busy={openingId === current.id}
               onClick={() => { void open(current); }}>{openingId === current.id ? '打开中…' : currentAction?.label}<span aria-hidden="true">→</span></button>
-            <span className="overview-current-caption">下一步建议：{currentAction?.label}</span>
           </div>
         </article>}
 
@@ -196,7 +193,7 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
               <span className="overview-attention-index">{String(index + 1).padStart(2, '0')}</span>
               <span className="overview-attention-copy">
                 <strong translate="no" title={projectDisplayTitle(project)}>{videoDisplayTitle(project)}</strong>
-                <small>{statusLabel(project)} · {action.label}</small>
+                <small>{statusLabel(project)}</small>
               </span>
               <span className="overview-row-arrow" aria-hidden="true">↗</span>
             </button>;
@@ -205,43 +202,6 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
             <strong>资料链已经完整</strong>
             <p>所有项目都具备归档、字幕和分析材料。</p>
           </div>}
-        </article>
-
-        <article className="overview-card overview-recent-card" aria-labelledby="overview-recent-title">
-          <div className="overview-card-heading">
-            <div><p className="overview-card-kicker">最近更新</p><h3 id="overview-recent-title">视频项目</h3></div>
-            <span className="overview-muted-count">共 {projects.length} 个</span>
-          </div>
-          {recent.length ? <div className="overview-recent-list">{recent.map(project => {
-            const action = actionFor(project);
-            return <button key={project.id} type="button" className="overview-recent-row" disabled={openingId !== null}
-              aria-label={`${videoDisplayTitle(project)}：${action.label}`} onClick={() => { void open(project); }}>
-              <span className={`overview-project-avatar ${project.archived ? 'is-ready' : ''}`}><Icon name="circle-play" /></span>
-              <span className="overview-recent-copy">
-                <strong translate="no" title={projectDisplayTitle(project)}>{videoDisplayTitle(project)}</strong>
-                <small>{project.platform} · {dateLabel(project.created_at)}</small>
-              </span>
-              <span className={`overview-mini-state ${completionCount(project) === 3 ? 'is-ready' : ''}`}>{statusLabel(project)}</span>
-            </button>;
-          })}</div> : <p className="overview-no-recent">当前没有其他视频项目。</p>}
-        </article>
-
-        <article className="overview-card overview-metrics-card" aria-labelledby="overview-metrics-title">
-          <div className="overview-card-heading">
-            <div><p className="overview-card-kicker">资料构成</p><h3 id="overview-metrics-title">一眼看清进度</h3></div>
-            <span className="overview-metrics-mark">03</span>
-          </div>
-          <div className="overview-metrics-grid">
-            <div><span>已归档</span><strong>{metrics.archived}</strong><small>{percentage(metrics.archived)}%</small></div>
-            <div><span>有字幕</span><strong>{metrics.subtitles}</strong><small>{percentage(metrics.subtitles)}%</small></div>
-            <div><span>有 AI 材料</span><strong>{metrics.analyzed}</strong><small>{percentage(metrics.analyzed)}%</small></div>
-            <div><span>待补齐</span><strong>{metrics.attention}</strong><small>{projects.length ? Math.round(metrics.attention / projects.length * 100) : 0}%</small></div>
-          </div>
-          <div className="overview-coverage">
-            <span>资料完整度</span>
-            <strong>{projects.length ? Math.round(projects.reduce((sum, project) => sum + completionCount(project), 0) / (projects.length * 3) * 100) : 0}%</strong>
-            <div aria-hidden="true"><i style={{ width: `${projects.length ? Math.round(projects.reduce((sum, project) => sum + completionCount(project), 0) / (projects.length * 3) * 100) : 0}%` }} /></div>
-          </div>
         </article>
       </div>
 
@@ -273,15 +233,21 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
             <thead><tr><th scope="col">视频</th><th scope="col">字幕</th><th scope="col">AI 分析</th><th scope="col">已生成材料</th><th scope="col">操作</th></tr></thead>
             <tbody>{filtered.map(project => {
               const subs = subtitleCount(project), analyses = analysisCount(project), groups = materialGroups(project);
-              const action = actionFor(project), isCurrent = currentId === project.id;
-              return <tr key={project.id} className={isCurrent ? 'is-current' : undefined}>
+              const action = actionFor(project), isSelected = current?.id === project.id;
+              return <tr key={project.id} className={isSelected ? 'is-current' : undefined}
+                onClick={event => {
+                  if (!(event.target as HTMLElement).closest('button, a, input, select, textarea')) setSelectedId(project.id);
+                }}>
                 <th scope="row" data-label="视频">
-                  <span className="overview-video-title" translate="no" title={projectDisplayTitle(project)}>{videoDisplayTitle(project)}</span>
-                  <span className="overview-video-meta">
-                    <span>{project.platform}</span>{project.part ? <span>P{project.part}</span> : null}
-                    <span className={project.archived ? 'is-ready' : 'is-missing'}>{project.archived ? '已归档' : '未归档'}</span>
-                    {project.learned ? <span>已学完</span> : null}{isCurrent ? <span>当前打开</span> : null}
-                  </span>
+                  <button type="button" className="overview-select-video" aria-pressed={isSelected}
+                    aria-label={`在上方预览 ${videoDisplayTitle(project)}`} onClick={() => setSelectedId(project.id)}>
+                    <span className="overview-video-title" translate="no" title={projectDisplayTitle(project)}>{videoDisplayTitle(project)}</span>
+                    <span className="overview-video-meta">
+                      <span>{project.platform}</span>{project.part ? <span>P{project.part}</span> : null}
+                      <span className={project.archived ? 'is-ready' : 'is-missing'}>{project.archived ? '已归档' : '未归档'}</span>
+                      {project.learned ? <span>已学完</span> : null}{isSelected ? <span>上方预览</span> : null}
+                    </span>
+                  </button>
                 </th>
                 <td data-label="字幕">
                   <span className={`overview-state ${subs ? 'is-ready' : 'is-missing'}`}>{subs ? `已有 ${subs} 份` : '无字幕'}</span>
