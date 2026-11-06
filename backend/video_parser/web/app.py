@@ -54,7 +54,8 @@ async def request_identifier(request,call_next):
     response=await call_next(request)
     response.headers['X-Request-ID']=identifier
     if (request.url.path.startswith('/api/workspace/tasks') or request.url.path.startswith('/api/workspace/cache')
-            or '/conversations' in request.url.path or request.url.path.startswith('/api/workspace/ai/agents')):
+            or '/conversations' in request.url.path or request.url.path.startswith('/api/workspace/ai/agents')
+            or request.url.path.startswith('/api/workspace/updates')):
         response.headers['Cache-Control']='no-store'
     return response
 

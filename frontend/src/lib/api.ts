@@ -1,3 +1,16 @@
+export interface UpdateStatus {
+  current_version: string;
+  latest_version: string | null;
+  release_found: boolean;
+  available: boolean;
+  can_install: boolean;
+  install_reason: 'installed' | 'not_installed' | 'assets_missing' | 'up_to_date' | 'no_release';
+  release_url: string;
+  published_at?: string | null;
+}
+
+export interface UpdateInstallResult { started: boolean; version: string; installer: string }
+
 export interface Configuration {
   platforms: string[];
   ai_configured: boolean;

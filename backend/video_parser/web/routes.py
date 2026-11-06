@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from video_parser.core import desktop
 from video_parser.core.paths import CACHE_DIR, ROOT, canonical
-from video_parser.services import videos, ai_settings
+from video_parser.services import videos, ai_settings, update
 from video_parser.services import library as library, library_layout
 from video_parser.platforms.downloaders.douyin_downloader import DouyinAccessError
 from video_parser.platforms.downloaders.base_downloader import PlatformAccessError
@@ -58,6 +58,17 @@ class PrepareBody(BaseModel):
 class LearningBody(BaseModel):
     part: int = Field(ge=1, le=100000, strict=True)
     learned: bool = Field(strict=True)
+
+
+class UpdateInstallBody(BaseModel):
+    confirm: Literal[True]
+
+    @field_validator('confirm', mode='before')
+    @classmethod
+    def explicit_confirmation(cls, value):
+        if value is not True:
+            raise ValueError('请确认开始更新。')
+        return value
 
 
 class TitleBody(BaseModel):
@@ -172,6 +183,24 @@ def configuration():
             'subtitles_ready': subtitles.available(), 'transcription_ready': transcription.available(),
             'transcription_upload_limit': transcription.MAX_UPLOAD_BYTES,
             'archive_root': str(library.LIBRARY_ROOT.resolve()), 'version': app_version()}
+
+
+@router.get('/updates/check')
+def update_check():
+    try:
+        return update.check(app_version())
+    except update.UpdateError as error:
+        raise HTTPException(502, str(error)) from None
+
+
+@router.post('/updates/install')
+def update_install(body: UpdateInstallBody):
+    try:
+        return update.install(app_version())
+    except (update.UpdateUnavailable, update.UpdateNotSupported, update.UpdateBusy) as error:
+        raise HTTPException(409, str(error)) from None
+    except update.UpdateError as error:
+        raise HTTPException(502, str(error)) from None
 
 
 @router.post('/parse')

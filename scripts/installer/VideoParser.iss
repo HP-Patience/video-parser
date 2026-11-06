@@ -28,9 +28,9 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
 AppPublisher=Video Parser
-AppPublisherURL=https://github.com/Celyn-number3/video-parser
-AppSupportURL=https://github.com/Celyn-number3/video-parser/issues
-AppUpdatesURL=https://github.com/Celyn-number3/video-parser/releases
+AppPublisherURL=https://github.com/HP-Patience/video-parser
+AppSupportURL=https://github.com/HP-Patience/video-parser/issues
+AppUpdatesURL=https://github.com/HP-Patience/video-parser/releases
 VersionInfoVersion={#AppVersion}
 ; Per user: {autopf} is %LOCALAPPDATA%\Programs, which the app can write to (outputs\, .local\).
 PrivilegesRequired=lowest

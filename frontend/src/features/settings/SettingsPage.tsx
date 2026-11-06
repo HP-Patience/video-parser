@@ -8,6 +8,7 @@ import LearningTargets from './LearningTargets';
 import EmbeddingSettings from './EmbeddingSettings';
 import UsageDashboard from './UsageDashboard';
 import ArchiveHealthPanel from './ArchiveHealth';
+import UpdatePanel from './UpdatePanel';
 import { setLanguage, useLanguage } from '../../lib/i18n';
 import type { Language } from '../../lib/i18n';
 import './settings-page.css';
@@ -110,6 +111,7 @@ export default function SettingsPage({ settings, onChange, config, configError, 
             {config.version && <><dt>版本：</dt><dd>{config.version}</dd></>}
           </dl> : <p className="settings-hint">{configError || '正在读取…'}</p>}
         </section>
+        <UpdatePanel currentVersion={config?.version || ''} />
         <div className="settings-card settings-card-wide"><CacheManager activeCount={activeCount} /></div>
       </div>
     </div>

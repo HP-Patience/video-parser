@@ -1,5 +1,36 @@
 {
  "exact": {
+  "版本更新": "Software update",
+  "当前版本": "Current version",
+  "。检查会读取 GitHub 最新正式版；不会自动下载或安装。": ". Checks read the latest stable GitHub release; nothing is downloaded or installed automatically.",
+  "检查更新": "Check for updates",
+  "正在检查…": "Checking…",
+  "正在启动更新…": "Starting update…",
+  "前往发布页": "Open release page",
+  "尚未找到已发布的更新版本。": "No published update was found.",
+  "发现新版本，但当前运行方式不能直接覆盖；请前往发布页下载安装版。": "A new version is available, but this copy cannot be replaced automatically. Download the installer from the release page.",
+  "已是最新版本。": "You are on the latest version.",
+  "检查更新失败，请重试。": "Could not check for updates. Try again.",
+  "启动更新失败，请重试。": "Could not start the update. Try again.",
+  "未知": "Unknown",
+  "无法连接更新服务，请检查网络后重试。": "Could not reach the update service. Check your network and try again.",
+  "更新信息异常，已停止处理。": "The update information is invalid. Processing stopped.",
+  "更新信息格式异常，已停止处理。": "The update information has an invalid format. Processing stopped.",
+  "更新包超过允许大小，已停止下载。": "The update package is too large. The download stopped.",
+  "更新包大小与发布记录不一致，已停止处理。": "The update package size does not match the release record. Processing stopped.",
+  "下载更新包失败，请检查网络后重试。": "Could not download the update package. Check your network and try again.",
+  "无法读取更新校验文件。": "Could not read the update checksum file.",
+  "更新校验文件中缺少安装包记录。": "The update checksum file does not include the installer.",
+  "更新包地址异常，已停止处理。": "The update package URL is invalid. Processing stopped.",
+  "安装包校验失败，已删除下载文件。": "The installer failed verification and was deleted.",
+  "当前版本号格式无效，无法检查更新。": "The current version is invalid, so updates cannot be checked.",
+  "当前版本号格式无效，无法更新。": "The current version is invalid, so it cannot be updated.",
+  "当前已是最新版本。": "You are already on the latest version.",
+  "当前不是可自动更新的安装版，请前往发布页下载。": "This copy is not an installed build that can update itself. Download it from the release page.",
+  "仍有任务进行中，请全部完成后再更新。": "Tasks are still running. Finish them before updating.",
+  "无法启动更新程序，请手动下载安装包。": "Could not start the updater. Download the installer manually.",
+  "最新发布版本号格式无效。": "The latest release version is invalid.",
+  "该版本没有完整的 Windows 安装包。": "This release does not contain a complete Windows installer.",
     "公式阅读": "Math preview",
     "返回公式阅读": "Back to math preview",
     "查看原始文本": "View source text",
@@ -1794,6 +1825,22 @@
   "无法读取这张图片，请重新粘贴。": "This image could not be read. Paste it again."
  },
  "patterns": [
+  [
+   "^发现新版本 (.+)。确认后会关闭应用、自动安装并重新打开。$",
+   "Version $1 is available. Confirming closes the app, installs the update and reopens it."
+  ],
+  [
+   "^更新到 (.+)$",
+   "Update to $1"
+  ],
+  [
+   "^更新程序已启动（v(.+)），应用即将关闭并重新打开。$",
+   "Updater started (v$1). The app will close and reopen."
+  ],
+  [
+   "^更新服务返回 HTTP (\\d+)，请稍后重试。$",
+   "Update service returned HTTP $1. Try again later."
+  ],
   [
    "^每条提问最多 (\\d+) 张图片。$",
    "At most $1 images per question."

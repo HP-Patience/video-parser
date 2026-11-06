@@ -71,7 +71,7 @@ Video Parser 面向个人视频资料整理与学习。粘贴视频链接，或�
 
 ### Windows 发行包
 
-如需免源码安装，请查看 [GitHub Releases](https://github.com/Celyn-number3/video-parser/releases)：**可下载的版本与包含组件以对应 Release 说明为准**，不是源码的新功能都会立即进入发行包。
+如需免源码安装，请查看 [GitHub Releases](https://github.com/HP-Patience/video-parser/releases)：**可下载的版本与包含组件以对应 Release 说明为准**，不是源码的新功能都会立即进入发行包。
 
 仓库提供 Windows 10/11 x64 安装版与便携版的构建流程。桌面包使用 WebView2，缺少时可回退默认浏览器；不打包本地大模型或 Whisper/CUDA 转写环境。下载后核对 `SHA256SUMS.txt`；未签名构建可能触发 SmartScreen 提示，不要跳过来源与哈希核验。
 
