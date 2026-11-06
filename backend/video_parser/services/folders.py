@@ -28,7 +28,7 @@ $owner = New-Object System.Windows.Forms.Form
 $owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.Opacity = 0
 $owner.StartPosition = 'CenterScreen'; $owner.Show(); $owner.Activate()
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.Description = '选择字幕和转写结果的保存位置'
+$dialog.Description = '__DESCRIPTION__'
 $dialog.ShowNewFolderButton = $true
 if ($dialog.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $dialog.SelectedPath }
 $owner.Close()
@@ -67,14 +67,16 @@ def listing():
     return [{'path': item, 'exists': Path(item).is_dir()} for item in remembered()]
 
 
-def pick():
+def pick(description='选择字幕和转写结果的保存位置', remember_choice=True):
     """Open the native folder dialog on this machine. Returns the chosen path, or None when cancelled."""
     if sys.platform != 'win32':
         raise NotImplementedError('选择文件夹窗口目前只支持 Windows。')
     if not dialog_lock.acquire(blocking=False):
         raise BlockingIOError('已经打开了一个选择文件夹窗口，请先在任务栏找到它并完成选择。')
+    description = ' '.join(str(description).split())[:120] or '选择文件夹'
+    dialog = DIALOG.replace('__DESCRIPTION__', description.replace("'", "''"))
     try:
-        encoded = base64.b64encode(DIALOG.encode('utf-16-le')).decode()
+        encoded = base64.b64encode(dialog.encode('utf-16-le')).decode()
         result = subprocess.run(['powershell.exe', '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded],
                                 capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=900,
                                 creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
@@ -89,9 +91,9 @@ def pick():
     if not path.is_absolute() or not path.is_dir():
         raise ValueError('所选位置不是可用的文件夹。')
     path = path.resolve()
-    remember(path)
+    if remember_choice:
+        remember(path)
     return str(path)
-
 
 def check(folder):
     """A destination must be a folder the user picked before, and still exist."""

@@ -16,7 +16,111 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 from video_parser.core.paths import ROOT, canonical
 
-LIBRARY_ROOT = Path(os.getenv('VIDEO_LIBRARY_ROOT', ROOT / 'outputs'))
+
+def _shared_state_dir():
+    """Machine-wide bootstrap location used before the user chooses another library."""
+    if os.name == 'nt':
+        public = Path(os.environ.get('PUBLIC') or (Path.home().parent / 'Public'))
+        return public / 'Documents' / 'VideoParser'
+    data_home = Path(os.environ.get('XDG_DATA_HOME') or (Path.home() / '.local' / 'share'))
+    return data_home / 'video-parser'
+
+
+CONFIG_PATH = _shared_state_dir() / 'library.json'
+DEFAULT_LIBRARY_ROOT = _shared_state_dir() / 'Library'
+LEGACY_LIBRARY_ROOT = ROOT / 'outputs'
+
+
+def _absolute_path(value):
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        raise ValueError('视频库必须是完整路径。')
+    return path
+
+
+def _legacy_library():
+    try:
+        return LEGACY_LIBRARY_ROOT if next(LEGACY_LIBRARY_ROOT.rglob('project.json'), None) else None
+    except OSError:
+        return None
+
+
+def resolve_library_root():
+    """Return (root, source, signature); environment remains the explicit test/deployment override."""
+    configured = os.getenv('VIDEO_LIBRARY_ROOT', '').strip()
+    if configured:
+        root = _absolute_path(configured).resolve()
+        return root, 'environment', 'environment:' + str(root)
+    try:
+        stat = CONFIG_PATH.stat()
+        data = json.loads(CONFIG_PATH.read_text(encoding='utf-8'))
+        root = _absolute_path(data['library_root']).resolve()
+        return root, 'settings', f'{stat.st_mtime_ns}:{stat.st_size}:{root}'
+    except FileNotFoundError:
+        pass
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        pass
+    legacy = _legacy_library()
+    if legacy:
+        return legacy.resolve(), 'legacy', 'legacy:' + str(legacy.resolve())
+    return DEFAULT_LIBRARY_ROOT.resolve(), 'default', 'default:' + str(DEFAULT_LIBRARY_ROOT.resolve())
+
+
+LIBRARY_ROOT, _LIBRARY_SOURCE, _LIBRARY_SIGNATURE = resolve_library_root()
+
+
+def library_root_source():
+    return _LIBRARY_SOURCE
+
+
+def refresh_library_root(force=False):
+    """Pick up a shared-config change made by another app process."""
+    global LIBRARY_ROOT, _LIBRARY_SOURCE, _LIBRARY_SIGNATURE
+    root, source, signature = resolve_library_root()
+    changed = signature != _LIBRARY_SIGNATURE and source in {'settings', 'environment'}
+    if force or changed or (_LIBRARY_SOURCE == 'settings' and source != 'settings'):
+        LIBRARY_ROOT, _LIBRARY_SOURCE, _LIBRARY_SIGNATURE = root, source, signature
+    return LIBRARY_ROOT
+
+
+def set_library_root(value):
+    """Validate and persist a machine-wide library path, then use it immediately."""
+    global LIBRARY_ROOT, _LIBRARY_SOURCE, _LIBRARY_SIGNATURE
+    if os.getenv('VIDEO_LIBRARY_ROOT', '').strip():
+        raise RuntimeError('当前由 VIDEO_LIBRARY_ROOT 环境变量指定视频库，请移除该变量后再在应用内更改。')
+    target = _absolute_path(value)
+    if target.exists() and not target.is_dir():
+        raise ValueError('所选位置不是文件夹。')
+    if target.is_symlink() or (hasattr(target, 'is_junction') and target.is_junction()):
+        raise ValueError('不支持符号链接或目录联接作为视频库。')
+    target = target.resolve()
+    target.mkdir(parents=True, exist_ok=True)
+    probe = target / f'.video-parser-write-{uuid4().hex}.tmp'
+    try:
+        probe.write_text('ok', encoding='ascii')
+    except OSError as error:
+        raise PermissionError('所选目录不可写，请选择其他位置。') from error
+    finally:
+        try:
+            probe.unlink()
+        except FileNotFoundError:
+            pass
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps({'version': 1, 'library_root': str(target)}, ensure_ascii=False, indent=2) + '\n'
+    temporary = CONFIG_PATH.with_name(f'.{CONFIG_PATH.name}.{uuid4().hex}.tmp')
+    try:
+        temporary.write_text(payload, encoding='utf-8')
+        os.replace(temporary, CONFIG_PATH)
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+    root, source, signature = resolve_library_root()
+    LIBRARY_ROOT, _LIBRARY_SOURCE, _LIBRARY_SIGNATURE = root, source, signature
+    return root
+
+
 PLATFORMS = {'哔哩哔哩': 'bilibili', '抖音': 'douyin', '小红书': 'xiaohongshu', 'YouTube': 'youtube'}
 # Kinds that carry readable subtitle text: originals, local transcripts and proofread copies.
 TRANSCRIPT_KINDS = ('subtitle', 'transcription', 'correction')

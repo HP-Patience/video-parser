@@ -19,6 +19,7 @@ export interface Configuration {
   transcription_ready: boolean;
   transcription_upload_limit: number;
   archive_root: string;
+  archive_root_source?: 'environment' | 'settings' | 'legacy' | 'default';
   version?: string;
   ai?: AISettings;
 }

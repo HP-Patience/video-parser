@@ -25,7 +25,9 @@ class StructureTests(unittest.TestCase):
     def test_consolidated_source_and_data_defaults(self):
         from video_parser.services import library, ai_startup
         self.assertTrue(Path(videos.__file__).is_relative_to(ROOT / 'backend'))
-        self.assertEqual(library.LIBRARY_ROOT.resolve(), (ROOT / 'outputs').resolve())
+        resolved_root, source, _ = library.resolve_library_root()
+        self.assertEqual(library.LIBRARY_ROOT.resolve(), resolved_root)
+        self.assertIn(source, {'environment', 'settings', 'legacy', 'default'})
         self.assertEqual(CACHE_DIR, ROOT / '.local/work/cache')
         self.assertEqual(LOG_DIR, ROOT / '.local/work/logs')
         self.assertTrue(ai_startup.DEFAULTS['model_path'].startswith('runtimes/models/'))

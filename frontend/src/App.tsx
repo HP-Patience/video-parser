@@ -193,6 +193,10 @@ export default function App() {
     navigate('settings', true);
   }
   function updateAI(ai: AISettings) { setConfig(current => current && { ...current, ai, ai_configured: ai.configured }); }
+  function updateArchiveRoot(archiveRoot: string) {
+    setConfig(current => current && { ...current, archive_root: archiveRoot, archive_root_source: 'settings' });
+    setConfigError('');
+  }
   async function restoreProject(id: string, qualityResource = '', focus = true, preserveTab = false) {
     if (!validId(id)) return;
     restoringRequest.current?.abort();
@@ -786,7 +790,7 @@ export default function App() {
         <WorkbenchPage page="settings" activePage={page}>
           {(page === 'settings' || settingsVisited) && <SettingsPage settings={settings} onChange={saveSettings} config={config}
             configError={configError} saveStatus={settingsSaveStatus} activeCount={activeCount} onAIChange={updateAI}
-            visible={page === 'settings'} focusAIRequest={settingsFocusRequest} focusAITarget={settingsFocusTarget} />}
+            onArchiveRootChange={updateArchiveRoot} visible={page === 'settings'} focusAIRequest={settingsFocusRequest} focusAITarget={settingsFocusTarget} />}
         </WorkbenchPage>
   </WorkbenchLayout>;
 }

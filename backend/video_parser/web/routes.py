@@ -71,6 +71,10 @@ class UpdateInstallBody(BaseModel):
         return value
 
 
+class LibraryRootBody(BaseModel):
+    path: str = Field(min_length=1, max_length=32767)
+
+
 class TitleBody(BaseModel):
     title: str = Field(min_length=1, max_length=400)
 
@@ -177,12 +181,14 @@ def app_version():
 
 @router.get('/config')
 def configuration():
+    library.refresh_library_root()
     return {'platforms': list(videos.CONFIG['PLATFORM_MAP']),
             'ai_configured': ai_settings.configured(),
             'media_ready': bool(shutil.which('ffmpeg') and shutil.which('ffprobe')),
             'subtitles_ready': subtitles.available(), 'transcription_ready': transcription.available(),
             'transcription_upload_limit': transcription.MAX_UPLOAD_BYTES,
-            'archive_root': str(library.LIBRARY_ROOT.resolve()), 'version': app_version()}
+            'archive_root': str(library.LIBRARY_ROOT.resolve()),
+            'archive_root_source': library.library_root_source(), 'version': app_version()}
 
 
 @router.get('/updates/check')
@@ -489,6 +495,45 @@ def pick_folder():
         raise HTTPException(429, str(error)) from None
     except (ValueError, OSError) as error:
         raise HTTPException(400, str(error) or '无法打开选择文件夹窗口。') from None
+
+
+def library_result(root):
+    try:
+        projects = sum(1 for _ in Path(root).rglob('project.json'))
+    except OSError:
+        projects = 0
+    return {'archive_root': str(Path(root).resolve()), 'archive_root_source': library.library_root_source(),
+            'project_count': projects}
+
+
+def set_library_path(path):
+    try:
+        root = library.set_library_root(path)
+    except RuntimeError as error:
+        raise HTTPException(409, str(error)) from None
+    except (ValueError, OSError) as error:
+        raise HTTPException(400, str(error) or '无法设置视频库。') from None
+    return library_result(root)
+
+
+@router.post('/library/pick')
+def pick_library():
+    try:
+        path = folders.pick(description='选择 Video Parser 公共视频库目录', remember_choice=False)
+    except NotImplementedError as error:
+        raise HTTPException(501, str(error)) from None
+    except BlockingIOError as error:
+        raise HTTPException(429, str(error)) from None
+    except (ValueError, OSError) as error:
+        raise HTTPException(400, str(error) or '无法打开选择文件夹窗口。') from None
+    if not path:
+        return {'path': None, **library_result(library.LIBRARY_ROOT)}
+    return {'path': path, **set_library_path(path)}
+
+
+@router.post('/library/root')
+def choose_library(body: LibraryRootBody):
+    return set_library_path(body.path)
 
 
 @router.get('/transcriptions/sources')

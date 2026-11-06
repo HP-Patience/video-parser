@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { request } from '../../lib/api';
 import type { AISettings, Configuration } from '../../lib/api';
 import { DEFAULT_SETTINGS } from './settings';
 import type { Settings } from './settings';
@@ -22,13 +23,16 @@ function groupFromURL(): Group {
 }
 type Props = { settings: Settings; onChange: (value: Settings) => void; config: Configuration | null;
   configError: string; saveStatus: string; activeCount: number | null; onAIChange: (value: AISettings) => void;
+  onArchiveRootChange: (archiveRoot: string) => void;
   visible: boolean; focusAIRequest: number; focusAITarget?: 'api' | 'sources' };
 
-export default function SettingsPage({ settings, onChange, config, configError, saveStatus, activeCount, onAIChange, visible, focusAIRequest, focusAITarget = 'api' }: Props) {
+export default function SettingsPage({ settings, onChange, config, configError, saveStatus, activeCount, onAIChange, onArchiveRootChange, visible, focusAIRequest, focusAITarget = 'api' }: Props) {
   const [group, setGroup] = useState<Group>(() => focusAIRequest ? 'ai' : groupFromURL());
   const [aiVisited, setAIVisited] = useState(() => group === 'ai');
   const language = useLanguage();
   const [focusAI, setFocusAI] = useState(false);
+  const [choosingLibrary, setChoosingLibrary] = useState(false);
+  const [libraryNotice, setLibraryNotice] = useState('');
   // /config only carries ai_configured; the full AI settings come from the AI section (config.ai is set after a save).
   const [loadedAI, setLoadedAI] = useState<AISettings | null>(null);
   const previousRequest = useRef(0);
@@ -50,6 +54,25 @@ export default function SettingsPage({ settings, onChange, config, configError, 
     if (next === 'general') url.searchParams.delete('settings_section'); else url.searchParams.set('settings_section', next);
     history.pushState(null, '', url);
     requestAnimationFrame(() => document.getElementById('settings-group-' + next)?.focus({ preventScroll: true }));
+  }
+  async function chooseLibrary() {
+    setChoosingLibrary(true); setLibraryNotice('');
+    try {
+      const result = await request<{ path: string | null; archive_root: string; project_count: number }>(
+        '/library/pick', new AbortController().signal, {});
+      if (!result.path) { setLibraryNotice('没有选择文件夹。'); return; }
+      onArchiveRootChange(result.archive_root);
+      try {
+        localStorage.removeItem('video-parser:last-project');
+        localStorage.removeItem('video-parser:last-quality');
+      } catch { /* Reload still resets the current workspace. */ }
+      setLibraryNotice(`已切换到 ${result.archive_root}，检测到 ${result.project_count} 个项目；正在刷新应用。`);
+      window.setTimeout(() => location.reload(), 700);
+    } catch (reason) {
+      setLibraryNotice(reason instanceof Error ? reason.message : '无法更改视频库。');
+    } finally {
+      setChoosingLibrary(false);
+    }
   }
   return <div className="settings-page">
     <nav className="settings-section-nav" aria-label="设置分类">{Object.entries(groups).map(([name, label]) => <button type="button" key={name}
@@ -100,6 +123,13 @@ export default function SettingsPage({ settings, onChange, config, configError, 
       <div className="settings-card-grid settings-maintenance-grid">
         <section className="settings-card" aria-labelledby="settings-storage"><h3 id="settings-storage">归档位置</h3>
           <code className="archive-root">{config?.archive_root || (configError ? '无法读取归档位置' : '正在读取…')}</code>
+          <p className="settings-hint">公共视频库可在网页版、桌面版和不同 Windows 用户间共享。切换前请停止正在运行的任务。</p>
+          {config?.archive_root_source === 'environment' && <p className="settings-hint">当前由 VIDEO_LIBRARY_ROOT 环境变量固定，移除该变量后才能在这里更改。</p>}
+          {config?.archive_root_source === 'legacy' && <p className="settings-hint">当前仍使用旧版安装目录中的视频库；选择公共目录后会切换到新位置。</p>}
+          <div className="settings-actions"><button type="button" disabled={!config || choosingLibrary || config.archive_root_source === 'environment'} onClick={() => { void chooseLibrary(); }}>
+            {choosingLibrary ? '正在选择…' : '更改视频库'}
+          </button></div>
+          {libraryNotice && <p className="settings-hint" role="status">{libraryNotice}</p>}
           <p className="settings-hint">缓存清理不影响已归档内容。</p>
         </section>
         <section className="settings-card" aria-labelledby="settings-services"><h3 id="settings-services">服务状态</h3>

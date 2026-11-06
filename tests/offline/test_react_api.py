@@ -18,7 +18,14 @@ class ReactAPITests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        patch.dict(os.environ, {'VIDEO_LIBRARY_ROOT': ''}).start()
+        patch.object(library, 'CONFIG_PATH', self.root / 'shared' / 'library.json').start()
+        patch.object(library, 'DEFAULT_LIBRARY_ROOT', self.root / 'shared' / 'default-library').start()
+        patch.object(library, 'LEGACY_LIBRARY_ROOT', self.root / 'legacy-library').start()
+        _, resolved_source, resolved_signature = library.resolve_library_root()
         patch.object(library, 'LIBRARY_ROOT', self.root / 'library').start()
+        patch.object(library, '_LIBRARY_SOURCE', resolved_source).start()
+        patch.object(library, '_LIBRARY_SIGNATURE', resolved_signature).start()
         self.addCleanup(patch.stopall)
         patch.object(workspace, 'WORKSPACE_ROOT', self.root / 'cache').start()
         # Never read the user's saved model settings (.local/ai/settings.json).
@@ -59,6 +66,19 @@ class ReactAPITests(unittest.TestCase):
             self.assertIn(key, data)
         self.assertNotIn('QWEN_API_KEY', data)
         self.assertNotIn('cookie', data)
+        self.assertIn(data['archive_root_source'], {'default', 'legacy', 'settings', 'environment'})
+
+    def test_library_root_can_be_changed_from_settings(self):
+        target = self.root / 'chosen-library'
+        response = self.client.post('/api/workspace/library/root', json={'path': str(target)})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['archive_root'], str(target.resolve()))
+        self.assertEqual(response.json()['archive_root_source'], 'settings')
+        self.assertEqual(response.json()['project_count'], 0)
+        self.assertTrue((self.root / 'shared' / 'library.json').is_file())
+        config = self.client.get('/api/workspace/config').json()
+        self.assertEqual(config['archive_root'], str(target.resolve()))
+
     def test_parse_cover_and_safe_metadata(self):
         data = self.parse()
         self.assertEqual(data["episodes"], [])

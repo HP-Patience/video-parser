@@ -1863,7 +1863,14 @@
   "移除这张图片": "Remove this image",
   "写下自己的理解、疑问或重点，也可以直接粘贴图片。": "Write your understanding, questions or key points, or paste an image.",
   "单张图片不能超过 4 MB，请压缩后重试。": "Each image must be 4 MB or smaller. Compress it and try again.",
-  "无法读取这张图片，请重新粘贴。": "This image could not be read. Paste it again."
+  "无法读取这张图片，请重新粘贴。": "This image could not be read. Paste it again.",
+  "公共视频库可在网页版、桌面版和不同 Windows 用户间共享。切换前请停止正在运行的任务。": "The shared library is available to the web and desktop apps and to other Windows users. Stop running tasks before switching.",
+  "当前由 VIDEO_LIBRARY_ROOT 环境变量固定，移除该变量后才能在这里更改。": "The library is fixed by the VIDEO_LIBRARY_ROOT environment variable. Remove it before changing it here.",
+  "当前仍使用旧版安装目录中的视频库；选择公共目录后会切换到新位置。": "The legacy library inside the installation folder is still in use. Choose a shared folder to switch.",
+  "正在选择…": "Choosing…",
+  "更改视频库": "Change video library",
+  "没有选择文件夹。": "No folder was selected.",
+  "无法更改视频库。": "Could not change the video library."
  },
  "patterns": [
   [
@@ -2552,6 +2559,10 @@
   [
    "^第 (\\d+) 题$",
    "Question $1"
+  ],
+  [
+   "^已切换到 (.+)，检测到 (\\d+) 个项目；正在刷新应用。$",
+   "Switched to {1|raw}; found $2 projects and refreshing the app."
   ]
  ]
 }
