@@ -243,7 +243,8 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
             {videoRef && <button type="button" disabled={!chat.configured || composing} onClick={insertTime}>插入当前时间</button>}
             <button type="button" disabled={busy !== null || sending || waiting || chat.creating || chat.clearing || !session?.messages.length || session.context_after === session.messages.at(-1)?.id}
               aria-busy={chat.clearing} onClick={() => { void clearContext(); }}>清空上下文</button>
-            <div className="ai-chat-submit-actions"><small>{question.length} / {LIMIT}</small>
+            <small>{question.length} / {LIMIT}</small>
+            <div className="ai-chat-submit-actions">
             {waiting && busy === 'analyze' && <button type="button" disabled={cancelDisabled} onClick={onCancel}>停止回答</button>}
             <button type="submit" className="primary" disabled={blocked || !question.trim()} aria-busy={waiting}>
               <Icon name={waiting ? 'loader-circle' : 'send'} className={waiting ? 'spinner' : ''} />提问</button></div>

@@ -25,6 +25,15 @@ GEOMETRY = '''() => {
 }'''
 
 
+COUNT = '''() => {
+  const actions = document.querySelector('.ai-chat-actions');
+  const box = element => { const value = element.getBoundingClientRect(); return { left: value.left, right: value.right, top: value.top, bottom: value.bottom }; };
+  const count = actions.querySelector(':scope > small');
+  const clear = Array.from(actions.querySelectorAll(':scope > button')).find(button => button.textContent.trim() === '清空上下文');
+  return { count: box(count), clear: box(clear), submit: box(actions.querySelector('button[type=submit]')), actions: box(actions) };
+}'''
+
+
 class ChatComposerLayoutTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -78,6 +87,14 @@ class ChatComposerLayoutTests(unittest.TestCase):
             self.assert_composer_at_bottom(data)
             self.assertGreaterEqual(data['form']['top'], data['body']['top'] - 1, (width, data))
         self.page.set_viewport_size({'width': 1440, 'height': 1000})
+
+    def test_character_count_sits_beside_the_composer_tools(self):
+        # The count belongs with 插入当前时间/清空上下文; the send button keeps the right edge.
+        data = self.page.evaluate(COUNT)
+        self.assertGreaterEqual(data['count']['left'], data['clear']['right'], data)
+        self.assertAlmostEqual(data['submit']['right'], data['actions']['right'], delta=1, msg=data)
+        expect(self.page.locator('.ai-chat-actions > small')).to_have_text('0 / 2000')
+        expect(self.page.locator('.ai-chat-submit-actions small')).to_have_count(0)
 
     def test_returning_to_the_chat_tab_shows_the_latest_answer(self):
         self.page.locator('.ai-chat-log').evaluate('log => { log.scrollTop = 0; }')
