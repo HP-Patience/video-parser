@@ -84,6 +84,9 @@ def _runtime(engine, workspace, target=None, turn=None, session_id=None, persist
     if engine == 'opencode':
         from .opencode import Runtime
         return Runtime(workspace, turn)
+    if engine == 'dsh':
+        from .dsh import Runtime
+        return Runtime(workspace, turn)
     raise ValueError('未知本地 agent。')
 
 

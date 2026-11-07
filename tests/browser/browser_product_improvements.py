@@ -83,7 +83,7 @@ class ProductImprovementsBrowserTests(unittest.TestCase):
             {'id': engine, 'name': name, 'installed': True, 'discovered': True, 'error': '',
              'models': [{'id': engine + '-fixture', 'label': name + ' fixture', 'efforts': ['low', 'high'], 'images': True}],
              'commands': []}
-            for engine, name in [('claude', 'Claude Code'), ('codex', 'Codex'), ('opencode', 'OpenCode')]
+            for engine, name in [('claude', 'Claude Code'), ('codex', 'Codex'), ('opencode', 'OpenCode'), ('dsh', 'DeepSeek Harness')]
         ]}
         self.jobs = [
             {'id': 'a' * 32, 'kind': 'video', 'state': 'completed', 'part': 3, 'project_id': PROJECT_ID},
@@ -204,7 +204,7 @@ class ProductImprovementsBrowserTests(unittest.TestCase):
             if path == '/ai/agents/discover':
                 self.assertEqual(set(body), {'confirm', 'engine', 'model'})
                 self.assertIs(body['confirm'], True); self.assertEqual(body['model'], '')
-                self.assertIn(body['engine'], {'all', 'claude', 'codex', 'opencode'})
+                self.assertIn(body['engine'], {'all', 'claude', 'codex', 'opencode', 'dsh'})
                 return route.fulfill(json=self.catalog)
             if path == '/parse':
                 return route.fulfill(json=self.parsed())
@@ -236,10 +236,10 @@ class ProductImprovementsBrowserTests(unittest.TestCase):
         page.goto(self.url + '?page=settings&settings_section=ai')
         targets = page.locator('.learning-targets')
         expect(targets).to_be_visible()
-        for engine in ('claude', 'codex', 'opencode'):
+        for engine in ('claude', 'codex', 'opencode', 'dsh'):
             targets.locator(f'button[aria-controls="models-{engine}"]').click()
-        expect(targets.locator('.learning-target-group')).to_have_count(3)
-        expect(targets.get_by_role('switch')).to_have_count(3)
+        expect(targets.locator('.learning-target-group')).to_have_count(4)
+        expect(targets.get_by_role('switch')).to_have_count(4)
         return targets
 
     @staticmethod
@@ -333,7 +333,7 @@ class ProductImprovementsBrowserTests(unittest.TestCase):
                 'target': {'engine': 'codex', 'model': '', 'effort': ''}}
         self.context.add_init_script(f"localStorage.setItem('{PREFERENCES}',JSON.stringify({json.dumps(seed)})); window.preferenceWrites=[]; const original=Storage.prototype.setItem; Storage.prototype.setItem=function(key,value){{if(key==='{PREFERENCES}') window.preferenceWrites.push(value); return original.call(this,key,value)}}")
         targets = self.settings()
-        expect(targets.get_by_text('跟随工具默认模型', exact=True)).to_have_count(3)
+        expect(targets.get_by_text('跟随工具默认模型', exact=True)).to_have_count(4)
         expect(targets).not_to_contain_text('本机默认')
         expect(targets).to_contain_text('不代表离线或免费')
         expect(targets.locator('#learning-default-model option:checked')).to_have_text('Codex · 跟随工具默认模型')
@@ -364,7 +364,7 @@ class ProductImprovementsBrowserTests(unittest.TestCase):
         seed = {'enabled': None, 'target': {'engine': 'opencode', 'model': '', 'effort': ''}}
         self.context.add_init_script(f"localStorage.setItem('vp-language','en');localStorage.setItem('{PREFERENCES}',JSON.stringify({json.dumps(seed)}))")
         targets = self.settings()
-        expect(targets.get_by_text('Use tool default model', exact=True)).to_have_count(3)
+        expect(targets.get_by_text('Use tool default model', exact=True)).to_have_count(4)
         expect(targets.get_by_role('combobox', name='Default model', exact=True)).to_have_value('opencode|')
         expect(targets.locator('#learning-default-model option:checked')).to_have_text('OpenCode · Use tool default model')
         expect(targets).to_contain_text('does not mean offline or free')

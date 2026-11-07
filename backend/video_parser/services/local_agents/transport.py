@@ -13,8 +13,9 @@ from video_parser.services import task_runtime
 
 MAX_LINE = 16 * 1024 * 1024
 MAX_INPUT = 32 * 1024 * 1024
-PACKAGES = {'claude': '@anthropic-ai/claude-code', 'codex': '@openai/codex', 'opencode': 'opencode-ai'}
-NAMES = {'claude': 'Claude Code', 'codex': 'Codex', 'opencode': 'OpenCode'}
+PACKAGES = {'claude': '@anthropic-ai/claude-code', 'codex': '@openai/codex', 'opencode': 'opencode-ai',
+            'dsh': '@deepseek-ai/dsh'}
+NAMES = {'claude': 'Claude Code', 'codex': 'Codex', 'opencode': 'OpenCode', 'dsh': 'DeepSeek Harness'}
 
 
 class AgentError(RuntimeError):
@@ -30,7 +31,8 @@ class RpcError(AgentError):
         text = str(detail).lower()
         self.diagnostic_code = 'unknown'
         message = None
-        if ('image' in text or 'vision' in text) and ('not support' in text or 'unsupported' in text):
+        if ('image' in text or 'vision' in text) and any(word in text for word in
+                ('not support', 'unsupported', 'does not declare')):
             self.diagnostic_code = 'image_unsupported'
             message = '这个本地 agent 不支持图片输入，请选择支持画面的模型。'
         elif any(word in text for word in ('insufficient', 'credit', 'balance', 'billing', 'quota')):
@@ -61,10 +63,63 @@ class RpcError(AgentError):
             word in self.detail.lower() for word in ('not found', 'unknown session', 'unknown thread', 'expired', 'does not exist'))
 
 
+def _dsh_desktop_shim():
+    """Locate the Desktop install's own CLI shim without guessing install paths."""
+    if os.name != 'nt':
+        return None
+    try:
+        import winreg
+    except ImportError:
+        return None
+    for hive, view in ((winreg.HKEY_CURRENT_USER, 0), (winreg.HKEY_LOCAL_MACHINE, winreg.KEY_WOW64_64KEY),
+                       (winreg.HKEY_LOCAL_MACHINE, winreg.KEY_WOW64_32KEY)):
+        try:
+            root = winreg.OpenKey(hive, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall', 0,
+                                  winreg.KEY_READ | view)
+        except OSError:
+            continue
+        try:
+            for index in range(min(winreg.QueryInfoKey(root)[0], 512)):
+                try:
+                    with winreg.OpenKey(root, winreg.EnumKey(root, index)) as item:
+                        name, _ = winreg.QueryValueEx(item, 'DisplayName')
+                        if not isinstance(name, str) or 'DeepSeek Harness' not in name:
+                            continue
+                        location, _ = winreg.QueryValueEx(item, 'InstallLocation')
+                        if not isinstance(location, str) or not location:
+                            continue
+                        shim = Path(location) / 'resources' / 'runtime' / 'cli' / 'bin' / 'dsh.cmd'
+                        if shim.is_file() and not shim.is_symlink():
+                            return shim
+                except OSError:
+                    continue
+        finally:
+            winreg.CloseKey(root)
+    return None
+
+
+def _dsh_command():
+    """The CLI shim owns its Node/Electron runtime; never spell that launch line here."""
+    located = shutil.which('dsh')
+    if located:
+        path = Path(located).resolve()
+        if os.name == 'nt' and path.suffix.lower() in ('.cmd', '.bat'):
+            return [os.environ.get('COMSPEC', 'cmd.exe'), '/d', '/c', str(path)]
+        return [str(path)]
+    shim = _dsh_desktop_shim()
+    if shim is None:
+        raise AgentError('未找到本地 DeepSeek Harness，请先安装桌面版或命令行版并完成登录/模型设置。')
+    if os.name == 'nt':
+        return [os.environ.get('COMSPEC', 'cmd.exe'), '/d', '/c', str(shim)]
+    return [str(shim)]
+
+
 def executable(engine):
     """Resolve the installed program; npm package bin metadata handles JS AND native Windows shims."""
     if engine not in PACKAGES:
         raise ValueError('未知本地 agent。')
+    if engine == 'dsh':
+        return _dsh_command()
     located = shutil.which(engine)
     if not located:
         for directory in (Path.home() / '.local/bin', Path.home() / 'AppData/Roaming/npm'):

@@ -3,7 +3,7 @@ import { request } from '../../lib/api';
 import type { AgentCatalog, AgentTarget, AISettings } from '../../lib/api';
 import { isEnabled, targetKey, useAgentPreferences } from './agentPreferences';
 
-const engines = ['api', 'claude', 'codex', 'opencode'];
+const engines = ['api', 'claude', 'codex', 'opencode', 'dsh'];
 
 export default function useAgentModels(api: AISettings | null, fallbackConfigured = false) {
   // The default target is chosen in Settings; a choice made here applies to this page until the default changes.

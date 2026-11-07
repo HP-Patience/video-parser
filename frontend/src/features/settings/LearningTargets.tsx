@@ -6,7 +6,7 @@ import { API_TARGET, isEnabled, saveAgentPreferences, targetKey, useAgentPrefere
 import './learning-targets.css';
 
 type Row = { key: string; target: AgentTarget; label: string; ready: boolean };
-const ENGINES = [{ id: 'claude', name: 'Claude Code' }, { id: 'codex', name: 'Codex' }, { id: 'opencode', name: 'OpenCode' }] as const;
+const ENGINES = [{ id: 'claude', name: 'Claude Code' }, { id: 'codex', name: 'Codex' }, { id: 'opencode', name: 'OpenCode' }, { id: 'dsh', name: 'DeepSeek Harness' }] as const;
 
 export default function LearningTargets({ api, children, focusRequest = 0 }: { api: AISettings | null; children: ReactNode; focusRequest?: number }) {
   const preferences = useAgentPreferences();

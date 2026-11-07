@@ -27,7 +27,7 @@ def _tokens(usage):
 
 def _engine(info):
     agent = info.get('agent')
-    if isinstance(agent, dict) and agent.get('engine') in ('api', 'claude', 'codex', 'opencode'):
+    if isinstance(agent, dict) and agent.get('engine') in ('api', 'claude', 'codex', 'opencode', 'dsh'):
         return agent['engine']
     return 'api'  # Records written before agents were selectable came from the configured API.
 

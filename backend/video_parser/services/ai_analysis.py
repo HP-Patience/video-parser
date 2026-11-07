@@ -625,7 +625,7 @@ def _record(project, name, item):
               for frame in item.get('frames') or [] if frame.get('path') in project['resources']]
     source = item.get('source') or 'frames'
     agent = item.get('agent') if isinstance(item.get('agent'), dict) else {}
-    engine = agent.get('engine') if agent.get('engine') in ('api', 'claude', 'codex', 'opencode') else 'api'
+    engine = agent.get('engine') if agent.get('engine') in ('api', 'claude', 'codex', 'opencode', 'dsh') else 'api'
     return {'id': record_id, 'created_at': item.get('created_at') or _batch_time(record_id), 'template': template if not legacy else 'legacy',
             'template_name': TEMPLATES[template]['name'] if not legacy else '画面分析（旧版）', 'source': source,
             'source_label': SOURCES.get(source, '只用画面'), 'prompt': item.get('prompt') or '', 'model': item.get('model') or '',

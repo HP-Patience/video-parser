@@ -1,6 +1,7 @@
 """Local agent tests: protocol fixtures only, never a real model or authentication file."""
 import io
 import json
+import os
 from pathlib import Path
 from queue import Queue
 import tempfile
@@ -10,9 +11,9 @@ import unittest
 from unittest.mock import Mock, patch
 
 from video_parser.services import local_agents, model_calls, ai_settings, task_runtime, agent_controls
-from video_parser.services.local_agents import claude, codex, opencode
+from video_parser.services.local_agents import claude, codex, dsh, opencode, transport
 from video_parser.services.local_agents.transport import AgentError, RpcError, Wire
-from video_parser.services.local_agents.types import Result, prepare, command_entries
+from video_parser.services.local_agents.types import Result, Turn, prepare, command_entries
 
 
 class LocalAgentTests(unittest.TestCase):
@@ -33,12 +34,13 @@ class LocalAgentTests(unittest.TestCase):
                 local_agents.normalize(target)
         self.assertEqual(local_agents.normalize()['engine'], 'api')
         self.assertEqual(local_agents.normalize({'engine': 'opencode', 'model': 'provider/model'})['model'], 'provider/model')
+        self.assertEqual(local_agents.normalize({'engine': 'dsh', 'model': 'fixture/model'})['engine'], 'dsh')
 
     def test_inventory_does_not_launch_programs_or_expose_initialization_accounts(self):
         with patch.object(local_agents, '_runtime') as runtime:
             inventory = local_agents.inventory()
         runtime.assert_not_called()
-        self.assertEqual([item['id'] for item in inventory['engines']], ['claude', 'codex', 'opencode'])
+        self.assertEqual([item['id'] for item in inventory['engines']], ['claude', 'codex', 'opencode', 'dsh'])
         self.assertNotIn('api_key', json.dumps(inventory))
 
     def test_discovery_sanitizes_native_initialization_and_closes_process(self):
@@ -136,6 +138,72 @@ class LocalAgentTests(unittest.TestCase):
         for name in ['fs/write_text_file', 'terminal/create', 'fs/read_text_file']:
             with self.assertRaises(RpcError):
                 opencode.Runtime.request(name, {})
+
+    def test_dsh_selector_round_trips_a_provider_route(self):
+        selector = '["command-code","deepseek/deepseek-v4.1-flash"]'
+        self.assertEqual(dsh.pair(selector), ('command-code', 'deepseek/deepseek-v4.1-flash'))
+        self.assertEqual(dsh.identifier(selector), 'command-code/deepseek/deepseek-v4.1-flash')
+        self.assertEqual(dsh.pair_from_identifier('command-code/deepseek/deepseek-v4.1-flash'),
+                         ('command-code', 'deepseek/deepseek-v4.1-flash'))
+        self.assertIsNone(dsh.pair('default'))
+        self.assertIsNone(dsh.pair_from_identifier('missing-separator'))
+
+    def test_dsh_overlay_reuses_public_desktop_routing_without_credentials(self):
+        home = self.root / 'dsh-home'
+        patch_path = home / 'profiles/desktop/cordis.patch.yml'
+        patch_path.parent.mkdir(parents=True)
+        patch_path.write_text(
+            '- id: llm-pi-ai\n  name: "@deepseek-ai/dsh-llm-pi-ai"\n  config:\n    providers:\n'
+            '      fixture:\n        displayName: Fixture\n        apiKeyEnv: FIXTURE_KEY\n'
+            '        baseURL: https://fixture.invalid/v1\n        models:\n          - id: model-one\n'
+            '            name: Model One\n            input:\n              - text\n'
+            '- id: agent-default-model\n  name: "@deepseek-ai/dsh-agent-default-model"\n  config:\n'
+            '    provider: fixture\n    model: model-one\n    reasoningEffort: high\n',
+            encoding='utf-8')
+        with patch.dict(os.environ, {'DSH_HOME': str(home)}):
+            text = dsh.overlay(Turn('trusted instruction\nsecond line', 'body', []))
+        self.assertIn('fixture:', text)
+        self.assertIn('provider: "fixture"', text)
+        self.assertIn('model: "model-one"', text)
+        self.assertIn('personaPrefix: |-', text)
+        self.assertIn('trusted instruction', text)
+        self.assertIn('disabled: true', text)
+
+    def test_dsh_defaults_to_its_own_profile_without_desktop_routing(self):
+        with patch.dict(os.environ, {'DSH_HOME': str(self.root / 'empty-home')}):
+            self.assertEqual(dsh.routing(), '')
+
+    def test_dsh_permissions_and_unknown_requests_are_fail_closed(self):
+        self.assertEqual(dsh.Runtime.request('session/request_permission', {}), {'outcome': {'outcome': 'cancelled'}})
+        for name in ['fs/read_text_file', 'terminal/create', 'session/set_mode']:
+            with self.assertRaises(RpcError):
+                dsh.Runtime.request(name, {})
+
+    def test_dsh_catalog_projects_provider_grouped_models(self):
+        runtime = object.__new__(dsh.Runtime)
+        runtime.ensure_session = Mock()
+        runtime.config = [
+            {'id': 'model', 'category': 'model', 'options': [
+                {'group': 'fixture', 'name': 'Fixture', 'options': [
+                    {'value': '["fixture","model-one"]', 'name': 'Model One'},
+                    {'value': '["fixture","model-two"]', 'name': 'Model Two'}]}]},
+            {'id': 'reasoning_effort', 'category': 'thought_level', 'options': [{'value': ''}, {'value': 'high'}]}]
+        data = runtime.catalog()
+        self.assertEqual([item['id'] for item in data['models']], ['fixture/model-one', 'fixture/model-two'])
+        self.assertEqual(data['models'][0]['efforts'], ['high'])
+        self.assertEqual(data['models'][0]['label'], 'Model One')
+        self.assertEqual(data['commands'], [])
+
+    def test_dsh_executable_uses_the_local_shim_or_the_desktop_install(self):
+        shim = Path('C:/Program Files/DeepSeek Harness/resources/runtime/cli/bin/dsh.cmd')
+        with patch.object(transport.shutil, 'which', return_value=None), \
+             patch.object(transport, '_dsh_desktop_shim', return_value=shim), \
+             patch.object(transport.os, 'name', 'nt'), patch.dict(os.environ, {'COMSPEC': 'cmd.exe'}):
+            self.assertEqual(transport.executable('dsh'), ['cmd.exe', '/d', '/c', str(shim)])
+        with patch.object(transport.shutil, 'which', return_value=None), \
+             patch.object(transport, '_dsh_desktop_shim', return_value=None):
+            with self.assertRaises(AgentError):
+                transport.executable('dsh')
 
     def test_commands_are_real_provider_specific_entries_not_cli_controls(self):
         entries = command_entries([{'name': 'fixture'}, {'name': 'clear'}, {'name': 'heapdump'}, {'name': '../../bad'}, {'name': 'fixture'}], '$')

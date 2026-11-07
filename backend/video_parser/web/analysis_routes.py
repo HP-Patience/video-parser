@@ -41,7 +41,7 @@ def explicit(value):
 
 class AgentTargetBody(BaseModel):
     model_config = {'extra': 'forbid'}
-    engine: Literal['api', 'claude', 'codex', 'opencode'] = 'api'
+    engine: Literal['api', 'claude', 'codex', 'opencode', 'dsh'] = 'api'
     model: str = Field(default='', max_length=200, strict=True)
     effort: str = Field(default='', max_length=32, strict=True)
 
@@ -55,7 +55,7 @@ class AgentTargetBody(BaseModel):
 class AgentDiscoveryBody(BaseModel):
     model_config = {'extra': 'forbid'}
     confirm: Literal[True]
-    engine: Literal['all', 'claude', 'codex', 'opencode'] = 'all'
+    engine: Literal['all', 'claude', 'codex', 'opencode', 'dsh'] = 'all'
     model: str = Field(default='', max_length=200, strict=True)
 
     @field_validator('confirm', mode='before')
@@ -172,7 +172,7 @@ def start_analysis(entry, choice, body):
 
 class AgentEnabledBody(BaseModel):
     model_config = {'extra': 'forbid'}
-    engine: Literal['claude', 'codex', 'opencode']
+    engine: Literal['claude', 'codex', 'opencode', 'dsh']
     enabled: bool = Field(strict=True)
 
 

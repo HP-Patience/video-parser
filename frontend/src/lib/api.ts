@@ -41,7 +41,7 @@ export interface AISettings {
   presets: Record<string, AIPreset>;
   startup?: AILaunchSettings; startup_defaults?: AILaunchSettings; startup_command?: string; startup_error?: string;
 }
-export type AgentEngine = 'api' | 'claude' | 'codex' | 'opencode';
+export type AgentEngine = 'api' | 'claude' | 'codex' | 'opencode' | 'dsh';
 export interface AgentTarget { engine: AgentEngine; model: string; effort: string }
 export interface AgentModel { id: string; label: string; efforts: string[]; images: boolean | null }
 export interface AgentCommand { name: string; prefix: string; description: string }

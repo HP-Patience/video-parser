@@ -231,7 +231,7 @@ class UXImprovementsBrowserTests(unittest.TestCase):
         connection.get_by_role('button', name='配置 API 连接', exact=True).click()
         expect(self.page.locator('.settings-ai')).to_contain_text('有未保存的连接修改')
         targets.locator('button[aria-controls="models-codex"]').click()
-        expect(targets.locator('.learning-target-group')).to_have_count(3)
+        expect(targets.locator('.learning-target-group')).to_have_count(4)
         targets.locator('#learning-default-model').select_option('codex|codex-fixture')
         expect(targets.locator('#learning-default-model option:checked')).to_contain_text('Codex fixture')
         for width in (1440, 390, 320, 280):

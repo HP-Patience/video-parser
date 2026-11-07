@@ -10,7 +10,7 @@ Identifier = Annotated[str, Field(pattern=r'^[a-f0-9]{32}$')]
 
 
 class AgentBody(BaseModel):
-    engine: Literal['api', 'claude', 'codex', 'opencode'] = 'api'
+    engine: Literal['api', 'claude', 'codex', 'opencode', 'dsh'] = 'api'
     model: str = Field(default='', max_length=200)
     effort: str = Field(default='', max_length=40)
 

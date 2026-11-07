@@ -5,7 +5,7 @@ from video_parser.core.paths import ROOT
 from video_parser.services import task_runtime
 
 PATH = ROOT / '.local/ai/agent-controls.json'
-ENGINES = ('claude', 'codex', 'opencode')
+ENGINES = ('claude', 'codex', 'opencode', 'dsh')
 LOCK = RLock()
 
 def current():

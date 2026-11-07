@@ -3,7 +3,7 @@ import type { AgentModelsState } from './useAgentModels';
 import './agent-models.css';
 
 const valueOf = (target: Pick<AgentTarget, 'engine' | 'model'>) => target.engine + '|' + encodeURIComponent(target.model);
-const ENGINES = [{ id: 'claude', name: 'Claude Code' }, { id: 'codex', name: 'Codex' }, { id: 'opencode', name: 'OpenCode' }] as const;
+const ENGINES = [{ id: 'claude', name: 'Claude Code' }, { id: 'codex', name: 'Codex' }, { id: 'opencode', name: 'OpenCode' }, { id: 'dsh', name: 'DeepSeek Harness' }] as const;
 
 type Props = { state: AgentModelsState; disabled?: boolean; onManage?: (button: HTMLButtonElement) => void };
 export default function AgentModelPicker({ state, disabled = false }: Props) {
@@ -15,7 +15,7 @@ export default function AgentModelPicker({ state, disabled = false }: Props) {
   const shown = (target: Pick<AgentTarget, 'engine' | 'model'>) => state.enabled(target) || valueOf(target) === valueOf(selected);
   function choose(value: string) {
     const [engine, model] = value.split('|');
-    if (['api', 'claude', 'codex', 'opencode'].includes(engine || '')) {
+    if (['api', 'claude', 'codex', 'opencode', 'dsh'].includes(engine || '')) {
       state.select({ engine: engine as AgentTarget['engine'], model: decodeURIComponent(model || ''), effort: '' });
     }
   }

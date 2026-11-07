@@ -5,7 +5,7 @@ import type { AgentTarget } from '../../lib/api';
 // Never holds credentials and never changes an agent's own (global) configuration.
 export const AGENT_PREFERENCES_KEY = 'video-parser:agent-preferences';
 const LEGACY_TARGET_KEY = 'video-parser:agent-target';
-const ENGINES = ['api', 'claude', 'codex', 'opencode'];
+const ENGINES = ['api', 'claude', 'codex', 'opencode', 'dsh'];
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9_.:/@+\[\]-]{0,199}$/;
 const EFFORT = /^(?:[a-z][a-z0-9_-]{0,31})?$/;
 

@@ -67,8 +67,8 @@ class ModelSettingsLayoutTests(unittest.TestCase):
 
     def test_summary_order_and_no_automatic_writes(self):
         self.open()
-        expect(self.page.locator('.model-sources > .model-source')).to_have_count(4)
-        for selector in ('#api-source-config', '#models-claude', '#models-codex', '#models-opencode', '#embedding-source-config'):
+        expect(self.page.locator('.model-sources > .model-source')).to_have_count(5)
+        for selector in ('#api-source-config', '#models-claude', '#models-codex', '#models-opencode', '#models-dsh', '#embedding-source-config'):
             expect(self.page.locator(selector)).to_be_hidden()
         default, sources, embedding = [self.page.locator(s).bounding_box() for s in ('.learning-default-control', '.model-sources', '.embedding-settings')]
         self.assertLess(default['y'], sources['y']); self.assertGreater(embedding['y'], sources['y'] + sources['height'])

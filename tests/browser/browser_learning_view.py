@@ -56,7 +56,7 @@ def main(timeline_test=False, study_test=False, agent_test=False):
         {'id':engine,'name':name,'installed':True,'discovered':True,'updated_at':1,
          'models':[{'id':engine+'-fixture','label':name+' fixture','efforts':['low','high'] if engine!='opencode' else [],'images':True}],
          'commands':[{'name':'fixture-skill','prefix':'$' if engine=='codex' else '/','description':'Offline fixture'}] if engine!='opencode' else [],'error':''}
-        for engine,name in [('claude','Claude Code'),('codex','Codex'),('opencode','OpenCode')]]}
+        for engine,name in [('claude','Claude Code'),('codex','Codex'),('opencode','OpenCode'),('dsh','DeepSeek Harness')]]}
     state['agent_calls'], state['agent_probes'] = [], []
     records = {}
     conversations = {}
