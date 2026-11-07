@@ -7,7 +7,14 @@
 .modern-app .study-workspace .preview-panel { position: static; margin: 0; padding: 0; }
 .modern-app .study-workspace .learning-notes-panel, .modern-app .study-workspace .details-panel { margin: 0; min-width: 0; }
 .modern-app .study-workspace-collapsed { grid-template-columns: minmax(0,1fr) 48px; }
-.study-sidebar { min-width: 0; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-raised); overflow: hidden; }
+.study-sidebar { position: relative; min-width: 0; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-raised); overflow: hidden; }
+/* The rail's bottom edge drags: the sidebar can grow past the player alignment, and double-click returns to it. */
+.study-sidebar-resizer { position: absolute; left: 12px; right: 12px; bottom: 0; height: 12px; z-index: 2; cursor: row-resize; touch-action: none; }
+.study-sidebar-resizer::before { content: ''; position: absolute; left: 50%; bottom: 4px; width: 44px; height: 3px; margin-left: -22px; border-radius: var(--radius-full); background: var(--color-border-strong); opacity: .4; transition: opacity var(--duration-fast) var(--ease-standard); }
+.study-sidebar-resizer:is(:hover, :focus-visible)::before, body.is-resizing-study-sidebar .study-sidebar-resizer::before { opacity: 1; }
+.study-sidebar-resizer:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: -1px; border-radius: var(--radius-full); }
+body.is-resizing-study-sidebar, body.is-resizing-study-sidebar * { cursor: row-resize !important; user-select: none; }
+.study-sidebar.is-collapsed .study-sidebar-resizer { display: none; }
 .study-sidebar-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; }
 .study-sidebar-heading h2 { margin: 0; font-size: var(--font-size-md); }
 .modern-app .study-sidebar-toggle { flex: none; min-height: 32px; width: 32px; padding: 6px; }
@@ -71,6 +78,8 @@
   .study-sidebar.is-collapsed .study-sidebar-heading { padding: 10px 12px; }
   .study-sidebar.is-collapsed .study-sidebar-heading h2 { display: block; }
   .study-sidebar-body { max-height: 65dvh; }
+  /* Stacked layouts size the sidebar by its content, so there is no bottom edge to drag. */
+  .study-sidebar-resizer { display: none; }
 }
 @media(prefers-reduced-motion:reduce) { .unified-media-stage .spinner { animation: none; } }
 
