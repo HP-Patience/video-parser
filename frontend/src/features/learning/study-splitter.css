@@ -1,0 +1,16 @@
+/* Draggable divider between the player column and the study rail (wide screens only).
+   The handle fills the 20px grid gap to the rail's left, so it never covers either column. */
+.study-workspace .study-context-rail { position: relative; }
+.study-splitter { position: absolute; top: 0; bottom: 0; left: -20px; width: 20px; z-index: 3; cursor: col-resize; touch-action: none; }
+/* A quiet seam line marks the handle; it darkens on hover, focus or while dragging. */
+.study-splitter::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px;
+  border-radius: var(--radius-full); background: var(--color-border); opacity: .7;
+  transition: background var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard);
+}
+.study-splitter:is(:hover, :focus-visible)::before, body.is-resizing-study-rail .study-splitter::before { background: var(--color-border-strong); opacity: 1; }
+.study-splitter:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: -5px; border-radius: var(--radius-sm); }
+body.is-resizing-study-rail, body.is-resizing-study-rail * { cursor: col-resize !important; user-select: none; }
+/* A collapsed rail is a fixed 48px strip, and stacked layouts have nothing to divide. */
+.study-workspace-collapsed .study-splitter { display: none; }
+@media(max-width: 1170px) { .study-splitter { display: none; } }

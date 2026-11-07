@@ -15,6 +15,7 @@ import ProjectOverview from './features/library/ProjectOverview';
 import LearningProgress, { LearningToggle } from './features/library/LearningProgress';
 import PlaybackResume from './features/learning/PlaybackResume';
 import StudySidebar from './features/learning/StudySidebar';
+import StudySplitter from './features/learning/StudySplitter';
 import TaskSemanticSearch from './features/tasks/TaskSemanticSearch';
 import LearningProjectPicker from './features/learning/LearningProjectPicker';
 import SubtitleNaming from './features/naming/SubtitleNaming';
@@ -688,6 +689,7 @@ export default function App() {
               </section>
             </div>
             <div className="study-context-rail" hidden={managing || (learning && !parsed)}>
+              <StudySplitter />
               <div hidden={!learning}>
               {parsed && media && <StudySidebar projectId={parsed.project.id} media={media} videoRef={videoRef}
                 timeline={currentTimeline} enabled={timelineEnabled} collapsed={studyCollapsed}

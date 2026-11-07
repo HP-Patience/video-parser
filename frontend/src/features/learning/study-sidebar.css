@@ -1,5 +1,6 @@
 /* One stable media column and one optional learning rail; video DOM never moves between modes. */
-.modern-app .study-workspace { grid-template-columns: minmax(0,1fr) 336px; gap: 20px; align-items: start; }
+/* The rail width is draggable (StudySplitter); the 45% cap keeps the player from collapsing. */
+.modern-app .study-workspace { grid-template-columns: minmax(0,1fr) clamp(280px, var(--study-rail-width, 336px), 45%); gap: 20px; align-items: start; }
 .study-main-column, .study-context-rail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 /* The player sits much closer to the material panel below it than the rail's own stacking gap. */
 .study-main-column { gap: 5px; }
