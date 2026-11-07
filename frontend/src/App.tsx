@@ -274,6 +274,8 @@ export default function App() {
     if ('text' in result) updateProject(id, value => ({ ...value, analysisVersion: value.analysisVersion + 1, lastRecord: result.record?.id,
       parsed: result.project ? { ...value.parsed, project: result.project } : value.parsed, status: result.mode === 'ask' || result.mode === 'conversation' ? '追问已回答' : '分析完成', error: false }));
     else {
+      // A newly archived video changes /projects, so the shared picker cache must drop it.
+      if (!projects.current[id]?.parsed.qualities.find(item => item.id === result.quality_id)?.media) setLibraryVersion(value => value + 1);
       updateProject(id, value => ({ ...value, parsed: { ...value.parsed,
         qualities: value.parsed.qualities.map(item => item.id === result.quality_id ? { ...item, media: result } : item),
         episodes: value.parsed.episodes?.map(episode => episode.part === value.parsed.project.part
@@ -612,7 +614,7 @@ export default function App() {
     savingPart={selected?.learningPendingPart ?? null} error={selected?.learningError || ''}
     onSelectEpisode={part => { void selectEpisode(part); }}
     onSetLearned={(part, learned) => { void setEpisodeLearned(part, learned); }} />;
-  const projectPicker = <LearningProjectPicker key={learning ? 'learning' : 'workspace'} context={learning ? 'learning' : 'workspace'} compact={!!parsed || !learning} current={parsed?.project || null} version={libraryVersion} disabled={parsing || !!restoringId}
+  const projectPicker = <LearningProjectPicker context={learning ? 'learning' : 'workspace'} compact={!!parsed || !learning} current={parsed?.project || null} version={libraryVersion} disabled={parsing || !!restoringId}
     loading={!!restoringId} onSelect={id => { void openLearningProject(id, !learning); }} />;
   return <WorkbenchLayout page={page} mobile={mobile} menuOpen={menuOpen} activeCount={activeCount}
     sidebarRef={sidebar} menuButtonRef={menuButton} onNavigate={navigate}
@@ -781,7 +783,7 @@ export default function App() {
         </section>
         </WorkbenchPage>
         <WorkbenchPage page="tasks" activePage={page}>
-          <TaskSemanticSearch visible={page === 'tasks'} currentProjectId={parsed?.project.id} onSeek={async (id, time) => {
+          <TaskSemanticSearch visible={page === 'tasks'} version={libraryVersion} currentProjectId={parsed?.project.id} onSeek={async (id, time) => {
             videoRef.current?.pause();
             const restored = await restoreProject(id, '', false);
             if (!restored) throw new Error('无法打开检索结果对应的视频，请刷新项目列表。');

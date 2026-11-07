@@ -40,6 +40,9 @@ button.danger-button:disabled { color: var(--color-text-disabled); background: v
 .semantic-project-controls { display: flex; align-items: end; gap: var(--space-2); flex-wrap: wrap; }
 .semantic-project-controls label { display: flex; flex-direction: column; gap: var(--space-2); flex: 1 1 280px; min-width: 0; }
 .semantic-project-controls select { width: 100%; min-width: 0; }
+/* A fixed-height slot: the transient "正在读取项目列表…" must not resize the panel. */
+.task-semantic-search .semantic-project-status { min-height: 1.4em; margin: var(--space-2) 0 0; font-size: var(--font-size-caption); color: var(--color-text-secondary); }
+.task-semantic-search .semantic-project-status.error-text { color: var(--color-text); }
 .modern-app .task-semantic-search .subtitle-scroll-panel { border: 0; border-radius: 0; padding: 0; margin-top: var(--space-4); }
 .task-semantic-search .subtitle-toolbar input { flex: 1 1 240px; min-width: 0; }
 .task-semantic-search .subtitle-scroll-panel > label { display: flex; align-items: center; gap: var(--space-2); margin-block: var(--space-3); }
