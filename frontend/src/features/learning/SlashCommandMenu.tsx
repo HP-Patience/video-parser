@@ -5,13 +5,15 @@ type Props = {
   id: string; commands: SlashCommand[]; selected: number; refreshing: boolean; hasCommands: boolean;
   onPick: (command: SlashCommand) => void; onSelect: (index: number) => void;
 };
+type Place = 'above' | 'below' | 'overlay';
 
 export default function SlashCommandMenu({ id, commands, selected, refreshing, hasCommands, onPick, onSelect }: Props) {
   const menu = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
-  const [place, setPlace] = useState({ below: false, max: 190 });
+  const [place, setPlace] = useState({ mode: 'above' as Place, max: 190 });
   // Float above the textarea; flip below only when the visible room above (under the sticky top bar
-  // and any clipping scroll container) is too small. The list height follows the chosen room.
+  // and any clipping scroll container) is too small. An empty conversation's composer fills the rail,
+  // so when neither side has room the list floats inside the composer's blank space instead.
   useLayoutEffect(() => {
     const box = menu.current, field = box?.parentElement?.querySelector('textarea');
     if (!box || !field) return;
@@ -23,9 +25,17 @@ export default function SlashCommandMenu({ id, commands, selected, refreshing, h
         const clip = node.getBoundingClientRect(); top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom);
       }
       const chrome = 58, above = rect.top - top - chrome, below = bottom - rect.bottom - chrome;
-      const flip = above < 160 && below > above;
-      const max = Math.round(Math.max(72, Math.min(190, flip ? below : above)));
-      setPlace(old => old.below === flip && old.max === max ? old : { below: flip, max });
+      const side = above >= below ? 'above' as Place : 'below' as Place, room = Math.max(above, below);
+      // An empty conversation's composer grows to fill the rail, leaving no room on either side.
+      // Float the list inside that blank space instead of clipping it down to a single row.
+      const mode = room >= 160 ? side : rect.height >= 150 ? 'overlay' as Place : side;
+      const cap = Math.min(320, Math.round(window.innerHeight * .48));
+      // In the composer the list is bottom-aligned: keep its heading below the clip top (54px is
+      // the menu's own heading/padding), so a scrolled page cannot hide it under the top bar.
+      const overlay = Math.min(cap, Math.round(rect.height - 54), Math.round(rect.bottom - top - 49));
+      const max = mode === 'overlay' ? Math.max(0, overlay)
+        : Math.round(Math.max(72, Math.min(cap, room)));
+      setPlace(old => old.mode === mode && old.max === max ? old : { mode, max });
     };
     update();
     window.addEventListener('resize', update); window.addEventListener('scroll', update, true);
@@ -38,9 +48,9 @@ export default function SlashCommandMenu({ id, commands, selected, refreshing, h
     if (item.top < box.top) container.scrollTop += item.top - box.top;
     else if (item.bottom > box.bottom) container.scrollTop += item.bottom - box.bottom;
   }, [commands, selected]);
-  return <div ref={menu} className={place.below ? 'slash-command-menu is-below' : 'slash-command-menu'}>
+  return <div ref={menu} className={`slash-command-menu is-${place.mode}`}>
     <div className="slash-command-heading"><strong>命令 / Skills</strong><small>{commands.length} 项</small><small>仅填入，不自动发送</small></div>
-    <div ref={list} id={id + '-list'} className="slash-command-list" role="listbox" aria-label="命令建议" style={{ maxHeight: `min(${place.max}px, 32dvh)` }}>
+    <div ref={list} id={id + '-list'} className="slash-command-list" role="listbox" aria-label="命令建议" style={{ maxHeight: `min(${place.max}px, 48dvh)` }}>
       {commands.map((command, index) => <button key={command.prefix + command.name} id={`${id}-option-${index}`}
         type="button" role="option" aria-selected={selected === index} tabIndex={-1}
         onPointerDown={event => event.preventDefault()} onMouseDown={event => event.preventDefault()}

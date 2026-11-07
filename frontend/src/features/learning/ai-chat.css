@@ -24,9 +24,11 @@
 /* Floats over the page (out of flow) so opening it never pushes the composer or the log. */
 .slash-command-menu { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 40; min-width: 0; padding: 8px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface-raised); box-shadow: 0 10px 36px #0006; }
 .slash-command-menu.is-below { top: calc(100% + 6px); bottom: auto; }
+/* The composer of an empty conversation fills the rail, so the list floats inside its blank space. */
+.slash-command-menu.is-overlay { inset: auto 6px 6px; }
 .slash-command-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 6px; font-size: var(--font-size-caption); }
 .slash-command-heading small, .slash-command-menu > p { color: var(--color-text-secondary); font-size: var(--font-size-caption); margin: 0; }
-.slash-command-list { max-height: min(190px, 32dvh); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.slash-command-list { max-height: min(320px, 48dvh); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .modern-app .slash-command-list [role=option] { display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; justify-items: start; gap: 3px; width: 100%; min-width: 0; padding: 8px; min-height: 36px; text-align: left; white-space: normal; background: transparent; border: 1px solid transparent; box-shadow: none; }
 .modern-app .slash-command-list [role=option][aria-selected=true] { background: var(--color-fill-hover); border-color: var(--color-border); }
 .slash-command-list code { font-size: var(--font-size-caption); overflow-wrap: anywhere; }
