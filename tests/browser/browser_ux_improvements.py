@@ -6,6 +6,18 @@ import unittest
 from playwright.sync_api import expect
 from tests.browser import browser_product_improvements as harness
 
+# WCAG contrast of a button's own text against its current fill, in either rgb() or color() notation.
+CONTRAST = '''b => {
+  const channels = value => value.startsWith('color(')
+    ? value.slice(6, -1).trim().split(/\\s+/).slice(1).map(Number).map(v => v * 255)
+    : (value.match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+  const luminance = rgb => rgb.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; })
+    .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+  const style = getComputedStyle(b);
+  const [high, low] = [luminance(channels(style.backgroundColor)), luminance(channels(style.color))].sort((x, y) => y - x);
+  return { ratio: (high + 0.05) / (low + 0.05), background: style.backgroundColor, color: style.color };
+}'''
+
 
 def fixture_type():
     class Fixture(harness.ProductImprovementsBrowserTests):
@@ -160,14 +172,26 @@ class UXImprovementsBrowserTests(unittest.TestCase):
         self.assertTrue(notes.locator('li').first.evaluate("e=>{const a=e.getBoundingClientRect(),b=e.closest('.study-sidebar-body').getBoundingClientRect();return a.top>=b.top&&a.top<b.bottom}"))
         field = self.chat()
         field.fill('切换标签应保留')
+        # The rail's message list scrolls itself and lands on the latest answer; the body stays put.
+        self.page.wait_for_function("()=>{const l=document.querySelector('.ai-chat-log');return l.scrollHeight>l.clientHeight+1&&Math.abs(l.scrollTop+l.clientHeight-l.scrollHeight)<=1}")
         body = self.page.locator('.study-sidebar-body')
+        self.assertLess(body.evaluate('e=>e.scrollTop'), 2)
+        # Narrow screens fall back to the sidebar body as the shared scroll owner.
+        self.page.set_viewport_size({'width': 1024, 'height': 900})
+        self.page.get_by_role('tab', name='个人笔记', exact=True).click()
         body.evaluate('e=>e.scrollTop=120')
         self.page.wait_for_function("Math.abs(document.querySelector('.study-sidebar-body').scrollTop-120)<2")
         self.page.wait_for_timeout(80)
-        self.page.get_by_role('tab', name='个人笔记', exact=True).click()
+        self.page.get_by_role('tab', name='章节', exact=True).click()
         self.assertLess(body.evaluate('e=>e.scrollTop'), 2)
-        self.chat()
+        self.page.get_by_role('tab', name='个人笔记', exact=True).click()
         self.assertAlmostEqual(body.evaluate('e=>e.scrollTop'), 120, delta=2)
+        self.page.get_by_role('button', name='收起学习侧栏', exact=True).click()
+        self.page.get_by_role('button', name='展开学习侧栏', exact=True).click()
+        self.assertAlmostEqual(body.evaluate('e=>e.scrollTop'), 120, delta=2)
+        self.page.set_viewport_size({'width': 1440, 'height': 1000})
+        self.chat()
+        self.page.wait_for_function("()=>{const l=document.querySelector('.ai-chat-log');return Math.abs(l.scrollTop+l.clientHeight-l.scrollHeight)<=1}")
         self.page.get_by_role('tab', name='AI 对话', exact=True).press('Home')
         expect(self.page.get_by_role('tab', name='章节', exact=True)).to_be_focused()
         self.page.keyboard.press('ArrowRight')
@@ -178,11 +202,33 @@ class UXImprovementsBrowserTests(unittest.TestCase):
         expect(self.page.get_by_role('tab', name='AI 对话', exact=True)).to_be_focused()
         self.page.get_by_role('button', name='收起学习侧栏', exact=True).click()
         self.page.get_by_role('button', name='展开学习侧栏', exact=True).click()
-        self.assertAlmostEqual(body.evaluate('e=>e.scrollTop'), 120, delta=2)
+        self.assertTrue(self.page.evaluate("()=>{const f=document.querySelector('.ai-chat-form').getBoundingClientRect(),b=document.querySelector('.study-sidebar-body').getBoundingClientRect();return Math.abs(f.bottom-b.bottom)<=1}"))
         expect(field).to_have_value('切换标签应保留')
         self.assertTrue(self.page.evaluate('window.originalVideo===document.querySelector("video")'))
         expect(self.page.locator('.video-context-actions').get_by_role('button', name='AI 对话', exact=True)).to_have_count(0)
         expect(self.page.get_by_role('tab', name='AI 对话', exact=True)).to_have_attribute('aria-selected', 'true')
+
+    def test_selected_study_tab_stays_readable_while_hovered_and_pressed(self):
+        self.learn()
+        tab = self.page.get_by_role('tab', name='AI 对话', exact=True)
+        tab.click()
+        for theme in ('light', 'dark'):
+            self.page.evaluate('(theme)=>document.documentElement.dataset.theme=theme', theme)
+            for state in ('rest', 'hover', 'pressed'):
+                self.page.mouse.move(0, 0)
+                self.page.wait_for_timeout(60)
+                if state != 'rest':
+                    box = tab.bounding_box()
+                    self.page.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+                    self.page.wait_for_timeout(180)
+                if state == 'pressed':
+                    self.page.mouse.down()
+                    self.page.wait_for_timeout(140)
+                contrast = tab.evaluate(CONTRAST)
+                self.assertGreaterEqual(contrast['ratio'], 4.5, (theme, state, contrast))
+                if state == 'pressed':
+                    self.page.mouse.up()
+        expect(tab).to_have_attribute('aria-selected', 'true')
 
     def test_progress_wording_and_exact_episode_search(self):
         self.learn()

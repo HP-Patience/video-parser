@@ -92,16 +92,17 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
     setImages(pending.images ?? []);
     chat.setPending(null); setFailure(status || '提问失败，内容和图片已保留，可以重试。');
   }, [pending, busy, error, status, chat, drafts, setDraft, composing]);
-  const lastResponse = useRef({ answered, waiting, session: session?.id });
+  const lastResponse = useRef({ answered, waiting, session: session?.id, visible: false });
   useEffect(() => {
     const previous = lastResponse.current;
-    const changed = previous.answered !== answered || previous.waiting !== waiting || previous.session !== session?.id;
-    lastResponse.current = { answered, waiting, session: session?.id };
-    const item = log.current?.lastElementChild;
-    if (visible && changed && item && item.getClientRects().length && log.current) {
-      const viewport = log.current.closest<HTMLElement>('.study-sidebar-body') || log.current;
-      viewport.scrollTop = viewport.scrollHeight;
-    }
+    const changed = !previous.visible || previous.answered !== answered || previous.waiting !== waiting || previous.session !== session?.id;
+    lastResponse.current = { answered, waiting, session: session?.id, visible };
+    const history = log.current, item = history?.lastElementChild;
+    if (!visible || !changed || !history || !item || !item.getClientRects().length) return;
+    // The rail's log scrolls itself; only the narrow layout falls back to scrolling the sidebar body.
+    const viewport = history.scrollHeight > history.clientHeight + 1
+      ? history : history.closest<HTMLElement>('.study-sidebar-body') || history;
+    viewport.scrollTop = viewport.scrollHeight;
   }, [answered, waiting, session?.id, visible]);
   async function submit() {
     const text = (input.current?.value ?? question).trim(), position = videoRef?.current?.currentTime || 0;

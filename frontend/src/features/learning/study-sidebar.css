@@ -39,10 +39,10 @@
 /* The composer is the last flex row of the panel, so it already sits at the bottom: no sticky
    positioning (that used to cover the tail of a short log and swallow clicks). */
 .study-sidebar .ai-chat-form { margin: 10px -12px -12px; padding: 8px 12px 12px; background: var(--color-surface-raised); }
-/* Chat fills the rail: the input box takes the leftover height and the toolbar sits at the bottom. */
+/* Chat fills the rail: the message list is the only scroll owner and the composer stays below it. */
 #study-panel-chat { display: flex; flex-direction: column; height: 100%; }
 #study-panel-chat > .ai-chat { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.study-sidebar .ai-chat-log { flex: 1; min-height: 0; }
+.study-sidebar .ai-chat-log { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .study-sidebar .ai-chat-form { margin-top: auto; }
 /* Only a chat with no messages hands the spare height to the composer: the input box then fills the
    rail, so there is no dead band above it. Once the log has content it keeps the space and the
