@@ -1928,7 +1928,11 @@
   "资料构成": "Material breakdown",
   "资料链已经完整": "Material chain complete",
   "还有哪些空白？": "What is still missing?",
-  "还没有任务记录": "No task records yet"
+  "还没有任务记录": "No task records yet",
+  "调整学习侧栏高度": "Resize the study sidebar height",
+  "拖动调整侧栏高度，双击恢复与播放条对齐": "Drag to resize the sidebar height; double-click to align with the playback bar",
+  "调整视频区与侧栏宽度": "Resize the video area and sidebar width",
+  "拖动调整视频区与侧栏宽度，双击恢复默认": "Drag to resize the video area and sidebar width; double-click to restore the default"
  },
  "patterns": [
   [
@@ -2625,6 +2629,14 @@
   [
    "^已切换到 (.+)，检测到 (\\d+) 个项目；正在刷新应用。$",
    "Switched to {1|raw}; found $2 projects and refreshing the app."
+  ],
+  [
+   "^侧栏 (\\d+) 像素高$",
+   "Sidebar $1 px tall"
+  ],
+  [
+   "^侧栏 (\\d+) 像素宽$",
+   "Sidebar $1 px wide"
   ]
  ]
 }
