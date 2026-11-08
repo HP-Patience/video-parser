@@ -274,13 +274,17 @@ def ask(project_id, identifier, question, resource, position, directory, agent=N
     analysis._progress('analyzing', 'AI 正在决定是否补取其他画面或字幕…')
     plan_messages = [{'role': 'system', 'content': PLANNER_PROMPT}] + base[1:] + [
         {'role': 'user', 'content': [{'type': 'text', 'text': question}] + pasted_parts if pasted_parts else question}]
-    plan_result = model_calls.call(plan_messages, settings, selected, directory, purpose='planner')
-    planned, plan_usage = plan_result.text, plan_result.usage
     warning = ''
     try:
+        plan_result = model_calls.call(plan_messages, settings, selected, directory, purpose='planner')
+        planned, plan_usage = plan_result.text, plan_result.usage
         times, ranges = parse_plan(planned, duration)
+    except (analysis.AnalysisError, local_agents.AgentError):
+        # A retryable planner failure must not throw away the question or the material already gathered.
+        times, ranges, plan_usage = [], [], {}
+        warning = '自动取材规划未能完成，本次仅使用发送时刻画面、附近字幕及已有资料；不要声称已查看其他画面。'
     except (ValueError, TypeError, AttributeError):
-        times, ranges = [], []
+        times, ranges, plan_usage = [], [], {}
         warning = '补充取材计划格式无效，本次仅成功获取发送时刻画面、附近字幕及已有资料；不要声称已查看其他画面。'
     task_runtime.checkpoint()
     extra_dir = directory / 'supplement'

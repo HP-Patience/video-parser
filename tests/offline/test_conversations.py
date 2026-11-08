@@ -170,6 +170,17 @@ class ConversationTests(unittest.TestCase):
         self.assertIn('A专属问题', json.dumps(model.call_args_list[1].args[0], ensure_ascii=False))
         self.assertEqual([m['question'] for m in conversations.get(self.pid,a['id'])['messages']], ['A专属问题','A后续问题'])
 
+    def test_planner_failure_still_answers_with_the_gathered_material(self):
+        a = conversations.create(self.pid, self.video)
+        with patch.object(ai_analysis, 'call_model', side_effect=[
+                local_agents.AgentError('fixture planner failure'), ('已保存的回答', {}), ('标题', {})]) as model:
+            result = conversations.ask(self.pid, a['id'], '问题', self.video, 24, self.work)
+        self.assertEqual(result['messages'][0]['answer'], '已保存的回答')
+        self.assertEqual([message['question'] for message in result['messages']], ['问题'])
+        content = json.dumps(model.call_args_list[1].args[0], ensure_ascii=False)
+        self.assertIn('取材规划未能完成', content)
+        self.assertNotIn('fixture planner failure', content)
+
     def test_failed_title_does_not_lose_answer(self):
         a = conversations.create(self.pid, self.video)
         with patch.object(ai_analysis, 'call_model', side_effect=[('{"frame_times":[],"subtitle_ranges":[]}', {}), ('已保存的回答', {}), ai_analysis.AnalysisError('命名失败')]):
