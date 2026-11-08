@@ -35,7 +35,7 @@ class RpcError(AgentError):
                 ('not support', 'unsupported', 'does not declare')):
             self.diagnostic_code = 'image_unsupported'
             message = '这个本地 agent 不支持图片输入，请选择支持画面的模型。'
-        elif any(word in text for word in ('insufficient', 'credit', 'balance', 'billing', 'quota')):
+        elif any(word in text for word in ('insufficient', 'credit', 'balance', 'billing', 'quota', 'usage limit', 'usagelimitexceeded')):
             self.diagnostic_code = 'quota'
             message = '本地 agent 的模型服务额度不足，请在原 agent 中检查账户或选择可用模型。'
         elif code in (401, 403) or any(word in text for word in ('unauthorized', 'authentication', 'not logged in', 'please run /login', 'api key', 'api_key', '401', '403')):
@@ -44,16 +44,21 @@ class RpcError(AgentError):
         elif code == 404 or any(word in text for word in ('model not found', 'modelnotfound', 'unknown model')):
             self.diagnostic_code = 'model_not_found'
             message = '本地 agent 的服务找不到所选模型，请刷新或选择其他已配置模型。'
-        elif any(word in text for word in ('context length', 'context window', 'input too long', 'too many tokens')):
+        elif any(word in text for word in ('context length', 'context window', 'contextwindowexceeded', 'input too long', 'too many tokens')):
             self.diagnostic_code = 'context_limit'
             message = '完整课程上下文超出所选模型的容量；未静默截断，请选择更大容量的模型。'
         elif any(word in text for word in ('rate limit', '429')):
             self.diagnostic_code = 'rate_limit'
             message = '本地 agent 的模型服务限流，请稍后手动重试。'
-        elif any(word in text for word in ('fetch failed', 'econnrefused', 'econnreset', '502', '503', '504')):
+        elif any(word in text for word in ('fetch failed', 'econnrefused', 'econnreset', 'server overloaded', 'serveroverloaded',
+                                          'stream disconnected', 'streamdisconnected', 'internal server error',
+                                          'internalservererror', '502', '503', '504')):
             self.diagnostic_code = 'upstream_unavailable'
             message = '本地 agent 的上游模型服务暂不可用；没有自动切换模型或重发。'
         super().__init__(message or '本地 agent 调用失败，请检查本机登录、模型及版本；不会自动重试。')
+        if self.diagnostic_code != 'unknown':
+            # The class-level code hides the cause in task logs; the diagnosis itself is safe to expose.
+            self.code = self.diagnostic_code
         self.rpc_code = code
         # Used only to classify a failed metadata/session operation. Never returned or logged.
         self.detail = str(detail)
@@ -61,6 +66,14 @@ class RpcError(AgentError):
     def missing_session(self):
         return self.rpc_code in (-32000, -32001, -32602, 404) and any(
             word in self.detail.lower() for word in ('not found', 'unknown session', 'unknown thread', 'expired', 'does not exist'))
+
+
+def upstream_failure(value):
+    """An in-band agent failure (stream error or failed turn) diagnosed like an RPC error.
+
+    The raw payload is only classified; it never reaches the user or the logs.
+    """
+    return RpcError(None, json.dumps(value, ensure_ascii=False, default=str))
 
 
 def _dsh_desktop_shim():

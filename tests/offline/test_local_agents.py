@@ -245,6 +245,32 @@ class LocalAgentTests(unittest.TestCase):
             self.assertNotIn(detail,str(error))
 
 
+    def test_codex_inband_failures_keep_their_upstream_diagnosis(self):
+        cases = [
+            ({'method': 'error', 'params': {'threadId': 'thread-1', 'willRetry': False,
+                                            'error': {'message': '401 Unauthorized api_key=do-not-print'}}}, 'authentication'),
+            ({'method': 'turn/completed', 'params': {'threadId': 'thread-1', 'turn': {
+                'id': 'turn-1', 'status': 'failed',
+                'error': {'message': 'Your input exceeds the context window of this model'}}}}, 'context_limit'),
+            ({'method': 'error', 'params': {'threadId': 'thread-1', 'willRetry': False,
+                                            'error': {'codexErrorInfo': 'serverOverloaded'}}}, 'upstream_unavailable'),
+        ]
+        for message, category in cases:
+            with self.subTest(category=category):
+                runtime = object.__new__(codex.Runtime)
+                runtime.workspace = self.root
+                runtime.wire = Mock()
+                runtime.wire.request.side_effect = [{'thread': {'id': 'thread-1'}, 'model': 'fixture'},
+                                                   {'turn': {'id': 'turn-1'}}]
+                runtime.wire.read.return_value = message
+                runtime.wire.dispatch.side_effect = lambda value: runtime.wire.on_event(value)
+                turn = prepare([{'role': 'user', 'content': 'fixture'}])
+                with self.assertRaises(AgentError) as caught:
+                    runtime.run(turn, {}, self.root)
+                self.assertEqual(caught.exception.diagnostic_code, category)
+                self.assertEqual(caught.exception.code, category)
+                self.assertNotIn('do-not-print', str(caught.exception))
+
     def test_native_binding_matches_course_engine_and_saved_history(self):
         history=[{'role':'user','content':'saved-question'},{'role':'assistant','content':'saved-answer'}]
         model_calls.bind_session(self.root,'codex',history,'owned-session')

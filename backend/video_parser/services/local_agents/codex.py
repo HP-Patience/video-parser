@@ -1,8 +1,9 @@
 """Codex App Server adapter. Protocol semantics informed by Claudian; implementation uses Python stdlib."""
+import json
 import re
 import time
 
-from .transport import Wire, AgentError, RpcError
+from .transport import Wire, AgentError, RpcError, upstream_failure
 from .types import Result, Progress, command_entries, image_files, valid_session
 
 
@@ -83,7 +84,8 @@ class Runtime:
             elif method == 'turn/completed':
                 finished.append(value.get('turn', {}))
             elif method == 'error' and value.get('willRetry') is not True:
-                raise AgentError()
+                # Keep the agent's own reason: quota/auth/limit problems must not all read the same.
+                raise upstream_failure(value.get('error') or value)
 
         def request(method, params):
             if method in ('item/commandExecution/requestApproval', 'item/fileChange/requestApproval'):
@@ -124,7 +126,7 @@ class Runtime:
             raise
         completed = next(item for item in finished if item.get('id') == turn_id)
         if completed.get('status') not in ('completed', None) or completed.get('error'):
-            raise AgentError()
+            raise upstream_failure(completed.get('error') or {'status': completed.get('status')})
         final_keys = [key for key in segments if phases.get(key) == 'final_answer']
         text = '\n\n'.join(segments[key] for key in (final_keys or list(segments))).strip()
         if not text:
