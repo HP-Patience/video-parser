@@ -30,6 +30,23 @@ class WorkflowCleanupTests(unittest.TestCase):
             workflows.worker(job)
         return job
 
+    def test_failed_job_also_removes_its_scratch(self):
+        job = workflows.Job(id='c' * 32, kind='analysis', project_id='b' * 32, title='t', payload={'x': 1})
+        directory = workflows.CACHE_ROOT / job.id
+        directory.mkdir(parents=True)
+        (directory / 'result.json').write_text(json.dumps({'ok': False, 'error_code': 'quota',
+                                                          'message': '额度不足'}), encoding='utf-8')
+        process = MagicMock(); process.returncode = 1
+        process.__enter__.return_value = process
+        with patch.object(workflows.subprocess, 'Popen', return_value=process), \
+             patch.object(task_runtime, 'communicate', return_value=(None, None)), \
+             patch.object(task_runtime, 'progress'), patch.object(task_runtime, 'checkpoint'), \
+             patch.object(task_runtime, 'own_directory'):
+            workflows.worker(job)
+        self.assertEqual((job.state, job.error_code), ('failed', 'quota'))
+        self.assertTrue(job.message.startswith('分析失败：额度不足'))
+        self.assertFalse(directory.exists())
+
     def test_cleanup_failure_keeps_the_archived_result(self):
         # Some environments wrap shutil.rmtree with a guard that raises SystemExit, not OSError.
         job = self.run_worker(SystemExit(1))

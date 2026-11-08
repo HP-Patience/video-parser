@@ -104,16 +104,18 @@ def worker(job):
         if process.returncode or not result.get('ok'):
             job.error_code=result.get('error_code','operation_failed')
             job.message=('视频准备失败：' if job.kind=='video' else '分析失败：')+result.get('message','请检查本机诊断。')
-            job.state='failed';job.payload.clear();return
-        job.result=result['result']
-        record = job.result.get('record') or {}
-        for key in ('template', 'source', 'model'):
-            if record.get(key): job.details[key] = record[key]
-        if record.get('frame_count') is not None: job.details['count'] = record['frame_count']
-        job.state='completed';job.message='视频已校验归档。' if job.kind=='video' else '分析结果与画面已归档。'
-    # Only this task's owned scratch directory; no library/models/Cookies/transcription outputs.
-    # The result is already archived, so nothing raised here may demote it: some environments wrap
-    # shutil.rmtree with a guard that raises SystemExit, which is not an OSError.
+            job.state='failed'
+        else:
+            job.result=result['result']
+            record = job.result.get('record') or {}
+            for key in ('template', 'source', 'model'):
+                if record.get(key): job.details[key] = record[key]
+            if record.get('frame_count') is not None: job.details['count'] = record['frame_count']
+            job.state='completed';job.message='视频已校验归档。' if job.kind=='video' else '分析结果与画面已归档。'
+    # Only this task's owned scratch directory; the journal already holds the result or the failure.
+    # Nothing raised here may demote a completed task: some environments wrap shutil.rmtree with a
+    # guard that raises SystemExit, which is not an OSError.
     try:shutil.rmtree(directory)
-    except (Exception, SystemExit):job.message+=' 临时副本清理失败，可在缓存管理中查看。'
+    except (Exception, SystemExit):
+        if job.state=='completed':job.message+=' 临时副本清理失败，可在缓存管理中查看。'
     job.payload.clear()
