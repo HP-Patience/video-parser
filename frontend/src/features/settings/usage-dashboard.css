@@ -1,10 +1,9 @@
 /* Usage dashboard: token totals, a small daily chart and per-model/per-project tables. */
 .usage-dashboard { display: grid; gap: 16px; min-width: 0; }
 .usage-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
-.usage-windows { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); overflow: hidden; }
-.usage-windows button { min-height: 34px; padding: 5px 12px; border: 0; border-left: 1px solid var(--color-border); border-radius: 0; background: transparent; color: var(--color-text-secondary); box-shadow: none; }
-.usage-windows button:first-child { border-left: 0; }
-.usage-windows button[aria-pressed="true"] { background: var(--color-fill-primary); color: var(--color-on-primary); font-weight: var(--font-weight-semibold); }
+.usage-windows { display: inline-flex; flex-wrap: wrap; gap: 2px; }
+.usage-windows button { min-height: 34px; padding: 5px 12px; --button-edge: var(--color-border); border-radius: var(--radius-sm); background: transparent; color: var(--color-text-secondary); box-shadow: none; }
+.usage-windows button[aria-pressed="true"] { --button-edge: var(--color-fill-primary); background: var(--color-fill-primary); color: var(--color-on-primary); font-weight: var(--font-weight-semibold); }
 .usage-refresh { min-height: 34px; }
 .usage-totals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 0; }
 .usage-totals > div { min-width: 0; padding: 14px 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-sunken); }
