@@ -1,5 +1,10 @@
 {
  "exact": {
+  "列表": "List",
+  "网格": "Grid",
+  "暂无封面": "No cover",
+  "视频展示方式": "Video layout",
+  "视频封面网格": "Video cover grid",
   "· 当前": "· Current",
   "无法打开这个视频，请刷新视频总览后重试。": "Could not open this video. Refresh Video overview and try again.",
   "正在查看这个视频": "Opening this video",
@@ -1935,6 +1940,14 @@
   "拖动调整视频区与侧栏宽度，双击恢复默认": "Drag to resize the video area and sidebar width; double-click to restore the default"
  },
  "patterns": [
+  [
+   "^分析 (\\d+) 次$",
+   "Analyses: $1"
+  ],
+  [
+   "^字幕 (\\d+) 份$",
+   "Subtitles: $1"
+  ],
   [
    "^在上方预览 (.+)$",
    "Preview $1 above"

@@ -100,36 +100,8 @@
 .overview-current-meta span + span::before { content: '·'; margin-right: 10px; color: var(--color-text-disabled); }
 
 .overview-current-body { display: grid; grid-template-columns: minmax(220px, 0.9fr) minmax(250px, 1.25fr); gap: 18px; align-items: stretch; }
-.overview-current-visual {
-  position: relative;
-  min-height: 170px;
-  overflow: hidden;
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at 78% 20%, rgb(191 204 183 / 0.3), transparent 8rem),
-    linear-gradient(145deg, #2f2e2a, #191815);
-  color: #fbf8f0;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
-}
-.overview-visual-orbit { position: absolute; border: 1px solid rgb(255 255 255 / 0.18); border-radius: 50%; }
-.orbit-one { width: 160px; height: 160px; right: -46px; top: -47px; }
-.orbit-two { width: 88px; height: 88px; right: 18px; top: 14px; border-color: rgb(255 255 255 / 0.1); }
-.overview-visual-play {
-  position: absolute;
-  left: 18px;
-  top: 18px;
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgb(255 255 255 / 0.18);
-  border-radius: 50%;
-  background: rgb(255 255 255 / 0.08);
-  color: #f8f4ea;
-  backdrop-filter: blur(8px);
-}
-.overview-visual-play .icon { width: 22px; height: 22px; }
-.overview-visual-caption { position: absolute; left: 18px; bottom: 18px; max-width: calc(100% - 88px); color: rgb(255 255 255 / 0.7); font-family: var(--font-family-mono); font-size: 9px; letter-spacing: 0.09em; line-height: 1.5; }
+.overview-current-visual { position: relative; min-height: 170px; overflow: hidden; border-radius: 20px; background: var(--color-surface-sunken); }
+.overview-current-visual .overview-cover { width: 100%; height: 100%; }
 
 .overview-progress-list { display: grid; align-content: center; gap: 14px; padding: 7px 0; }
 .overview-progress-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 12px; align-items: center; }
@@ -186,15 +158,36 @@
 .overview-library-heading h3 { margin: 5px 0 0; font-size: 21px; font-weight: 650; letter-spacing: -0.035em; }
 .overview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
 .overview-search { display: flex; align-items: center; gap: 8px; flex: 1 1 320px; min-width: 0; min-height: 42px; padding: 0 13px; border: 1px solid var(--color-border); border-radius: var(--radius-full); background: var(--color-surface); }
-.overview-search:focus-within { border-color: var(--color-border-focus); outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
+.overview-search:focus-within { border-color: var(--color-border-focus); }
 .overview-search > .icon { width: 16px; height: 16px; color: var(--color-text-tertiary); }
-.overview-search input { flex: 1; min-width: 0; border: 0; padding: 8px 0; background: transparent; font-size: var(--font-size-control); outline: none; }
+.modern-app .overview-search input { flex: 1; min-width: 0; border: 0; padding: 8px 0; background: transparent; font-size: var(--font-size-control); outline: none; box-shadow: none; }
 .overview-search button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--color-text-secondary); }
 .overview-search button .icon { width: 14px; height: 14px; }
 .overview-filters { display: flex; gap: 5px; flex-wrap: wrap; }
 .overview-filters button { min-height: 36px; padding: 6px 12px; border-color: transparent; background: transparent; color: var(--color-text-secondary); font-size: var(--font-size-control); }
 .overview-filters button b { margin-left: 4px; font-weight: var(--font-weight-medium); font-variant-numeric: tabular-nums; color: inherit; opacity: 0.72; }
 .overview-filters button[aria-pressed=true] { border-color: var(--color-fill-primary); background: var(--color-fill-primary); color: var(--color-on-primary); }
+
+.overview-library-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.overview-view-switch { display: inline-flex; gap: 3px; }
+.overview-view-switch button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 11px; border-color: transparent; border-radius: var(--radius-full); background: transparent; color: var(--color-text-secondary); font-size: var(--font-size-control); }
+.overview-view-switch button[aria-pressed=true] { background: var(--color-fill-primary); color: var(--color-on-primary); }
+.overview-view-switch .icon { width: 15px; height: 15px; }
+.overview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 16px; padding: 0; margin: 0; list-style: none; }
+.overview-video-card { display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface-raised); }
+.overview-video-card.is-current { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+.modern-app .overview-card-select { display: block; width: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; text-align: left; white-space: normal; box-shadow: none; }
+.modern-app .overview-card-select:hover:not(:disabled), .modern-app .overview-card-select:active:not(:disabled) { background: var(--color-surface); color: inherit; box-shadow: none; transform: none; }
+.modern-app .overview-card-select:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: -3px; }
+.overview-cover { display: grid; aspect-ratio: 16 / 9; overflow: hidden; background: var(--color-surface-sunken); }
+.overview-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.overview-cover-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--color-text-tertiary); font-size: var(--font-size-caption); }
+.overview-cover-placeholder .icon { width: 30px; height: 30px; }
+.overview-card-copy { display: block; padding: 14px; }
+.overview-card-copy .overview-video-title { min-height: calc(2 * 1.4em); line-height: 1.4; overflow-wrap: anywhere; }
+.overview-card-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; padding: 0 14px 14px; }
+.overview-card-states { display: grid; gap: 5px; }
+.overview-card-states .overview-state { font-size: var(--font-size-caption); }
 
 .overview-table-wrap { min-width: 0; overflow-x: auto; border-top: 1px solid var(--color-border); }
 .overview-table { width: 100%; min-width: 850px; border-collapse: collapse; table-layout: fixed; }

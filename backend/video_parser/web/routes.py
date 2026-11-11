@@ -436,6 +436,18 @@ def available_resource_count(project, kinds):
     return count
 
 
+def project_cover_url(project):
+    for name, info in project.get('resources', {}).items():
+        if not isinstance(info, dict) or info.get('kind') != 'cover':
+            continue
+        try:
+            library.resource_from_project(project, name)
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        return f"/api/workspace/projects/{project['id']}/files/{name}"
+    return None
+
+
 def material_summaries(project):
     from video_parser.services import ai_analysis
     materials = []
@@ -471,6 +483,7 @@ def list_projects():
         projects.append({'id': project['id'], 'title': project.get('title', ''), 'platform': platform, 'part': project.get('part'),
                          'location': project['directory'].relative_to(library.LIBRARY_ROOT).as_posix(), 'created_at': project.get('created_at', ''),
                          'video_id': project.get('video_id'), 'episode_title': library.episode_title(project),
+                         'cover_url': project_cover_url(project),
                          'is_single': library_layout.single_episode(project),
                          'display_title': project_folder_naming.display_title(project, applied_titles),
                          'archived': has_local_video(project), 'learned': project.get('learned') is True,

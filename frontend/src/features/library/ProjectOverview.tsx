@@ -49,12 +49,21 @@ function actionFor(project: VideoProjectSummary): { label: string; target: OpenT
   return { label: '查看材料', target: 'learning' };
 }
 
+function ProjectCover({ url }: { url?: string | null }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  return <span className="overview-cover">
+    {url && failedUrl !== url ? <img src={url} alt="" loading="lazy" decoding="async" onError={() => setFailedUrl(url)} />
+      : <span className="overview-cover-placeholder"><Icon name="image" /><span>暂无封面</span></span>}
+  </span>;
+}
+
 export default function ProjectOverview({ visible, version = 0, currentId, onOpen }: Props) {
   const [projects, setProjects] = useState<VideoProjectSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+  const [view, setView] = useState<'list' | 'grid'>('grid');
   const [reload, setReload] = useState(0);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -157,10 +166,7 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
 
           <div className="overview-current-body">
             <div className="overview-current-visual" aria-hidden="true">
-              <span className="overview-visual-orbit orbit-one" />
-              <span className="overview-visual-orbit orbit-two" />
-              <span className="overview-visual-play"><Icon name="circle-play" /></span>
-              <span className="overview-visual-caption">VIDEO PARSER · PROJECT MAP</span>
+              <ProjectCover key={current.id} url={current.cover_url} />
             </div>
 
             <div className="overview-progress-list" aria-label="当前项目资料进度">
@@ -208,7 +214,13 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
       <section className="overview-library" aria-labelledby="overview-library-title">
         <div className="overview-library-heading">
           <div><p className="overview-card-kicker">Library</p><h3 id="overview-library-title">全部视频</h3></div>
-          <span className="overview-muted-count">显示 {filtered.length} / {projects.length} 项</span>
+          <div className="overview-library-controls">
+            <span className="overview-muted-count">显示 {filtered.length} / {projects.length} 项</span>
+            <div className="overview-view-switch" role="group" aria-label="视频展示方式">
+              <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}><Icon name="menu" />列表</button>
+              <button type="button" aria-pressed={view === 'grid'} onClick={() => setView('grid')}><Icon name="layout-dashboard" />网格</button>
+            </div>
+          </div>
         </div>
 
         <div className="overview-toolbar">
@@ -227,7 +239,33 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
 
         {!loading && projects.length > 0 && filtered.length === 0 && <p className="overview-loading" role="status">没有匹配的视频。可以清除搜索或切换筛选条件。</p>}
 
-        {filtered.length > 0 && <div className="overview-table-wrap" aria-busy={loading}>
+        {filtered.length > 0 && view === 'grid' && <ul className="overview-grid" aria-label="视频封面网格" aria-busy={loading}>
+          {filtered.map(project => {
+            const action = actionFor(project), isSelected = current?.id === project.id;
+            const subs = subtitleCount(project), analyses = analysisCount(project);
+            return <li key={project.id} className={`overview-video-card ${isSelected ? 'is-current' : ''}`}>
+              <button type="button" className="overview-card-select" aria-pressed={isSelected}
+                aria-label={`在上方预览 ${videoDisplayTitle(project)}`} onClick={() => setSelectedId(project.id)}>
+                <ProjectCover url={project.cover_url} />
+                <span className="overview-card-copy">
+                  <span className="overview-video-title" translate="no" title={projectDisplayTitle(project)}>{videoDisplayTitle(project)}</span>
+                  <span className="overview-video-meta"><span>{project.platform}</span>{project.part ? <span>P{project.part}</span> : null}
+                    <span>{project.archived ? '已归档' : '未归档'}</span>{project.learned && <span>已学完</span>}</span>
+                </span>
+              </button>
+              <div className="overview-card-footer">
+                <div className="overview-card-states">
+                  <span className={`overview-state ${subs ? 'is-ready' : 'is-missing'}`}>{subs ? `字幕 ${subs} 份` : '无字幕'}</span>
+                  <span className={`overview-state ${analyses ? 'is-ready' : 'is-missing'}`}>{analyses ? `分析 ${analyses} 次` : '未分析'}</span>
+                </div>
+                <button type="button" className="overview-open" disabled={openingId !== null} aria-busy={openingId === project.id}
+                  onClick={() => { void open(project); }}>{openingId === project.id ? '打开中…' : action.label}</button>
+              </div>
+            </li>;
+          })}
+        </ul>}
+
+        {filtered.length > 0 && view === 'list' && <div className="overview-table-wrap" aria-busy={loading}>
           <table className="overview-table">
             <caption className="sr-only">所有视频的字幕、AI 分析和材料状态</caption>
             <thead><tr><th scope="col">视频</th><th scope="col">字幕</th><th scope="col">AI 分析</th><th scope="col">已生成材料</th><th scope="col">操作</th></tr></thead>

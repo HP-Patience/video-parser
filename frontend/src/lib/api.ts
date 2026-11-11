@@ -208,6 +208,7 @@ export interface VideoMaterialSummary {
 /** Lightweight /projects rows for the all-video status overview. */
 export interface VideoProjectSummary {
   id: string;
+  cover_url?: string | null;
   title: string;
   platform: string;
   part: number | null;

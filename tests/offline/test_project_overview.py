@@ -20,6 +20,29 @@ class ProjectOverviewTests(unittest.TestCase):
         return library.ensure({'platform': 'YouTube', 'video_id': identifier, 'title': identifier,
                                'source_url': f'https://www.youtube.com/watch?v={identifier}'})
 
+    def test_projects_use_only_available_registered_local_covers(self):
+        project = self.project('abcdefghijk')
+        empty = self.project('lmnopqrstuv')
+        cover = self.root / 'cover.png'
+        cover.write_bytes(b'local cover')
+        key = 'cover.png'
+        library.import_file(project['id'], cover, key, 'cover')
+        expected_url = f"/api/workspace/projects/{project['id']}/files/{key}"
+
+        def rows():
+            with patch.object(library, 'get', side_effect=AssertionError('Project list must reuse loaded manifests')):
+                return {row['id']: row for row in routes.list_projects()['projects']}
+
+        projects = rows()
+        self.assertEqual(projects[project['id']]['cover_url'], expected_url)
+        self.assertIsNone(projects[empty['id']]['cover_url'])
+        saved = library.resource(project['id'], key)
+        self.assertEqual(routes.project_file(project['id'], key).path, saved)
+        saved.write_bytes(b'changed')
+        self.assertIsNone(rows()[project['id']]['cover_url'])
+        saved.unlink()
+        self.assertIsNone(rows()[project['id']]['cover_url'])
+
     def test_projects_include_subtitle_and_material_inventory(self):
         project = self.project('abcdefghijk')
         video = self.root / 'video.mp4'
