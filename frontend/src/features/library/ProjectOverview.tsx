@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../../components/Icon';
 import { request } from '../../lib/api';
 import type { VideoProjectSummary } from '../../lib/api';
@@ -17,6 +17,13 @@ type Props = {
 
 const subtitleCount = (project: VideoProjectSummary) => project.subtitle_count ?? (project.has_subtitles ? 1 : 0);
 const analysisCount = (project: VideoProjectSummary) => project.analysis_count ?? project.materials?.length ?? 0;
+const hasMaterials = (project: VideoProjectSummary) => subtitleCount(project) > 0 || analysisCount(project) > 0;
+const isLocalProject = (project: VideoProjectSummary) => project.source_kind === 'local';
+const hasCloudMaterials = (project: VideoProjectSummary) => (project.cloud_material_count || 0) > 0 || hasMaterials(project);
+const videoAvailabilityLabel = (project: VideoProjectSummary) => {
+  if (project.archived || project.has_local_video) return '已归档';
+  return isLocalProject(project) ? '本地视频未关联' : '未归档';
+};
 const completionCount = (project: VideoProjectSummary) => Number(project.archived) + Number(subtitleCount(project) > 0) + Number(analysisCount(project) > 0);
 const completionPercent = (project: VideoProjectSummary) => Math.round(completionCount(project) / 3 * 100);
 const materialGroups = (project: VideoProjectSummary) => {
@@ -36,6 +43,7 @@ const dateLabel = (value: string) => {
   return Number.isNaN(date.getTime()) ? '日期未知' : new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric' }).format(date);
 };
 const statusLabel = (project: VideoProjectSummary) => {
+  if (!project.archived && isLocalProject(project)) return videoAvailabilityLabel(project);
   if (!project.archived) return '未归档';
   if (!subtitleCount(project)) return '缺字幕';
   if (!analysisCount(project)) return '待分析';
@@ -43,7 +51,7 @@ const statusLabel = (project: VideoProjectSummary) => {
 };
 
 function actionFor(project: VideoProjectSummary): { label: string; target: OpenTarget } {
-  if (!project.archived) return { label: '去归档', target: 'workspace' };
+  if (!(project.archived || project.has_local_video) && !hasCloudMaterials(project)) return { label: isLocalProject(project) ? '关联本地视频' : '去归档', target: 'workspace' };
   if (!subtitleCount(project)) return { label: '补字幕', target: 'subtitles' };
   if (!analysisCount(project)) return { label: '做 AI 分析', target: 'learning' };
   return { label: '查看材料', target: 'learning' };
@@ -67,6 +75,8 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
   const [reload, setReload] = useState(0);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [bindingId, setBindingId] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -102,8 +112,40 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
     });
   }, [filter, projects, query]);
 
+  async function bindLocalVideo(project: VideoProjectSummary) {
+    setSelectedId(project.id);
+    setBindingId(project.id);
+    fileInput.current?.click();
+  }
+
+  async function onVideoPicked(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    const projectId = bindingId;
+    setBindingId(null);
+    const path = file && (file as File & { path?: string }).path;
+    if (!projectId || !file) return;
+    if (!path) { setError('当前浏览器未提供本机路径，请使用桌面版文件选择器。'); return; }
+    try {
+      const controller = new AbortController();
+      const task = await request<{ task_id: string }>('/local-media/start', controller.signal, { project_id: projectId, path });
+      let state = 'queued';
+      while (!['completed', 'failed', 'cancelled'].includes(state)) {
+        await new Promise(resolve => window.setTimeout(resolve, 500));
+        const result = await request<{ state: string; message?: string }>(`/local-media/tasks/${task.task_id}`, controller.signal);
+        state = result.state;
+        if (state === 'failed' || state === 'cancelled') throw new Error(result.message || '本地视频关联失败。');
+      }
+      setReload(value => value + 1);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '本地视频关联失败。'); }
+  }
+
   async function open(project: VideoProjectSummary) {
     if (openingId) return;
+    if (isLocalProject(project) && !project.archived && !project.has_local_video) {
+      bindLocalVideo(project);
+      return;
+    }
     const action = actionFor(project);
     setSelectedId(project.id);
     setOpeningId(project.id);
@@ -139,6 +181,7 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
     </header>
 
     {error && <p className="overview-error" role="alert">{error}<button type="button" onClick={() => setReload(value => value + 1)}>重试</button></p>}
+    <input ref={fileInput} type="file" accept="video/*,.mkv,.ts,.mts,.m2ts" hidden onChange={event => { void onVideoPicked(event); }} />
     {loading && projects.length === 0 && <p className="overview-loading" role="status">正在汇总视频资料…</p>}
     {!loading && !error && projects.length === 0 && <div className="overview-empty">
       <span className="overview-empty-icon"><Icon name="layout-dashboard" /></span>
@@ -250,7 +293,7 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
                 <span className="overview-card-copy">
                   <span className="overview-video-title" translate="no" title={projectDisplayTitle(project)}>{videoDisplayTitle(project)}</span>
                   <span className="overview-video-meta"><span>{project.platform}</span>{project.part ? <span>P{project.part}</span> : null}
-                    <span>{project.archived ? '已归档' : '未归档'}</span>{project.learned && <span>已学完</span>}</span>
+                    <span>{videoAvailabilityLabel(project)}</span>{project.learned && <span>已学完</span>}</span>
                 </span>
               </button>
               <div className="overview-card-footer">

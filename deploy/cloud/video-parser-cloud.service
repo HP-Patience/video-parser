@@ -1,0 +1,30 @@
+[Unit]
+Description=Video Parser private material storage
+After=network.target
+
+[Service]
+Type=simple
+User=video-parser-cloud
+Group=video-parser-cloud
+WorkingDirectory=/opt/video-parser
+Environment=PYTHONPATH=/opt/video-parser/backend
+ExecStart=/opt/video-parser/.venv/bin/python -m video_parser.cloud --data-dir /var/lib/video-parser-cloud serve
+Restart=on-failure
+RestartSec=5
+UMask=0077
+StateDirectory=video-parser-cloud
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/video-parser-cloud
+RestrictSUIDSGID=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

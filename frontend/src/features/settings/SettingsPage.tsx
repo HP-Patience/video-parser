@@ -10,11 +10,12 @@ import EmbeddingSettings from './EmbeddingSettings';
 import UsageDashboard from './UsageDashboard';
 import ArchiveHealthPanel from './ArchiveHealth';
 import UpdatePanel from './UpdatePanel';
+import CloudStorage from './CloudStorage';
 import { setLanguage, useLanguage } from '../../lib/i18n';
 import type { Language } from '../../lib/i18n';
 import './settings-page.css';
 
-const groups = { general: '常用设置', ai: 'AI 模型', usage: '用量看板', health: '归档体检', maintenance: '存储与维护' } as const;
+const groups = { general: '常用设置', cloud: '登录与云端存储', ai: 'AI 模型', usage: '用量看板', health: '归档体检', maintenance: '存储与维护' } as const;
 const LANGUAGES: [Language, string, string][] = [['zh', '中文', 'zh-CN'], ['en', 'English', 'en']];
 type Group = keyof typeof groups;
 function groupFromURL(): Group {
@@ -100,6 +101,10 @@ export default function SettingsPage({ settings, onChange, config, configError, 
         </section>
       </div>
       <div className="settings-actions"><button type="button" title="仅恢复常用偏好，不影响 AI 配置和归档数据" onClick={() => onChange({ ...DEFAULT_SETTINGS })}>恢复常用默认</button></div>
+    </div>
+    <div hidden={group !== 'cloud'}>
+      <h2 className="settings-group-title" id="settings-group-cloud" tabIndex={-1}>登录与云端存储</h2>
+      <CloudStorage visible={visible && group === 'cloud'} />
     </div>
     <div hidden={group !== 'ai'}>
       <h2 className="settings-group-title sr-only" id="settings-group-ai" tabIndex={-1}>AI 模型</h2>

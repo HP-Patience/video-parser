@@ -126,6 +126,24 @@ class LibraryTests(unittest.TestCase):
             list(pool.map(lambda i: store.import_file(p['id'], source, f'analysis/{i}.md', 'analysis'), range(4)))
         self.assertEqual(len(store.get(p['id'])['resources']),4)
 
+    def test_manifest_replace_retries_momentary_sharing_violations(self):
+        target = self.root / 'retry.json'
+        real = store.os.replace
+        calls = []
+        def flaky(source, destination):
+            calls.append(destination)
+            if len(calls) < 3: raise PermissionError(13, 'sharing violation')
+            return real(source, destination)
+        with patch.object(store.os, 'replace', side_effect=flaky):
+            store.atomic_json(target, {'ok': True})
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(json.loads(target.read_text(encoding='utf-8')), {'ok': True})
+        self.assertEqual([p.name for p in target.parent.iterdir() if p.name.startswith('.manifest-')], [])
+        with patch.object(store.os, 'replace', side_effect=PermissionError(13, 'locked forever')):
+            with self.assertRaises(PermissionError): store.atomic_json(target, {'ok': False})
+        self.assertEqual(json.loads(target.read_text(encoding='utf-8')), {'ok': True})
+        self.assertEqual([p.name for p in target.parent.iterdir() if p.name.startswith('.manifest-')], [])
+
     def test_local_content_identity_and_batch_reports(self):
         source=self.root/'local.mp4';source.write_bytes(b'local content')
         one=store.local_project(source)

@@ -1,0 +1,16 @@
+[Unit]
+Description=Purge expired Video Parser cloud recycle-bin blobs
+
+[Service]
+Type=oneshot
+User=video-parser-cloud
+Group=video-parser-cloud
+WorkingDirectory=/opt/video-parser
+Environment=PYTHONPATH=/opt/video-parser/backend
+ExecStart=/opt/video-parser/.venv/bin/python -m video_parser.cloud --data-dir /var/lib/video-parser-cloud gc
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/video-parser-cloud
+PrivateTmp=true

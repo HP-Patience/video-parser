@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Video Parser cloud recycle-bin cleanup
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

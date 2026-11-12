@@ -219,6 +219,9 @@ export interface VideoProjectSummary {
   display_title?: string;
   is_single?: boolean;
   archived: boolean;
+  has_local_video?: boolean;
+  source_kind?: 'local' | 'remote';
+  cloud_material_count?: number;
   learned?: boolean;
   has_subtitles?: boolean;
   subtitle_count?: number;
@@ -240,7 +243,7 @@ export interface VideoProject {
   identity_status: string;
   learned?: boolean;
   archive_url: string;
-  resources: { path: string; kind: string; size_bytes: number; url: string; filename?: string; storage_path?: string }[];
+  resources: { path: string; kind: string; size_bytes: number; url: string; filename?: string; storage_path?: string; availability?: 'local' | 'cloud' }[];
 }
 
 export interface TranscriptionSource {

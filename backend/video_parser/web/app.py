@@ -32,6 +32,10 @@ from video_parser.web.usage_routes import router as usage_router
 app.include_router(usage_router)
 from video_parser.web.archive_routes import router as archive_router
 app.include_router(archive_router)
+from video_parser.web.cloud_routes import router as cloud_router
+app.include_router(cloud_router)
+from video_parser.web.local_media_routes import router as local_media_router
+app.include_router(local_media_router)
 
 @app.on_event('startup')
 def restore_task_history():
@@ -39,10 +43,13 @@ def restore_task_history():
     task_runtime.startup()
     from video_parser.web.task_routes import tasks
     tasks()
+    from video_parser.services import cloud_sync
+    cloud_sync.start()
 
 @app.on_event('shutdown')
 def stop_owned_workers():
-    from video_parser.services import task_runtime,whisper_pool
+    from video_parser.services import task_runtime,whisper_pool,cloud_sync
+    cloud_sync.stop()
     stopped=task_runtime.shutdown()
     if stopped:whisper_pool.close()
 
@@ -63,7 +70,7 @@ async def request_identifier(request, call_next):
     response.headers['X-Request-ID']=identifier
     if (request.url.path.startswith('/api/workspace/tasks') or request.url.path.startswith('/api/workspace/cache')
             or '/conversations' in request.url.path or request.url.path.startswith('/api/workspace/ai/agents')
-            or request.url.path.startswith('/api/workspace/updates')):
+            or request.url.path.startswith('/api/workspace/updates') or request.url.path.startswith('/api/workspace/cloud')):
         response.headers['Cache-Control']='no-store'
     return response
 

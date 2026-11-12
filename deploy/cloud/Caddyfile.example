@@ -1,0 +1,12 @@
+# Replace cloud.example.invalid with your DNS name. Caddy obtains/renews TLS.
+cloud.example.invalid {
+    request_body {
+        max_size 34MB
+    }
+    reverse_proxy 127.0.0.1:8090
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+    }
+    # Do not add request/response body logging or Authorization header logging.
+}

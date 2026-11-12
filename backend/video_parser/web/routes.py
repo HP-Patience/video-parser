@@ -486,7 +486,10 @@ def list_projects():
                          'cover_url': project_cover_url(project),
                          'is_single': library_layout.single_episode(project),
                          'display_title': project_folder_naming.display_title(project, applied_titles),
-                         'archived': has_local_video(project), 'learned': project.get('learned') is True,
+                         'archived': has_local_video(project), 'has_local_video': has_local_video(project),
+                          'source_kind': 'local' if project.get('platform') == 'local' and not project.get('source_url') else 'remote',
+                          'cloud_material_count': sum(1 for item in project['resources'].values() if item.get('cloud_scope')),
+                          'learned': project.get('learned') is True,
                          'has_subtitles': subtitle_count > 0, 'subtitle_count': subtitle_count,
                          'translation_count': translation_count, 'analysis_count': len(materials), 'materials': materials})
     projects.sort(key=lambda item: (item['created_at'], -(item['part'] or 0)), reverse=True)

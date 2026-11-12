@@ -37,7 +37,11 @@ export default function ProjectPickerMenu({ items, current, label, disabled, que
   }
   const ordered = [...groups.entries()].sort(([a], [b]) => a === 'single' ? 1 : b === 'single' ? -1 : 0);
   const available = (p: Item) => 'resources' in p ? p.resources.some(r => r.kind === 'video') : p.archived;
-  const enabled = ordered.filter(([key]) => !folded.has(key)).flatMap(([, g]) => g.items).filter(available);
+  const hasMaterials = (p: Item) => 'resources' in p
+    ? p.resources.some(r => r.kind !== 'video')
+    : ((p.subtitle_count || 0) > 0 || (p.analysis_count || 0) > 0 || (p.materials?.length || 0) > 0);
+  const selectable = (p: Item) => available(p) || hasMaterials(p);
+  const enabled = ordered.filter(([key]) => !folded.has(key)).flatMap(([, g]) => g.items).filter(selectable);
   const allCollapsed = ordered.length > 0 && ordered.every(([key]) => folded.has(key));
   const toggleGroup = (key: string) => {
     const next = new Set(folded);
@@ -108,10 +112,10 @@ export default function ProjectPickerMenu({ items, current, label, disabled, que
           </div>
           <div id={`${id}-group-${index}`} hidden={folded.has(key)}>
           {group.items.map(p => {
-            const canSelect = available(p);
+            const canSelect = selectable(p), hasVideo = available(p);
             return <div id={`${id}-${p.id}`} key={p.id} role="option" data-project-id={p.id} aria-selected={p.id === current?.id} aria-disabled={!canSelect}
               className={'project-picker-option' + (p.id === active ? ' is-active' : '')} onClick={() => { if (canSelect) choose(p); }}>
-              <span translate="no">{projectLabel(p)}{!canSelect ? '（尚未归档）' : ''}</span><span aria-hidden="true">{p.id === current?.id ? '✓' : ''}</span>
+              <span translate="no">{projectLabel(p)}{!canSelect ? '（尚未归档）' : !hasVideo ? '（本地视频未关联）' : ''}</span><span aria-hidden="true">{p.id === current?.id ? '✓' : ''}</span>
             </div>;
           })}
           </div>

@@ -79,7 +79,12 @@ def refresh_library_root(force=False):
     root, source, signature = resolve_library_root()
     changed = signature != _LIBRARY_SIGNATURE and source in {'settings', 'environment'}
     if force or changed or (_LIBRARY_SOURCE == 'settings' and source != 'settings'):
-        LIBRARY_ROOT, _LIBRARY_SOURCE, _LIBRARY_SIGNATURE = root, source, signature
+        if root != LIBRARY_ROOT:
+            from video_parser.services import cloud_sync
+            with cloud_sync.library_change():
+                LIBRARY_ROOT, _LIBRARY_SOURCE, _LIBRARY_SIGNATURE = root, source, signature
+        else:
+            LIBRARY_ROOT, _LIBRARY_SOURCE, _LIBRARY_SIGNATURE = root, source, signature
     return LIBRARY_ROOT
 
 
@@ -117,7 +122,9 @@ def set_library_root(value):
         except FileNotFoundError:
             pass
     root, source, signature = resolve_library_root()
-    LIBRARY_ROOT, _LIBRARY_SOURCE, _LIBRARY_SIGNATURE = root, source, signature
+    from video_parser.services import cloud_sync
+    with cloud_sync.library_change():
+        LIBRARY_ROOT, _LIBRARY_SOURCE, _LIBRARY_SIGNATURE = root, source, signature
     return root
 
 
@@ -249,7 +256,16 @@ def atomic_json(path, data):
         with temporary.open('x', encoding='utf-8') as stream:
             json.dump(data, stream, ensure_ascii=False, indent=2)
             stream.write('\n'); stream.flush(); os.fsync(stream.fileno())
-        os.replace(temporary, path)
+        # On Windows a concurrent reader can hold the target open without delete
+        # sharing, which makes the replace fail for a moment. Retry briefly rather
+        # than reporting a spurious write failure.
+        for attempt in range(20):
+            try:
+                os.replace(temporary, path)
+                break
+            except PermissionError:
+                if attempt == 19: raise
+                time.sleep(.05)
     finally: temporary.unlink(missing_ok=True)
 
 
@@ -301,10 +317,20 @@ def ensure(metadata):
     info = identity(metadata)
     identifier = hashlib.sha256(info['key'].encode()).hexdigest()[:32]
     episodes = normalize_episodes(metadata.get('episodes')) if info['platform'] == 'bilibili' else []
+    # Cloud imports have account-scoped local IDs. Reuse the active account's
+    # default source project before creating a second native archive.
+    from video_parser.services import cloud_sync
+    restored_id = cloud_sync.reusable_project(identifier, info['key'])
     with file_lock(LIBRARY_ROOT / '.library.lock'):
-        try: project = get(identifier)
-        except KeyError: pass
-        else:
+        try:
+            project = get(identifier)
+        except KeyError:
+            try:
+                project = get(restored_id) if restored_id else None
+            except KeyError:
+                project = None
+        if project is not None:
+            identifier = project['id']
             if episodes and episodes != normalize_episodes(project.get('episodes')):
                 with file_lock(contained(project['directory'], '.manifest.lock')):
                     project = get(identifier)
@@ -349,7 +375,7 @@ def operation(identifier):
     with file_lock(contained(project['directory'], '.operation.lock'), timeout=1800): yield get(identifier)
 
 
-def import_file(identifier, source, relative, kind, details=None):
+def import_file(identifier, source, relative, kind, details=None, *, copy_callback=None, expected_sha256=None, no_replace=False, checkpoint=None):
     source = Path(source)
     if not source.is_file() or not source.stat().st_size: raise ValueError('Missing or empty resource')
     project = get(identifier)
@@ -362,11 +388,30 @@ def import_file(identifier, source, relative, kind, details=None):
                              if info.get('kind') == kind and info.get('storage_path') == relative), relative)
         known = project['resources'].get(relative)
         target = resource_path(project, relative) if known else contained(directory, relative)
+        if no_replace and (known or target.exists()):
+            raise FileExistsError('Resource already exists; refusing to replace it')
         target.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix='.publish-', dir=directory) as temporary:
             staged = Path(temporary) / 'resource'
-            shutil.copyfile(source, staged)
+            with source.open('rb') as reader, staged.open('xb') as writer:
+                while True:
+                    chunk = reader.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    writer.write(chunk)
+                    if copy_callback:
+                        copy_callback(len(chunk))
+                    if checkpoint:
+                        checkpoint()
+                writer.flush()
+                os.fsync(writer.fileno())
             hashed = digest(staged)
+            if expected_sha256 and hashed != expected_sha256:
+                raise ValueError('Published resource hash mismatch')
+            if checkpoint:
+                checkpoint()
+            if target.exists() and no_replace:
+                raise FileExistsError('Resource already exists; refusing to replace it')
             if target.exists() and digest(target) != hashed:
                 target = contained(directory, str(target.relative_to(directory).with_name(target.stem + '__' + hashed[:12] + target.suffix)))
             if not target.exists(): os.link(staged, target)
@@ -417,6 +462,9 @@ def logical_resource(project, path):
 def resource_from_project(project, relative):
     info = project['resources'].get(relative)
     if not info: raise KeyError('Unregistered resource')
+    if info.get('cloud_missing') is True:
+        from video_parser.services import cloud_sync
+        return cloud_sync.ensure_resource(project, relative)
     path = resource_path(project, relative)
     if not path.is_file() or path.stat().st_size != info['size_bytes'] or digest(path) != info['sha256']:
         raise ValueError('项目资源缺失或已变化，请重新校验或获取。')
@@ -483,6 +531,7 @@ def public(project):
             'part': project['part'], 'location': project['directory'].relative_to(LIBRARY_ROOT).as_posix(),
             'identity_status': project['identity_status'], 'learned': project.get('learned') is True,
             'resources': [{'path': name, 'kind': item['kind'], 'size_bytes': item['size_bytes'],
+                           'availability': 'cloud' if item.get('cloud_missing') is True else 'local',
                            'storage_path': item.get('storage_path', name), 'filename': item.get('download_name') or Path(item.get('storage_path', name)).name,
                            'url': f"/api/workspace/projects/{project['id']}/files/{name}"}
                           for name, item in project['resources'].items()],

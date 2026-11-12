@@ -67,6 +67,9 @@ def resolve(identifier, references):
         if not isinstance(name, str) or not NAME.fullmatch(name):
             raise ValueError('图片标识无效。')
         target = library.contained(project['directory'], f'{FOLDER}/{name}')
+        if not target.is_file() and project['resources'].get(f'{FOLDER}/{name}', {}).get('cloud_missing'):
+            from video_parser.services.cloud_sync import ensure_resource
+            target = ensure_resource(project, f'{FOLDER}/{name}')
         if not target.is_file():
             raise ValueError('引用的图片已不存在，请重新粘贴。')
         result.append({'name': name, 'mime': next((mime for mime, ext in ALLOWED.items() if name.endswith(ext)), 'image/jpeg'),
@@ -79,6 +82,9 @@ def path(identifier, name):
     if not isinstance(name, str) or not NAME.fullmatch(name):
         raise ValueError('图片标识无效。')
     target = library.contained(project['directory'], f'{FOLDER}/{name}')
+    if not target.is_file() and project['resources'].get(f'{FOLDER}/{name}', {}).get('cloud_missing'):
+        from video_parser.services.cloud_sync import ensure_resource
+        target = ensure_resource(project, f'{FOLDER}/{name}')
     if not target.is_file():
         raise KeyError('图片不存在。')
     return target

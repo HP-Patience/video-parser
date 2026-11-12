@@ -62,9 +62,9 @@ def _scan(project):
                  'path': relative, 'kind': info.get('kind'), 'recorded_bytes': recorded}
         registered[relative] = {**entry, 'sha256': info.get('sha256'), 'present': relative in actual,
                                 'actual_bytes': actual.get(relative)}
-        if relative not in actual:
+        if relative not in actual and info.get('cloud_missing') is not True:
             missing.append(entry)
-        elif recorded is not None and actual[relative] != recorded:
+        elif relative in actual and recorded is not None and actual[relative] != recorded:
             changed.append({**entry, 'actual_bytes': actual[relative]})
     sidecars = {name: size for name, size in actual.items() if name.startswith(SIDECAR + '/')}
     orphans = [{'project_id': project.get('id'), 'title': project.get('title') or '', 'path': name, 'size_bytes': size}
