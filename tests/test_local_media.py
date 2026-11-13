@@ -195,6 +195,7 @@ class LocalMediaTests(unittest.TestCase):
                      patch.object(local_media.library, 'get', side_effect=get), \
                      patch.object(local_media, '_account_scope', return_value=''), \
                      patch.object(local_media.videos, 'probe', return_value=media), \
+                     patch.object(local_media, 'ensure_cover') as cover, \
                      patch.object(local_media.task_runtime, 'progress', side_effect=progress):
                     if cancel_publication:
                         with self.assertRaises(local_media.task_runtime.Cancelled):
@@ -202,6 +203,7 @@ class LocalMediaTests(unittest.TestCase):
                     else:
                         local_media._worker(job)
                 saved = json.loads(manifest.read_text(encoding='utf-8'))
+                self.assertEqual(cover.called, not cancel_publication)
                 if cancel_publication:
                     self.assertEqual(saved['resources'], {})
                     self.assertFalse((project_dir / 'videos' / source.name).exists())
@@ -229,6 +231,107 @@ class LocalMediaTests(unittest.TestCase):
             self.assertEqual(result['state'], 'queued')
             self.assertEqual(captured['lane'], 'local-media')
             self.assertTrue((Path(directory) / 'tasks' / (captured['job'].id + '.json')).is_file())
+
+    def test_import_cancelled_picker_creates_no_project_or_task(self):
+        with patch.object(local_media, '_pick_native', return_value=None) as pick, \
+             patch.object(local_media.library, 'local_project') as create, \
+             patch.object(local_media, 'start') as start:
+            result = local_media.import_video()
+        self.assertTrue(result['cancelled'])
+        self.assertFalse(result['ready'])
+        self.assertIsNone(result['project_id'])
+        self.assertIsNone(result['task_id'])
+        self.assertIn('.mp4', result['allowed_extensions'])
+        pick.assert_called_once()
+        create.assert_not_called()
+        start.assert_not_called()
+
+    def test_import_existing_archived_video_is_ready_without_new_task(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'clip.mp4'
+            path.write_bytes(b'video')
+            project = {'id': 'p', 'platform': 'local', 'source_url': '',
+                       'video_id': hashlib.sha256(b'video').hexdigest(),
+                       'directory': Path(directory), 'resources': {'videos/clip.mp4': {'kind': 'video'}}}
+            with patch.object(local_media.library, 'LIBRARY_ROOT', Path(directory)), \
+                 patch.object(local_media.library, 'local_project', return_value=project), \
+                 patch.object(local_media, 'ensure_cover') as cover, \
+                 patch.object(local_media, 'start') as start:
+                result = local_media.import_video(str(path))
+            cover.assert_called_once_with(project)
+            self.assertFalse(result['cancelled'])
+            self.assertTrue(result['ready'])
+            self.assertEqual(result['project_id'], 'p')
+            self.assertIsNone(result['task_id'])
+            start.assert_not_called()
+
+    def test_import_new_local_file_queues_verified_task(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'clip.mp4'
+            path.write_bytes(b'video')
+            project = {'id': 'p', 'platform': 'local', 'source_url': '',
+                       'video_id': hashlib.sha256(b'video').hexdigest(),
+                       'directory': Path(directory), 'resources': {}}
+            with patch.object(local_media.library, 'LIBRARY_ROOT', Path(directory)), \
+                 patch.object(local_media.library, 'local_project', return_value=project), \
+                 patch.object(local_media, 'start', return_value={'task_id': 't'}) as start:
+                result = local_media.import_video(str(path))
+            start.assert_called_once_with('p', str(path.resolve()))
+            self.assertFalse(result['cancelled'])
+            self.assertFalse(result['ready'])
+            self.assertEqual(result['project_id'], 'p')
+            self.assertEqual(result['task_id'], 't')
+
+    def test_import_rejects_changed_library_and_unsupported_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / 'clip.mp4'
+            path.write_bytes(b'video')
+            project = {'id': 'p', 'resources': {}}
+            with patch.object(local_media.library, 'LIBRARY_ROOT', root), \
+                 patch.object(local_media, '_root', side_effect=[root, root / 'other']), \
+                 patch.object(local_media.library, 'local_project', return_value=project), \
+                 patch.object(local_media, 'start') as start:
+                with self.assertRaises(local_media.LocalMediaError):
+                    local_media.import_video(str(path))
+            start.assert_not_called()
+            with patch.object(local_media.library, 'LIBRARY_ROOT', root), \
+                 patch.object(local_media, '_pick_native', return_value=str(root / 'clip.txt')):
+                (root / 'clip.txt').write_text('x')
+                with self.assertRaises(local_media.LocalMediaError):
+                    local_media.import_video()
+
+    def test_ensure_cover_extracts_first_frame_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = {'id': 'p', 'directory': root, 'resources': {'videos/clip.mp4': {'kind': 'video'}}}
+            frames = [{'name': 'frame_000.jpg', 'time': 0.0}]
+            with patch.object(local_media.library, 'resource_path', return_value=root / 'videos' / 'clip.mp4'), \
+                 patch('video_parser.services.ai_analysis.extract_frames', return_value=frames) as extract, \
+                 patch.object(local_media.library, 'import_file', return_value='cover.jpg') as save:
+                self.assertEqual(local_media.ensure_cover(project), 'cover.jpg')
+            self.assertEqual(extract.call_args.args[1], [local_media.COVER_TIME])
+            self.assertEqual(save.call_args.args[2:], (local_media.COVER_NAME, 'cover'))
+
+    def test_ensure_cover_skips_covered_or_videoless_projects(self):
+        with patch('video_parser.services.ai_analysis.extract_frames') as extract, \
+             patch.object(local_media.library, 'import_file') as save:
+            covered = {'id': 'p', 'directory': Path('.'),
+                       'resources': {'cover.jpg': {'kind': 'cover'}, 'videos/clip.mp4': {'kind': 'video'}}}
+            self.assertIsNone(local_media.ensure_cover(covered))
+            self.assertIsNone(local_media.ensure_cover({'id': 'p', 'directory': Path('.'), 'resources': {}}))
+        extract.assert_not_called()
+        save.assert_not_called()
+
+    def test_ensure_cover_is_best_effort(self):
+        project = {'id': 'p', 'directory': Path('.'), 'resources': {'videos/clip.mp4': {'kind': 'video'}}}
+        with patch.object(local_media.library, 'resource_path', return_value=Path('clip.mp4')), \
+             patch('video_parser.services.ai_analysis.extract_frames', return_value=[{'name': 'frame_000.jpg'}]), \
+             patch.object(local_media.library, 'import_file', side_effect=OSError('disk full')):
+            self.assertIsNone(local_media.ensure_cover(project))
+        with patch.object(local_media.library, 'resource_path', return_value=Path('clip.mp4')), \
+             patch('video_parser.services.ai_analysis.extract_frames', return_value=[]):
+            self.assertIsNone(local_media.ensure_cover(project))
 
 
 if __name__ == '__main__':

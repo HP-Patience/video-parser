@@ -36,7 +36,7 @@ import WorkspaceStart from './features/library/WorkspaceStart';
 import Panel, { PanelTitle } from './components/Panel';
 import FormField from './components/FormField';
 import { pageFromSearch, type Page } from './features/navigation/navigation';
-import type { AgentTarget, AISettings, AnalysisBody, AnalysisResult, Configuration, LearningEpisode, Media, ParsedVideo, VideoProject, VideoProjectSummary } from './lib/api';
+import type { AgentTarget, AISettings, AnalysisBody, AnalysisResult, Configuration, LearningEpisode, LocalVideoImport, Media, ParsedVideo, VideoProject, VideoProjectSummary } from './lib/api';
 
 // Re-tested 2026-10-14 (docs/mcp-platform-probe-20261014.md). 小红书 needs a login, so it has no example.
 const examples: Record<string, string> = {
@@ -87,6 +87,7 @@ export default function App() {
   const media = parsed?.qualities.find(item => item.id === quality)?.media || null;
   const busy = selected?.busy || null;
   const [parsing, setParsing] = useState(false);
+  const [importingLocal, setImportingLocal] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [learningNavigationError, setLearningNavigationError] = useState('');
   const restoringRequest = useRef<AbortController | null>(null);
@@ -386,7 +387,7 @@ export default function App() {
   function clearSource(next = '') {
     restoringRequest.current?.abort();
     ++parseEpoch.current; ++projectNavigation.current; parsingRequest.current?.abort(); parsingRequest.current = null;
-    setParsing(false); setSource(next); setSelectedId(null); selectedRef.current = null;
+    setParsing(false); setImportingLocal(false); setSource(next); setSelectedId(null); selectedRef.current = null;
     setParseError(false); setParseStatus('等待解析'); setArchiveReminder(false); setCoverError(false); setVideoError(false);
     const url = new URL(location.href); url.searchParams.delete('project'); history.replaceState(null, '', url);
     try { localStorage.removeItem('video-parser:last-project'); localStorage.removeItem('video-parser:last-quality'); } catch { /* Optional restore. */ }
@@ -404,6 +405,37 @@ export default function App() {
     } catch (reason) {
       if (!controller.signal.aborted && epoch === parseEpoch.current) { setParseError(true); setParseStatus(reason instanceof Error ? reason.message : '解析失败，请检查链接后重试。'); }
     } finally { if (epoch === parseEpoch.current) { parsingRequest.current = null; setParsing(false); } }
+  }
+  // A local file becomes a library project first; the verified copy reports through the same parse status line.
+  async function importLocalVideo() {
+    if (parsingRequest.current) return;
+    restoringRequest.current?.abort();
+    ++projectNavigation.current; const epoch = ++parseEpoch.current;
+    const controller = new AbortController(); parsingRequest.current = controller;
+    setImportingLocal(true); setParseError(false); setParseStatus('请选择本机视频文件…');
+    try {
+      const picked = await request<LocalVideoImport>('/local-media/import', controller.signal, {});
+      if (controller.signal.aborted || epoch !== parseEpoch.current) return;
+      if (picked.cancelled) { setParseStatus(''); return; }
+      let projectId = picked.project_id;
+      if (!picked.ready && picked.task_id) {
+        setParseStatus('正在导入本地视频…');
+        for (;;) {
+          await new Promise(resolve => window.setTimeout(resolve, 500));
+          if (controller.signal.aborted || epoch !== parseEpoch.current) return;
+          const task = await request<{ state: string; message: string }>('/local-media/tasks/' + picked.task_id, controller.signal);
+          if (task.state === 'completed') break;
+          if (task.state === 'failed' || task.state === 'cancelled') throw new Error(task.message || '本地视频导入失败。');
+        }
+      }
+      if (!validId(projectId)) throw new Error('本地视频导入失败，未返回有效的项目。');
+      parsingRequest.current = null; setImportingLocal(false); setParseStatus('');
+      await restoreProject(projectId, '', true);
+    } catch (reason) {
+      if (!controller.signal.aborted && epoch === parseEpoch.current) { setParseError(true); setParseStatus(reason instanceof Error ? reason.message : '本地视频导入失败。'); }
+    } finally {
+      if (epoch === parseEpoch.current) { parsingRequest.current = null; setImportingLocal(false); }
+    }
   }
   async function openLearningProject(id: string, preserveTab = false) {
     if (parsingRequest.current || restoringRequest.current) return;
@@ -605,8 +637,11 @@ export default function App() {
     if (next === null) return; event.preventDefault(); setTab(tabs[next].name); tabButtons.current[next]?.focus();
   }
 
-  const sourceEntry = <VideoSourceForm value={source} parsing={parsing} inputRef={sourceInput} onChange={setSource}
-    onParse={() => { void parse(); }} onClear={() => { clearSource(); sourceInput.current?.focus(); }} />;
+  const sourceEntry = <VideoSourceForm value={source} parsing={parsing} importingLocal={importingLocal} inputRef={sourceInput}
+    onChange={setSource} onParse={() => { void parse(); }} onClear={() => { clearSource(); sourceInput.current?.focus(); }} />;
+  const localImport = <div className="source-local"><span>没有链接？</span>
+    <button type="button" className="link-button" disabled={parsing || importingLocal} onClick={() => { void importLocalVideo(); }}>
+      {importingLocal ? '正在导入本地视频…' : '选择本机视频…'}</button></div>;
   const episodeToggle = currentEpisode && <LearningToggle episode={currentEpisode} placement="player"
     disabled={parsing || !!restoringId || busy !== null || (selected?.learningPendingPart !== null && selected?.learningPendingPart !== undefined)}
     onChange={learned => { void setEpisodeLearned(currentEpisode.part, learned); }} />;
@@ -652,12 +687,12 @@ export default function App() {
           </div>
           {!learning && !parsed && tab !== '字幕与转写' && tab !== '文件重命名' && <WorkspaceStart onContinue={openLearning}>
             <Panel className="source-panel" aria-labelledby="source-label">{sourceEntry}</Panel>
-            {!source && <div className="examples-row"><div className="examples"><span>试试示例</span>
+            <div className="examples-row"><div className="examples">{!source && <><span>试试示例</span>
               {Object.entries(examples).map(([name, url]) => <button key={name} className="chip" type="button" onClick={() => { setSource(url); sourceInput.current?.focus(); }}>{name}</button>)}
-            </div></div>}
+            </>}</div>{localImport}</div>
           </WorkspaceStart>}
-          {fullInspector && parsed && <Panel className="source-panel" aria-labelledby="source-label">{sourceEntry}</Panel>}
-          {(parsing || parseError) && <p className={parseError ? 'error-text' : 'notice'} role="status">{parseStatus}
+          {fullInspector && parsed && <Panel className="source-panel" aria-labelledby="source-label">{sourceEntry}{localImport}</Panel>}
+          {(parsing || importingLocal || parseError) && <p className={parseError ? 'error-text' : 'notice'} role="status">{parseStatus}
           {parseNeedsLogin && <button type="button" className="link-button" onClick={() => openAccounts(parseLoginPlatform(parseStatus, source))}>去登录</button>}
           </p>}
           <div key="workpanel" id="workpanel" hidden={(!parsed && !learning) || (!learning && (tab === '字幕与转写' || tab === '文件重命名'))} role={page === 'learning' ? 'region' : 'tabpanel'} aria-labelledby={page === 'learning' ? 'page-title-learning' : 'tab-' + tabs.find(item => item.name === tab)?.id} className={`work-grid study-workspace${!fullInspector ? ' compact-context' : ''}${learning && media && studyCollapsed ? ' study-workspace-collapsed' : ''}${managing || (learning && !parsed) ? ' study-single-column' : ''}`}>

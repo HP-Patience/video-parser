@@ -20,6 +20,10 @@ class StartBody(BaseModel):
     path: str = Field(min_length=1, max_length=4096)
 
 
+class ImportBody(BaseModel):
+    path: str | None = Field(default=None, max_length=4096)
+
+
 def _guard(action, *args):
     try:
         return action(*args)
@@ -44,6 +48,12 @@ def picker(body: PickerBody):
 @router.post('/start', status_code=202)
 def start(body: StartBody):
     return _guard(local_media.start, body.project_id, body.path)
+
+
+@router.post('/import')
+def import_local(body: ImportBody | None = None):
+    # No body path opens the native dialog; the file becomes a project in the library.
+    return _guard(local_media.import_video, body.path if body else None)
 
 
 @router.get('/tasks/{task_id}')

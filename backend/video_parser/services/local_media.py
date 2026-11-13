@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from hashlib import sha256
+import logging
 import os
 from pathlib import Path
 import re
@@ -15,8 +16,12 @@ from video_parser.services import library, task_runtime, videos
 
 VIDEO_SUFFIXES = {'.mp4', '.mkv', '.webm', '.mov', '.avi', '.m4v', '.flv', '.ts', '.mts', '.m2ts'}
 CHUNK_SIZE = 1024 * 1024
+COVER_NAME = 'cover.jpg'
+COVER_TIME = 0.0
 JOURNAL_ROOT = Path(library.LIBRARY_ROOT) / '.local' / 'tasks' / 'local-media'
 _INITIAL_JOURNAL_ROOT = JOURNAL_ROOT
+
+logger = logging.getLogger(__name__)
 
 
 class LocalMediaError(ValueError):
@@ -164,6 +169,9 @@ def _worker(job):
         item = saved['resources'].get(imported)
         if not item or item.get('sha256') != digest:
             raise LocalMediaError('登记后校验失败，未接受视频。')
+        job.phase = 'cover'
+        job.message = '正在生成首帧封面…'
+        ensure_cover(saved)
         job.result = {'project_id': job.project_id, 'path': imported, 'sha256': digest,
                       'size_bytes': item.get('size_bytes'), 'media': media}
         # Publication has committed: a late cancellation must not report an unregistered video.
@@ -211,7 +219,7 @@ def cancel(identifier):
     return view(identifier)
 
 
-def _pick_native():
+def _pick_native(title='选择项目对应的本机视频'):
     import base64
     import json
     import subprocess
@@ -222,7 +230,7 @@ def _pick_native():
     if not folders.dialog_lock.acquire(blocking=False):
         raise BlockingIOError('已经打开了文件选择窗口，请先完成选择。')
     try:
-        options = {'title': '选择项目对应的本机视频',
+        options = {'title': title,
                    'filter': '视频文件|' + ';'.join('*' + ext for ext in sorted(VIDEO_SUFFIXES)),
                    'directory': str(_root())}
         encoded = base64.b64encode(json.dumps(options, ensure_ascii=False).encode()).decode('ascii')
@@ -248,6 +256,50 @@ def picker(project_id, path=None):
     source = _source(path)
     return {'project_id': project_id, 'path': str(source), 'cancelled': False,
             'allowed_extensions': sorted(VIDEO_SUFFIXES)}
+
+
+def ensure_cover(project):
+    """Best-effort first-frame cover; project cards use any registered 'cover' resource."""
+    resources = project.get('resources') or {}
+    if any(isinstance(item, dict) and item.get('kind') == 'cover' for item in resources.values()):
+        return None
+    video = next((name for name, item in resources.items()
+                  if isinstance(item, dict) and item.get('kind') == 'video'), None)
+    if not video:
+        return None
+    try:
+        from video_parser.services import ai_analysis
+        source = library.resource_path(project, video)
+        with tempfile.TemporaryDirectory(prefix='.local-cover-', dir=project['directory']) as directory:
+            frames = ai_analysis.extract_frames(source, [COVER_TIME], directory)
+            if not frames:
+                return None
+            return library.import_file(project['id'], Path(directory) / frames[0]['name'], COVER_NAME, 'cover')
+    except (OSError, ValueError, KeyError, RuntimeError):
+        logger.info('Local video cover skipped for %s', project.get('id'), exc_info=True)
+        return None
+
+
+def import_video(path=None):
+    """Create (or reuse) a local project from a picked file and queue its verified import."""
+    if path is None:
+        path = _pick_native('选择要导入工作台的本地视频')
+    if path is None:
+        return {'project_id': None, 'task_id': None, 'ready': False, 'cancelled': True,
+                'allowed_extensions': sorted(VIDEO_SUFFIXES)}
+    root = _root()
+    source = _source(path)
+    project = library.local_project(source)
+    if _root() != root:
+        raise LocalMediaError('视频库已切换，请重新选择文件。')
+    project_id = project['id']
+    ready = any(item.get('kind') == 'video' for item in project.get('resources', {}).values())
+    if ready:
+        # Earlier imports predate the first-frame cover; fill it in on the next pick.
+        ensure_cover(project)
+    job = None if ready else start(project_id, str(source))
+    return {'project_id': project_id, 'task_id': job['task_id'] if job else None, 'ready': ready,
+            'cancelled': False, 'allowed_extensions': sorted(VIDEO_SUFFIXES)}
 
 
 def status(identifier):

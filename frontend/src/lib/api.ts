@@ -110,6 +110,14 @@ export interface ParsedVideo {
   episodes?: LearningEpisode[];
 }
 
+export interface LocalVideoImport {
+  project_id: string | null;
+  task_id: string | null;
+  ready: boolean;
+  cancelled: boolean;
+  allowed_extensions: string[];
+}
+
 export interface VideoQuality {
   id: string;
   label: string;

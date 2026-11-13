@@ -9,7 +9,7 @@
 - `backend/video_parser/services/cloud_materials.py`：允许类型和字段的导出、引用转换、哈希校验及非覆盖导入。
 - `backend/video_parser/web/cloud_routes.py`：现有本地工作台中的 JSON 接口，继续受 `local_request` 限制。
 - `frontend/src/features/settings/CloudStorage.tsx`：设置中的“登录与云端存储”，提供选择上传、自动同步、独立云端副本、重复关联、版本、传输记录和回收站。
-- `backend/video_parser/web/local_media_routes.py`：本机视频选择、异步校验、取消和进度接口，始终受 `local_request` 限制。
+- `backend/video_parser/web/local_media_routes.py`：本机视频选择、新建项目导入、异步校验、取消和进度接口，始终受 `local_request` 限制。
 
 云服务与本地工作台是两个进程。云端不加载本机任务、平台 Cookie、AI 配置或视频处理接口，不向公网开放现有本地工作台。复用现有 FastAPI 等依赖，没有增加数据库、前端云 SDK 或认证依赖。SQLite 与文件目录必须在服务器本地磁盘。
 
@@ -65,7 +65,7 @@
 
 项目列表分别展示来源类型、资料状态和本机视频状态。无链接项目显示“本地视频未关联”；导入相同内容的视频时按哈希绑定到已有项目，文件名和路径可以不同，内容不同则拒绝关联。关联任务在本机临时目录分块复制、校验 SHA-256、验证视频轨道后再登记，支持取消、库根/账号切换检查和锁内禁止覆盖。视频关联不会自动触发云端上传，用户仍可单独选择是否同步资料。
 
-本地关联接口为 `/api/workspace/local-media/picker`、`/start`、`/tasks/{id}` 和 `/tasks/{id}/cancel`。Windows 桌面环境可使用本机文件对话框，浏览器环境可传入用户选择的绝对路径。
+本地关联接口为 `/api/workspace/local-media/picker`、`/start`、`/tasks/{id}` 和 `/tasks/{id}/cancel`；工作台入口另有 `/api/workspace/local-media/import`，选择本机文件后按哈希新建（或复用）本地项目并排队同一校验任务（校验通过后用首帧生成 `cover.jpg` 封面），前端随后用 `/projects/{id}/resume` 载入。Windows 桌面环境可使用本机文件对话框，浏览器环境可传入用户选择的绝对路径。
 
 ## 部署与真机验证
 

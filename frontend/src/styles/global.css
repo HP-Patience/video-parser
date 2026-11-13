@@ -62,6 +62,8 @@ a { color: var(--mint); }
 .source-row { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 14px; align-items: stretch; }
 .source-row textarea { display: block; min-height: 94px; }
 .parse-button { align-self: end; min-height: 46px; }
+.source-local { display: flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--muted); font-size: var(--font-size-caption); }
+.examples-row > .source-local { margin-top: 0; }
 .examples-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 13px; }
 .examples { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .examples > span { color: var(--muted); font-size: var(--font-size-caption); margin-right: 12px; }
