@@ -199,6 +199,11 @@ def update_check():
         raise HTTPException(502, str(error)) from None
 
 
+@router.get('/updates/status')
+def update_status():
+    return update.status()
+
+
 @router.post('/updates/install')
 def update_install(body: UpdateInstallBody):
     try:

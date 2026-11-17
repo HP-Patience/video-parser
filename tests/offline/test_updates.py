@@ -2,6 +2,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+import zipfile
 
 from fastapi.testclient import TestClient
 
@@ -32,12 +33,12 @@ class UpdateTests(unittest.TestCase):
         self.assertIsNone(update.version_tuple('3.0'))
 
     def test_release_result_requires_installer_and_installed_copy(self):
-        with patch.object(update, 'install_supported', return_value=True):
+        with patch.object(update, 'installation_kind', return_value='installed'):
             result = update._release_result('3.0.1', release())
         self.assertTrue(result['available'])
         self.assertTrue(result['can_install'])
         self.assertEqual(result['install_reason'], 'installed')
-        with patch.object(update, 'install_supported', return_value=True):
+        with patch.object(update, 'installation_kind', return_value='installed'):
             result = update._release_result('3.0.1', release(with_assets=False))
         self.assertTrue(result['available'])
         self.assertFalse(result['can_install'])
@@ -58,6 +59,50 @@ class UpdateTests(unittest.TestCase):
         self.assertIn('$ParentId', text)
         self.assertIn("'/VERYSILENT'", text)
         self.assertIn("'video_parser.desktop'", text)
+
+    def _portable_fixture(self, directory, version='3.5.0'):
+        root = Path(directory) / 'VideoParser'
+        (root / 'python').mkdir(parents=True)
+        (root / 'backend' / 'video_parser').mkdir(parents=True)
+        (root / 'runtimes' / 'whisper').mkdir(parents=True)
+        (root / '.local').mkdir()
+        (root / 'outputs').mkdir()
+        (root / '.env').write_text('keep', encoding='utf-8')
+        (root / 'runtimes' / 'whisper' / 'keep.txt').write_text('keep', encoding='utf-8')
+        (root / 'python' / 'python.exe').write_bytes(b'old-python')
+        (root / 'backend' / 'video_parser' / 'old.py').write_text('old', encoding='utf-8')
+        (root / 'pyproject.toml').write_text(f'[project]\nversion = "{version}"\n', encoding='utf-8')
+        return root
+
+    def _portable_zip(self, directory, version='3.5.1'):
+        archive = Path(directory) / 'update.zip'
+        with zipfile.ZipFile(archive, 'w') as zipped:
+            zipped.writestr('python/python.exe', b'new-python')
+            zipped.writestr('backend/video_parser/new.py', 'new', compress_type=zipfile.ZIP_DEFLATED)
+            zipped.writestr('pyproject.toml', f'[project]\nversion = "{version}"\n')
+            zipped.writestr('runtimes/ffmpeg/bin/ffmpeg.exe', b'ffmpeg')
+        return archive
+
+    def test_portable_transaction_preserves_user_data_and_other_runtimes(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(update, 'UPDATE_DIR', Path(directory) / 'work'):
+            root = self._portable_fixture(directory)
+            archive = self._portable_zip(directory)
+            with patch.object(update, '_healthcheck'):
+                update._apply_portable(archive, root, '3.5.1')
+            self.assertEqual((root / 'python' / 'python.exe').read_bytes(), b'new-python')
+            self.assertEqual((root / 'backend' / 'video_parser' / 'new.py').read_text(encoding='utf-8'), 'new')
+            self.assertEqual((root / '.env').read_text(encoding='utf-8'), 'keep')
+            self.assertEqual((root / 'runtimes' / 'whisper' / 'keep.txt').read_text(encoding='utf-8'), 'keep')
+
+    def test_portable_transaction_rolls_back_on_healthcheck_failure(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(update, 'UPDATE_DIR', Path(directory) / 'work'):
+            root = self._portable_fixture(directory)
+            archive = self._portable_zip(directory, '3.5.2')
+            with self.assertRaises(update.UpdateError):
+                update._apply_portable(archive, root, '3.5.1')
+            self.assertEqual((root / 'python' / 'python.exe').read_bytes(), b'old-python')
+            self.assertFalse((root / 'backend' / 'video_parser' / 'new.py').exists())
+            self.assertEqual((root / 'runtimes' / 'whisper' / 'keep.txt').read_text(encoding='utf-8'), 'keep')
 
     def test_update_routes_are_manual_and_return_release_status(self):
         status = update._release_result('3.0.1', release())

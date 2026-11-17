@@ -4,12 +4,19 @@ export interface UpdateStatus {
   release_found: boolean;
   available: boolean;
   can_install: boolean;
-  install_reason: 'installed' | 'not_installed' | 'assets_missing' | 'up_to_date' | 'no_release';
+  install_reason: 'installed' | 'portable' | 'source' | 'unsupported' | 'not_installed' | 'assets_missing' | 'up_to_date' | 'no_release';
   release_url: string;
   published_at?: string | null;
 }
 
-export interface UpdateInstallResult { started: boolean; version: string; installer: string }
+export interface UpdateProgress {
+  state: 'idle' | 'checking' | 'downloading' | 'verifying' | 'applying' | 'failed';
+  version: string | null;
+  downloaded_bytes: number;
+  total_bytes: number | null;
+  error: string | null;
+}
+export interface UpdateInstallResult { started: boolean; version: string | null; installer?: string | null; state?: UpdateProgress['state'] }
 
 export interface Configuration {
   platforms: string[];
