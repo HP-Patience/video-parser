@@ -16,8 +16,8 @@ _log_path = None
 LOG_ROOT = ai_startup.ROOT / '.local/ai/logs'
 
 
-def _configuration():
-    settings = ai_settings.current()
+def _configuration(settings=None):
+    settings = ai_settings.current() if settings is None else settings
     config = ai_startup.effective(settings)
     if settings.get('provider') != 'llamacpp' or settings.get('base_url', '').rstrip('/') != ai_startup.endpoint(config):
         raise ValueError('请先保存本机 llama.cpp 配置，接口地址须与启动端口一致。')
@@ -55,19 +55,19 @@ def _status(settings, config):
     return {**result, 'state': 'stopped', 'message': '本地模型未启动，点击启动即可；不需要先测试连接。'}
 
 
-def status():
+def status(settings=None):
     with _lock:
         try:
-            settings, config = _configuration()
+            settings, config = _configuration(settings)
         except ValueError as error:
             return {'state': 'unconfigured', 'message': str(error), 'owned': False, 'elapsed_seconds': 0}
         return _status(settings, config)
 
 
-def start():
+def start(settings=None):
     global _process, _identity, _started, _log_path
     with _lock:
-        settings, config = _configuration()
+        settings, config = _configuration(settings)
         previous = _status(settings, config)
         if previous['state'] in ('running', 'starting'):
             return previous

@@ -415,7 +415,7 @@ def build_messages(meta, template, extra, transcript, frames):
 
 
 def call_model(messages, settings=None, max_tokens=None):
-    settings = settings or ai_settings.current()
+    settings = ai_settings.resolve() if settings is None else settings
     if not ai_settings.configured(settings):
         raise AnalysisError('尚未配置 AI 模型，请在“设置 → AI 模型”里填写。', 'ai_not_configured')
     extra = {'max_tokens': max_tokens} if max_tokens else {}
@@ -456,7 +456,7 @@ def run(project_id, payload, directory):
     """One analysis: gather material, call the model, archive frames and the report."""
     from video_parser.services import model_calls
     selected = model_calls.target(payload.get('agent'))
-    settings = ai_settings.current() if selected['engine'] == 'api' else {'model': selected['model'], 'provider': 'custom'}
+    settings = ai_settings.resolve(selected) if selected['engine'] == 'api' else {'model': selected['model'], 'provider': 'custom'}
     project = library.get(project_id)
     resource = payload['resource']
     info = video_info(project, resource)
@@ -570,7 +570,7 @@ def ask(project_id, record_id, question, directory, agent=None):
         raise AnalysisError('请输入要追问的问题。')
     from video_parser.services import model_calls
     selected = model_calls.target(agent)
-    settings = ai_settings.current() if selected['engine'] == 'api' else {'model': selected['model'], 'provider': 'custom'}
+    settings = ai_settings.resolve(selected) if selected['engine'] == 'api' else {'model': selected['model'], 'provider': 'custom'}
     project = library.get(project_id)
     name, item = _report(project, record_id)
     original = library.resource_from_project(project, name).read_text(encoding='utf-8')

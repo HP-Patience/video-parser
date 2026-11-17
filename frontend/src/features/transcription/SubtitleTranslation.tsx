@@ -45,7 +45,7 @@ export default function SubtitleTranslation({ initialOpen = false, onOpenChange,
   const completedId = job?.state === 'completed' ? job.id : '';
   useEffect(() => { if (completedId && job) { onCompleted?.(job); window.dispatchEvent(new Event('video-parser:subtitles-changed')); } }, [completedId]);
   const working = pending || isActive(current?.state);
-  const local = !models.native && config?.ai?.provider === 'llamacpp';
+  const local = !models.native && models.apiSettings?.provider === 'llamacpp';
   // Keep the user's batch preference when switching models; local models still use their own limits.
   useEffect(() => () => active.current?.abort(), []);
   async function start() {

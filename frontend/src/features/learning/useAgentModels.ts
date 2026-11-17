@@ -5,7 +5,15 @@ import { isEnabled, targetKey, useAgentPreferences } from './agentPreferences';
 
 const engines = ['api', 'claude', 'codex', 'opencode', 'dsh'];
 
-export default function useAgentModels(api: AISettings | null, fallbackConfigured = false) {
+export default function useAgentModels(settings: AISettings | null, fallbackConfigured = false) {
+  const [loadedAPI, setLoadedAPI] = useState<AISettings | null>(null);
+  const api = settings ?? loadedAPI;
+  useEffect(() => {
+    if (settings) return;
+    const controller = new AbortController();
+    request<AISettings>('/ai/settings', controller.signal).then(setLoadedAPI).catch(() => {});
+    return () => controller.abort();
+  }, [settings]);
   // The default target is chosen in Settings; a choice made here applies to this page until the default changes.
   const preferences = useAgentPreferences();
   const [selected, setSelected] = useState<AgentTarget>(preferences.target);
@@ -34,7 +42,7 @@ export default function useAgentModels(api: AISettings | null, fallbackConfigure
   }, []);
   const select = useCallback((next: AgentTarget) => {
     if (!engines.includes(next.engine)) return;
-    setSelected(old => old.engine === next.engine && old.model === next.model && old.effort === next.effort ? old : next);
+    setSelected(old => targetKey(old) === targetKey(next) && old.effort === next.effort ? old : next);
     setError('');
   }, []);
   const refresh = useCallback(async () => {
@@ -59,14 +67,18 @@ export default function useAgentModels(api: AISettings | null, fallbackConfigure
     const native = selected.engine !== 'api';
     const provider = catalog?.engines.find(item => item.id === selected.engine);
     const model = provider?.models.find(item => item.id === selected.model);
-    return { selected, select, catalog, error, refreshing, refresh, native, model,
-      key: [selected.engine, selected.model, selected.effort].join('|'),
-      configured: native ? !!provider?.installed && provider?.enabled !== false : api?.configured ?? fallbackConfigured,
-      name: native ? provider?.name || selected.engine : api?.provider_name || 'API',
-      apiModel: api?.model || '', commands: provider?.commands || [], efforts: model?.efforts || [],
+    const supplier = selected.provider_id ? api?.providers?.find(item => item.id === selected.provider_id) : undefined;
+    const apiSettings: AISettings | null = native || !api ? null : selected.provider_id
+      ? supplier ? { ...api, ...supplier, provider_name: supplier.name, model: selected.model } : null : api;
+    return { selected, select, catalog, error, refreshing, refresh, native, model, apiSettings,
+      key: targetKey(selected) + '|' + selected.effort,
+      configured: native ? !!provider?.installed && provider?.enabled !== false
+        : selected.provider_id ? !!supplier?.configured && supplier.models.includes(selected.model) : api?.configured ?? fallbackConfigured,
+      name: native ? provider?.name || selected.engine : apiSettings?.provider_name || 'API',
+      apiModel: apiSettings?.model || '', apiProviders: api?.providers || [], commands: provider?.commands || [], efforts: model?.efforts || [],
       enabled: (target: Pick<AgentTarget, 'engine' | 'model'>) => (target.engine === 'api' || catalog?.engines.find(item => item.id === target.engine)?.enabled !== false) && isEnabled(preferences, target),
     };
-  }, [selected, select, catalog, error, refreshing, refresh, preferences, api?.configured, api?.provider_name, api?.model, fallbackConfigured]);
+  }, [selected, select, catalog, error, refreshing, refresh, preferences, api, fallbackConfigured]);
 }
 
 export type AgentModelsState = ReturnType<typeof useAgentModels>;

@@ -32,11 +32,20 @@ def normalize(target=None):
               'effort': '' if target.get('effort') is None else target['effort']}
     if not all(isinstance(value, str) for value in result.values()):
         raise ValueError('无效模型或推理强度。')
-    if result['model'] and not IDENTIFIER.fullmatch(result['model']):
-        raise ValueError('无效模型 ID。')
+    provider_id = target.get('provider_id')
+    if provider_id is not None:
+        if engine != 'api' or not isinstance(provider_id, str) or not IDENTIFIER.fullmatch(provider_id):
+            raise ValueError('无效 API 供应商。')
+        if not result['model'] or result['effort']:
+            raise ValueError('指定 API 供应商时必须选择模型，且不能设置推理强度。')
+        result['provider_id'] = provider_id
+    if result['model']:
+        valid_model = (len(result['model']) <= 200 and not any(ch.isspace() or ord(ch) < 32 or ord(ch) == 127 for ch in result['model'])) if engine == 'api' and provider_id else IDENTIFIER.fullmatch(result['model'])
+        if not valid_model:
+            raise ValueError('无效模型 ID。')
     if result['effort'] and not re.fullmatch(r'[a-z][a-z0-9_-]{0,31}', result['effort']):
         raise ValueError('无效推理强度。')
-    if engine == 'api' and (result['model'] or result['effort']):
+    if engine == 'api' and provider_id is None and (result['model'] or result['effort']):
         raise ValueError('API 模型请在模型设置中选择。')
     return result
 

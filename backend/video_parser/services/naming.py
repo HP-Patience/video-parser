@@ -89,7 +89,7 @@ def start_plan(identifier, consent, agent=None, selected_ids=None):
             'entries': [item for item in inventory['entries'] if item['project_id'] in set(selected_ids)],
             'context': inventory['entries'], 'agent': selected, 'rename_scope': names.JOINT_SCOPE,
             'strategy': 'sequential',
-            'api_binding': model_calls.api_binding(ai_settings.current()) if selected['engine'] == 'api' else None,
+            'api_binding': model_calls.api_binding(ai_settings.resolve(selected)) if selected['engine'] == 'api' else None,
             'rows': [], 'last_error': ''}
     names.save_plan(plan)
     try:
@@ -156,7 +156,7 @@ def propose(plan, directory):
     if names.inventory(plan['project_id'])['fingerprint'] != plan['fingerprint']:
         raise names.NamingError('本地字幕或视频已变化，未调用模型；请重新读取清单。')
     selected = model_calls.target(plan['agent'])
-    settings = ai_settings.current() if selected['engine'] == 'api' else {'model': selected['model'], 'provider': 'custom'}
+    settings = ai_settings.resolve(selected) if selected['engine'] == 'api' else {'model': selected['model'], 'provider': 'custom'}
     if selected['engine'] == 'api': model_calls.check_api_binding(plan.get('api_binding'), settings)
     context_size = ((settings.get('startup') or {}).get('context_size') or 32768) if selected['engine'] == 'api' else 65536
     budget = min(60000, max(0, int(context_size) - 6000))

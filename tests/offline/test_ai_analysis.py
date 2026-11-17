@@ -1,10 +1,12 @@
 """AI 分析：设置、素材、记录、追问和导出。模型调用全部替换为本地假实现。"""
 import io
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import threading
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -33,6 +35,9 @@ class FakeClient:
     def __init__(self, calls, answer='## 摘要\n- [00:02] 讲矩阵'):
         self.calls, self.answer = calls, answer
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self.create))
+
+    def close(self):
+        pass
 
     def create(self, **request):
         self.calls.append(request)
@@ -115,6 +120,195 @@ class SettingsTests(unittest.TestCase):
         error = type('AuthenticationError', (Exception,), {'status_code': 401})('key sk-leak')
         self.assertIn('密钥无效', ai_settings.explain(error))
         self.assertNotIn('sk-leak', ai_settings.explain(error))
+
+
+    def test_single_connection_route_keeps_empty_body_compatibility(self):
+        client = TestClient(app, base_url='http://127.0.0.1:15001', client=('127.0.0.1', 1234),
+                            headers={'content-type': 'application/json'})
+        url = '/api/workspace/ai/settings/test'
+        self.assertEqual(client.post(url).status_code, 503)
+        ai_settings.save('ollama', 'http://127.0.0.1:11434/v1', 'local-model', 'secret-single-key')
+        calls = []
+        connection = FakeClient(calls, answer='OK secret-single-key')
+        with patch.object(ai_settings, 'client', return_value=connection), patch.object(connection, 'close') as close:
+            for kwargs in ({}, {'json': {}}, {'content': 'null', 'headers': {'content-type': 'application/json'}}):
+                response = client.post(url, **kwargs)
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertTrue(response.json()['ok'])
+                self.assertEqual(response.json()['model'], 'local-model')
+                self.assertIn('reply', response.json())
+                self.assertNotIn('secret-single-key', response.text)
+            self.assertEqual(close.call_count, 3)
+        self.assertTrue(all(call['model'] == 'local-model' and call['max_tokens'] == 8 for call in calls))
+
+    def test_batch_connection_is_ordered_isolated_and_does_not_save(self):
+        client = TestClient(app, base_url='http://127.0.0.1:15001', client=('127.0.0.1', 1234))
+        base = 'https://saved.example/v1'
+        ai_settings.save('custom', base, 'saved-model', 'saved-secret-key')
+        before = ai_settings.SETTINGS_PATH.read_bytes()
+        targets = [
+            {'id': 'saved', 'base_url': base, 'model': 'another-model'},
+            {'id': 'broken', 'provider': 'custom', 'base_url': 'https://other.example/v1',
+             'model': 'bad-model', 'api_key': 'new-secret-key'},
+            {'id': 'missing-key', 'base_url': 'https://third.example/v1', 'model': 'third-model'},
+            {'id': 'local', 'provider': 'ollama', 'base_url': 'http://localhost:11434/v1', 'model': 'local-model'},
+        ]
+        observed = {}
+        calls = []
+
+        def connection(settings, timeout):
+            observed[settings['id']] = (dict(settings), timeout)
+            if settings['id'] == 'broken':
+                raise type('AuthenticationError', (Exception,), {'status_code': 401})('new-secret-key')
+            return FakeClient(calls, answer='saved-secret-key new-secret-key')
+
+        with patch.object(ai_settings, 'client', side_effect=connection), patch.object(ai_settings, '_write') as write:
+            response = client.post('/api/workspace/ai/settings/test', json={'targets': targets})
+            write.assert_not_called()
+        self.assertEqual(response.status_code, 200, response.text)
+        results = response.json()['results']
+        self.assertEqual([row['id'] for row in results], [target['id'] for target in targets])
+        self.assertEqual([row['ok'] for row in results], [True, False, False, True])
+        self.assertIn('密钥无效', results[1]['error'])
+        self.assertIn('尚未配置', results[2]['error'])
+        self.assertEqual(observed['saved'][0]['api_key'], 'saved-secret-key')
+        self.assertEqual(observed['broken'][0]['api_key'], 'new-secret-key')
+        self.assertNotIn('missing-key', observed)
+        self.assertEqual(observed['local'][0]['api_key'], '')
+        self.assertEqual(observed['saved'][1], 30)
+        self.assertEqual(observed['local'][1], 120)
+        self.assertEqual(ai_settings.SETTINGS_PATH.read_bytes(), before)
+        for row in results:
+            self.assertEqual(set(row), {'id', 'provider', 'ok', 'latency_ms', 'model', 'error'})
+            self.assertGreaterEqual(row['latency_ms'], 0)
+        for secret in ('saved-secret-key', 'new-secret-key', 'api_key', 'reply'):
+            self.assertNotIn(secret, response.text)
+
+    def test_batch_connection_works_without_a_saved_model_and_closes_clients(self):
+        client = TestClient(app, base_url='http://127.0.0.1:15001', client=('127.0.0.1', 1234))
+        connection = FakeClient([])
+        with patch.object(ai_settings, 'client', return_value=connection), patch.object(connection, 'close') as close:
+            response = client.post('/api/workspace/ai/settings/test', json={'targets': [
+                {'base_url': 'http://127.0.0.1:8888/v1', 'model': 'unsaved-model'}]})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['results'][0]['id'], '0')
+        self.assertTrue(response.json()['results'][0]['ok'])
+        close.assert_called_once()
+        self.assertFalse(ai_settings.SETTINGS_PATH.exists())
+
+    def test_batch_sends_real_openai_compatible_http_requests(self):
+        requests = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_POST(self):
+                body = json.loads(self.rfile.read(int(self.headers['content-length'])))
+                requests.append((self.path, body, self.headers.get('authorization')))
+                denied = body['model'] == 'denied-model'
+                result = ({'error': {'message': 'secret-http-key rejected', 'type': 'authentication_error'}} if denied else
+                          {'id': 'test', 'object': 'chat.completion', 'created': 1, 'model': body['model'],
+                           'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': 'OK secret-http-key'},
+                                        'finish_reason': 'stop'}]})
+                payload = json.dumps(result).encode()
+                self.send_response(401 if denied else 200)
+                self.send_header('content-type', 'application/json')
+                self.send_header('content-length', str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f'http://127.0.0.1:{server.server_port}/v1'
+            results = ai_settings.test_targets([
+                {'id': name, 'base_url': base, 'model': name, 'api_key': 'secret-http-key'}
+                for name in ('working-model', 'denied-model')])['results']
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+        self.assertEqual([row['ok'] for row in results], [True, False])
+        self.assertIn('密钥无效', results[1]['error'])
+        self.assertNotIn('secret-http-key', json.dumps(results))
+        self.assertEqual(len(requests), 2)
+        for path, body, authorization in requests:
+            self.assertEqual(path, '/v1/chat/completions')
+            self.assertEqual(authorization, 'Bearer secret-http-key')
+            self.assertEqual(body['max_tokens'], 8)
+            self.assertEqual(body['messages'], [{'role': 'user', 'content': '只回复两个字母：OK'}])
+
+    def test_batch_connection_runs_at_most_three_calls_concurrently(self):
+        barrier = threading.Barrier(3)
+        lock = threading.Lock()
+        counts = {'active': 0, 'peak': 0}
+
+        class ConcurrentClient(FakeClient):
+            def create(inner, **request):
+                with lock:
+                    counts['active'] += 1
+                    counts['peak'] = max(counts['peak'], counts['active'])
+                try:
+                    barrier.wait(timeout=5)
+                    return super().create(**request)
+                finally:
+                    with lock:
+                        counts['active'] -= 1
+
+        targets = [{'id': str(index), 'base_url': 'http://localhost:8888/v1', 'model': f'model-{index}'} for index in range(6)]
+        with patch.object(ai_settings, 'client', side_effect=lambda *args, **kwargs: ConcurrentClient([])):
+            results = ai_settings.test_targets(targets)['results']
+        self.assertEqual(counts['peak'], 3)
+        self.assertTrue(all(row['ok'] for row in results), results)
+        self.assertEqual([row['model'] for row in results], [target['model'] for target in targets])
+
+    def test_batch_rejects_invalid_targets_before_any_model_call(self):
+        client = TestClient(app, base_url='http://127.0.0.1:15001', client=('127.0.0.1', 1234))
+        valid = {'id': 'valid', 'base_url': 'http://localhost:8888/v1', 'model': 'model'}
+        invalid = [
+            None, False, 'wrong', {}, [], [None], [False], [valid] * 21,
+            [valid, valid],
+            [dict(valid, provider='unknown')], [dict(valid, provider=[])],
+            [dict(valid, id=1)], [dict(valid, id='')], [dict(valid, id='a' * 81)],
+            [dict(valid, model=' ')], [dict(valid, model=7)], [dict(valid, model='x' * 201)],
+            [dict(valid, model='model\ninvalid')],
+            [dict(valid, api_key='secret-with space')], [dict(valid, api_key=123)],
+            [dict(valid, api_key='k' * 501)], [dict(valid, label='unexpected')],
+            *[[dict(valid, base_url=url)] for url in (
+                '', 'http://remote.example/v1', 'ftp://localhost/v1', 'https://user:secret@host/v1',
+                'https://host/v1?api_key=secret-query', 'https://host/v1#secret',
+                'http://localhost:bad/v1', 'http://localhost:0/v1', 'http://[invalid/v1',
+                'https://host/white space', 'https://host/' + 'a' * 500)],
+        ]
+        with patch.object(ai_settings, 'client') as connect:
+            for targets in invalid:
+                with self.subTest(targets=targets):
+                    response = client.post('/api/workspace/ai/settings/test', json={'targets': targets})
+                    self.assertEqual(response.status_code, 400, response.text)
+                    self.assertNotIn('secret', response.text)
+            # Even a later bad target must prevent the first valid target from running.
+            self.assertEqual(client.post('/api/workspace/ai/settings/test', json={
+                'targets': [valid, dict(valid, id='later', api_key='secret with spaces')]}).status_code, 400)
+            connect.assert_not_called()
+
+    def test_batch_rejects_request_shapes_without_echoing_credentials(self):
+        client = TestClient(app, base_url='http://127.0.0.1:15001', client=('127.0.0.1', 1234))
+        with patch.object(ai_settings, 'client') as connect:
+            for body in ([{'api_key': 'secret-shape-key'}], 'secret-shape-key', False, 0,
+                         {'api_key': 'secret-shape-key'}, {'targets': [], 'unknown': 'secret-shape-key'}):
+                response = client.post('/api/workspace/ai/settings/test', json=body)
+                self.assertEqual(response.status_code, 422, response.text)
+                self.assertNotIn('secret-shape-key', response.text)
+            connect.assert_not_called()
+
+    def test_connection_runtime_errors_never_echo_raw_details(self):
+        ai_settings.save('ollama', 'http://localhost:11434/v1', 'local-model')
+        with patch.object(ai_settings, 'client', side_effect=RuntimeError('secret-error-key')):
+            with self.assertRaises(RuntimeError) as caught:
+                ai_settings.test()
+        self.assertNotIn('secret-error-key', str(caught.exception))
 
 
 @unittest.skipUnless(shutil.which('ffmpeg'), 'ffmpeg missing')

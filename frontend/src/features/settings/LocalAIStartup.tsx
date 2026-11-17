@@ -5,13 +5,13 @@ import './local-ai-startup.css';
 
 type NumericField = 'port' | 'context_size' | 'gpu_layers' | 'threads' | 'parallel' | 'image_max_tokens' | 'max_output_tokens';
 export type LaunchDraft = Omit<AILaunchSettings, NumericField> & Record<NumericField, string>;
-const fields: { key: NumericField; label: string; min: number; max: number; hint: string }[] = [
-  { key: 'context_size', label: '上下文长度', min: 512, max: 131072, hint: '一次能理解多少内容。推荐 32768；越大越占显存，不代表模型一定支持。' },
-  { key: 'gpu_layers', label: '显卡使用层数', min: -1, max: 999, hint: '推荐 99，尽量使用显卡；0 表示只用 CPU，-1 表示全部交给显卡。显存不足时可调低。' },
-  { key: 'threads', label: 'CPU 线程数', min: 0, max: 256, hint: '推荐 0，由运行程序自动决定。' },
-  { key: 'parallel', label: '同时处理数', min: 1, max: 4, hint: '推荐 1；增加后会占用更多显存。' },
-  { key: 'image_max_tokens', label: '每张图像上限', min: 128, max: 4096, hint: '推荐 1024。更大可能看得更细，但会更慢、更占显存。' },
-  { key: 'max_output_tokens', label: '单次回复上限', min: 128, max: 32768, hint: '推荐 4096；必须小于或等于上下文长度。' },
+const fields: { key: NumericField; label: string; min: number; max: number }[] = [
+  { key: 'context_size', label: '上下文长度', min: 512, max: 131072 },
+  { key: 'gpu_layers', label: '显卡使用层数', min: -1, max: 999 },
+  { key: 'threads', label: 'CPU 线程数', min: 0, max: 256 },
+  { key: 'parallel', label: '同时处理数', min: 1, max: 4 },
+  { key: 'image_max_tokens', label: '每张图像上限', min: 128, max: 4096 },
+  { key: 'max_output_tokens', label: '单次回复上限', min: 128, max: 32768 },
 ];
 
 export function toLaunchDraft(value: AILaunchSettings): LaunchDraft {
@@ -81,42 +81,32 @@ export default function LocalAIStartup({ value, defaults, model, command, disabl
   }
   return <fieldset className="local-ai-startup" disabled={disabled || checking}>
     <legend>本地模型启动配置</legend>
-    <p className="settings-hint">已填入现有 Qwen3-VL 的推荐配置。不熟悉高级参数时保持默认即可。保存不会自动重启或下载模型。</p>
     <label htmlFor="ai-launch-model">模型文件路径</label>
     <div className="local-ai-path-row"><input id="ai-launch-model" value={value.model_path} maxLength={2048} spellCheck={false} onChange={event => update({ model_path: event.target.value })} /><button type="button" onClick={() => { void pick('model_path'); }} aria-busy={picking === 'model_path'}>选择模型文件</button></div>
-    <p className="settings-hint">填写 .gguf 文件，可使用项目相对路径或本机完整路径，不要加外层引号。</p>
     <label htmlFor="ai-launch-vision">视觉文件路径（看图时需要）</label>
     <div className="local-ai-path-row"><input id="ai-launch-vision" value={value.vision_path} maxLength={2048} spellCheck={false} onChange={event => update({ vision_path: event.target.value })} /><button type="button" onClick={() => { void pick('vision_path'); }} aria-busy={picking === 'vision_path'}>选择视觉文件</button></div>
-    <p className="settings-hint">通常是 mmproj 开头的 .gguf，必须与模型匹配；留空只用于纯文本，不支持视频画面分析。</p>
     <label htmlFor="ai-launch-port">服务端口</label>
     <input id="ai-launch-port" type="number" min={1024} max={65535} value={value.port} onChange={event => update({ port: event.target.value })} />
-    <p className="settings-hint">推荐 8888。这是模型服务端口，不是工作台的 15001；修改后会同步上方接口地址。只在本机开放。</p>
     <label className="settings-check"><input type="checkbox" role="switch" checked={value.show_console} onChange={event => update({ show_console: event.target.checked })} />启动时显示命令行窗口</label>
-    <p className="settings-hint">适用于本页启动按钮。关闭后在后台运行，仍可查看运行状态；改动仅在下次启动生效，不会自动重启。</p>
     {pickStatus && <p className="settings-hint" role="status" aria-live="polite">{pickStatus}</p>}
     <details className="local-ai-advanced">
       <summary>高级启动参数（通常不用改）</summary>
       <div className="local-ai-fields">
         <label htmlFor="ai-launch-server">运行程序路径</label>
         <div className="local-ai-path-row"><input id="ai-launch-server" value={value.server_path} maxLength={2048} spellCheck={false} onChange={event => update({ server_path: event.target.value })} /><button type="button" onClick={() => { void pick('server_path'); }} aria-busy={picking === 'server_path'}>选择运行程序</button></div>
-        <p className="settings-hint">本机 llama-server.exe；不是启动脚本。程序会按结构化参数启动，不执行任意命令。</p>
         {fields.map(field => <div className="local-ai-field" key={field.key}>
           <label htmlFor={'ai-launch-' + field.key}>{field.label}</label>
           <input id={'ai-launch-' + field.key} type="number" min={field.min} max={field.max} value={value[field.key]} onChange={event => update({ [field.key]: event.target.value })} />
-          <p className="settings-hint">{field.hint}</p>
         </div>)}
         <label className="settings-check"><input type="checkbox" checked={value.flash_attention} onChange={event => update({ flash_attention: event.target.checked })} />启用 Flash Attention 显卡加速</label>
-        <p className="settings-hint">推荐开启；若运行程序提示不支持，可关闭后重试。</p>
         <button type="button" onClick={() => onChange({ ...toLaunchDraft(defaults), model_path: value.model_path, vision_path: value.vision_path, server_path: value.server_path, port: value.port, show_console: value.show_console })}>恢复推荐性能参数</button>
-        <p className="settings-hint">仅恢复性能参数，不改动文件路径、服务端口或模型 ID。</p>
       </div>
     </details>
-    <details className="local-ai-advanced"><summary>手动启动命令（备用）</summary>
+    {command && <details className="local-ai-advanced"><summary>手动启动命令（备用）</summary>
     <label htmlFor="ai-launch-command">启动命令（自动生成，PowerShell）</label>
     <textarea id="ai-launch-command" className="local-ai-command" value={command} readOnly rows={2} spellCheck={false} />
       <button type="button" onClick={() => { void copy(); }}>复制备用启动命令</button>
-    <p className="settings-hint">优先使用本页的启动按钮。也可在保存后双击 start-ai.cmd，或复制这条命令。启动器会读取已保存的配置并安全传入访问令牌。</p>
-    </details>
+    </details>}
     <div className="settings-actions">
       <button type="button" disabled={!!error || !model.trim()} aria-busy={checking} onClick={() => { void check(); }}>{checking ? '检查中…' : '检查启动配置（不启动）'}</button>
     </div>
@@ -127,7 +117,6 @@ export default function LocalAIStartup({ value, defaults, model, command, disabl
       {report.warnings.map(warning => <p className="settings-hint" key={warning}>{warning}</p>)}
       <details className="local-ai-advanced"><summary>查看实际模型参数（不含访问令牌）</summary>
         <pre className="local-ai-preview">{report.command}</pre>
-        <p className="settings-hint">此处仅供核对，请用上面的启动器启动，避免遗漏访问令牌。</p>
       </details>
     </>}
   </fieldset>;

@@ -84,9 +84,30 @@ def _rows(project, name, info, kind, usage, engine):
     if not prompt and not completion:
         return
     yield {'at': _when(info.get('created_at'), name), 'kind': kind,
-           'model': str(info.get('model') or '').strip() or '未记录', 'engine': engine,
+           'model': str(info.get('model') or '').strip() or '未记录',
+           'provider': str(info.get('provider_name') or info.get('provider') or '').strip(),
+           'engine': engine,
            'prompt_tokens': prompt, 'completion_tokens': completion,
            'project_id': project.get('id'), 'project_title': project.get('title') or '未命名项目'}
+
+
+def _provider_prices(event, providers, fallback):
+    """Return the unique provider/model price; active defaults are legacy-only."""
+    if not providers:
+        return fallback
+    provider = event.get('provider', '')
+    model = event.get('model', '')
+    matches = []
+    for item in providers:
+        if not isinstance(item, dict):
+            continue
+        names = {item.get('name'), item.get('provider_name')}
+        models = item.get('models')
+        if provider and provider in names and isinstance(models, list) and model in models:
+            matches.append(item)
+    if len(matches) != 1:
+        return None, None
+    return matches[0].get('price_input'), matches[0].get('price_output')
 
 
 def _cost(event, price_input, price_output):
@@ -125,7 +146,13 @@ def _finish(bucket):
 def collect(days=30):
     days = max(0, int(days or 0))
     settings = ai_settings.current()
-    price_input, price_output = settings.get('price_input'), settings.get('price_output')
+    fallback_prices = settings.get('price_input'), settings.get('price_output')
+    try:
+        public_settings = ai_settings.public()
+    except (KeyError, TypeError, ValueError, OSError):
+        public_settings = {}
+    providers = public_settings.get('providers') if isinstance(public_settings, dict) else None
+    price_input, price_output = fallback_prices if not providers else (None, None)
     local_now = datetime.now().astimezone()
     cutoff = local_now - timedelta(days=days) if days else None
     totals, by_kind, by_model, by_project, by_day = _bucket(), {}, {}, {}, {}
@@ -133,7 +160,8 @@ def collect(days=30):
     for event in _events():
         if cutoff and (event['at'] is None or event['at'] < cutoff):
             continue
-        cost, priced = _cost(event, price_input, price_output)
+        event_prices = _provider_prices(event, providers, fallback_prices)
+        cost, priced = _cost(event, *event_prices)
         _add(totals, event, cost, priced)
         projects.add(event['project_id'])
         kind = by_kind.setdefault(event['kind'], {**_bucket(), 'kind': event['kind'], 'label': KIND_LABELS.get(event['kind'], event['kind'])})

@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import time
+from threading import Event, Lock
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -234,6 +235,30 @@ class TranslationStatusTests(unittest.TestCase):
         resource = library.import_file(self.pid, source, 'subtitles/fifty.srt', 'subtitle')
         job = self.finish(translations.start({**self.reference, 'resource': resource}, 'zh', True))
         self.assertEqual(job.state, 'completed', job.message)
+        self.assertEqual(self.model.call_count, 3)
+        self.assertEqual(transcription.download_file(job.id, 'srt').read_text(encoding='utf-8').count('-->'), 50)
+
+    def test_api_translation_batches_overlap_with_bounded_executor(self):
+        raw = '\n\n'.join(f'{n+1}\n00:00:01,100 --> 00:00:02,200\nHello world.' for n in range(50))
+        source = self.root / 'parallel.srt'; source.write_text(raw, encoding='utf-8')
+        resource = library.import_file(self.pid, source, 'subtitles/parallel.srt', 'subtitle')
+        entered = Event(); lock = Lock()
+        active = 0; maximum = 0
+
+        def reply(messages, *args, **kwargs):
+            nonlocal active, maximum
+            with lock:
+                active += 1; maximum = max(maximum, active)
+                if active >= 2: entered.set()
+            if not entered.wait(3): self.fail('parallel translation did not overlap')
+            try: return self.reply(messages, *args, **kwargs)
+            finally:
+                with lock: active -= 1
+
+        self.model.side_effect = reply
+        job = self.finish(translations.start({**self.reference, 'resource': resource}, 'zh', True))
+        self.assertEqual(job.state, 'completed', job.message)
+        self.assertGreaterEqual(maximum, 2)
         self.assertEqual(self.model.call_count, 3)
         self.assertEqual(transcription.download_file(job.id, 'srt').read_text(encoding='utf-8').count('-->'), 50)
 

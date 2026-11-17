@@ -130,7 +130,8 @@ export default function AnalysisPanel(props: Props) {
   const models = useAgentModels(ai, !!config?.ai_configured);
   const chatModels = useAgentModels(ai, !!config?.ai_configured);
   const configured = models.configured;
-  const needsConsent = models.native || (!!ai && !ai.consented);
+  const selectedAI = models.apiSettings;
+  const needsConsent = models.native || (!!selectedAI && !selectedAI.consented);
   useEffect(() => { setConsent(false); }, [models.key]);
   const templates = context?.templates || [];
   const spec = templates.find(item => item.id === template);
@@ -171,8 +172,8 @@ export default function AnalysisPanel(props: Props) {
       recordId: timeline.record.id, label: timeline.record.template_name, chapters: timeline.chapters } : null);
   }, [timeline, projectId, props.onTimelineChange]);
   const conversation = useConversations(projectId, resource, version, working);
-  const provider = chatModels.name, host = !chatModels.native && ai ? hostOf(ai.base_url) : '';
-  const chatConsent = chatModels.native || (!!ai && !ai.consented);
+  const provider = chatModels.name, host = chatModels.apiSettings ? hostOf(chatModels.apiSettings.base_url) : '';
+  const chatConsent = chatModels.native || (!!chatModels.apiSettings && !chatModels.apiSettings.consented);
   const chat = useMemo<LearningChat>(() => ({ ...conversation, configured: chatModels.configured, needsConsent: chatConsent, provider, host, models: chatModels }),
     [conversation, chatConsent, provider, host, chatModels]);
   const shownConversation = useRef('');
@@ -189,10 +190,12 @@ export default function AnalysisPanel(props: Props) {
 
   const inputTokens = (context?.prompt_tokens || 700) + (usesTranscript && chosen ? chosen.tokens : 0) + frameTotal * (context?.image_tokens || 800) + Math.ceil(prompt.length * 0.7);
   const outputTokens = context?.output_tokens || 1500;
-  const cost = ai && ai.price_input !== null ? inputTokens / 1e6 * ai.price_input + outputTokens / 1e6 * (ai.price_output ?? ai.price_input) : null;
-  // Historical records keep their token counts; the price is the one currently configured, so label it as an estimate.
-  const recordCost = record && ai && record.engine === 'api' && !ai.local && ai.price_input !== null && record.usage.prompt_tokens
-    ? record.usage.prompt_tokens / 1e6 * ai.price_input + (record.usage.completion_tokens || 0) / 1e6 * (ai.price_output ?? ai.price_input)
+  const cost = selectedAI && selectedAI.price_input !== null ? inputTokens / 1e6 * selectedAI.price_input + outputTokens / 1e6 * (selectedAI.price_output ?? selectedAI.price_input) : null;
+  // Use the record's supplier for estimates; ambiguous or removed suppliers have no reliable current price.
+  const recordProviders = ai?.providers?.filter(provider => provider.name === record?.provider && provider.models.includes(record.model));
+  const recordAI = recordProviders ? recordProviders.length === 1 ? recordProviders[0] : null : ai;
+  const recordCost = record && recordAI && record.engine === 'api' && !recordAI.local && recordAI.price_input !== null && record.usage.prompt_tokens
+    ? record.usage.prompt_tokens / 1e6 * recordAI.price_input + (record.usage.completion_tokens || 0) / 1e6 * (recordAI.price_output ?? recordAI.price_input)
     : null;
 
   const missingTranscript = !transcripts.length && (source !== 'frames' || spec?.requires === 'transcript' || frameMode === 'ai');
@@ -254,7 +257,7 @@ export default function AnalysisPanel(props: Props) {
 
   const estimate = !parsed || !context ? '' : `预计发送约 ${tokens(inputTokens)} tokens`
     + `（${[usesTranscript && chosen ? `字幕约 ${tokens(chosen.tokens)}` : '', usesFrames ? `画面 ${frameTotal} 张` : ''].filter(Boolean).join(' · ')}），输出约 ${tokens(outputTokens)}`;
-  const price = models.native ? '费用由所选 agent 的模型服务计算。' : !ai ? '' : ai.local ? '本机模型，不产生调用费用。' : cost !== null ? `按设置的单价约 ¥${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2)}。` : '未填写单价，无法估算费用（可在设置 → AI 模型填写）。';
+  const price = models.native ? '费用由所选 agent 的模型服务计算。' : !selectedAI ? '' : selectedAI.local ? '本机模型，不产生调用费用。' : cost !== null ? `按设置的单价约 ¥${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2)}。` : '未填写单价，无法估算费用（可在设置 → AI 模型填写）。';
   const phase = task?.phase && phases[task.phase] ? phases[task.phase] + ' · ' : '';
 
   // Never hide progress, cancellation or errors. A manual disclosure choice survives refreshes.
@@ -342,7 +345,7 @@ export default function AnalysisPanel(props: Props) {
       {estimate && <p className="analysis-estimate">{estimate}。{price}</p>}
       {configured && needsConsent && <label className="consent">
         <input type="checkbox" disabled={running} checked={consent} onChange={event => setConsent(event.target.checked)} />
-        <span>{models.native ? '同意由本地 agent 的模型处理课程内容，可能联网并产生费用。' : <>{(usesTranscript || frameMode === 'ai') && usesFrames ? '同意把字幕和画面发送到 ' : usesTranscript ? '同意把字幕发送到 ' : '同意把画面发送到 '}{ai?.provider_name}（{ai ? hostOf(ai.base_url) : ''}），可能产生费用，发送后无法撤销。同意一次后，对这个服务不再询问。</>}</span>
+        <span>{models.native ? '同意由本地 agent 的模型处理课程内容，可能联网并产生费用。' : <>{(usesTranscript || frameMode === 'ai') && usesFrames ? '同意把字幕和画面发送到 ' : usesTranscript ? '同意把字幕发送到 ' : '同意把画面发送到 '}{selectedAI?.provider_name}（{selectedAI ? hostOf(selectedAI.base_url) : ''}），可能产生费用，发送后无法撤销。同意一次后，对这个服务不再询问。</>}</span>
       </label>}
       <div className="analysis-actions">
         <button className="primary operation-button" type="button" aria-busy={running || busy === 'prepare'} disabled={!media || !!blocker || working}

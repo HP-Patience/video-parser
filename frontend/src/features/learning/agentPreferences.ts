@@ -12,14 +12,29 @@ const EFFORT = /^(?:[a-z][a-z0-9_-]{0,31})?$/;
 /** enabled === null: the user has not curated a list yet, so every installed engine/model stays available. */
 export type AgentPreferences = { enabled: string[] | null; target: AgentTarget };
 export const API_TARGET: AgentTarget = { engine: 'api', model: '', effort: '' };
-export const targetKey = (target: Pick<AgentTarget, 'engine' | 'model'>) => target.engine + '|' + encodeURIComponent(target.model);
+export const targetKey = (target: Pick<AgentTarget, 'engine' | 'model' | 'provider_id'>) => target.engine === 'api' && target.provider_id
+  ? 'api|' + encodeURIComponent(target.provider_id) + '|' + encodeURIComponent(target.model)
+  : target.engine + '|' + encodeURIComponent(target.model);
+
+export function targetFromKey(key: string): AgentTarget | null {
+  try {
+    const parts = key.split('|');
+    if (parts[0] === 'api' && parts.length === 3) return validTarget({ engine: 'api', provider_id: decodeURIComponent(parts[1]), model: decodeURIComponent(parts[2]), effort: '' });
+    if (parts.length === 2) return validTarget({ engine: parts[0], model: decodeURIComponent(parts[1]), effort: '' });
+  } catch { /* A stored or imported key can be malformed. */ }
+  return null;
+}
 
 export function validTarget(value: unknown): AgentTarget | null {
   if (!value || typeof value !== 'object') return null;
-  const { engine, model, effort } = value as Record<string, unknown>;
+  const { engine, model, effort, provider_id } = value as Record<string, unknown>;
   if (typeof engine !== 'string' || !ENGINES.includes(engine) || typeof model !== 'string' || typeof effort !== 'string') return null;
-  if ((model && !MODEL.test(model)) || !EFFORT.test(effort) || (engine === 'api' && (model || effort))) return null;
-  return { engine: engine as AgentTarget['engine'], model, effort };
+  const modelValid = engine === 'api' && provider_id !== undefined
+    ? model.length <= 200 && !/[\s\u0000-\u001f\u007f]/u.test(model) : !model || MODEL.test(model);
+  if (!modelValid || !EFFORT.test(effort)) return null;
+  if (provider_id !== undefined && (engine !== 'api' || typeof provider_id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(provider_id))) return null;
+  if (engine === 'api' && (effort || (provider_id ? !model : !!model))) return null;
+  return { engine: engine as AgentTarget['engine'], model, effort, ...(typeof provider_id === 'string' ? { provider_id } : {}) };
 }
 
 export function parseAgentPreferences(stored: string | null, legacy: string | null = null): AgentPreferences {

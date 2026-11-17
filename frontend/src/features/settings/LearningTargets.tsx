@@ -18,6 +18,7 @@ export default function LearningTargets({ api, children, focusRequest = 0 }: { a
   const [opened, setOpened] = useState<string[]>([]);
   const [query, setQuery] = useState<Record<string, string>>({});
   const [showIds, setShowIds] = useState<Record<string, boolean>>({});
+  const [discoveryErrors, setDiscoveryErrors] = useState<Record<string, string>>({});
   const discovery = useRef<AbortController | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -33,6 +34,7 @@ export default function LearningTargets({ api, children, focusRequest = 0 }: { a
   async function toggleAgent(engine: string, enabled: boolean) {
     const previous = catalog;
     setSavingAgent(engine); setStatus('');
+    setDiscoveryErrors(old => ({ ...old, [engine]: '' }));
     setCatalog(old => old ? { ...old, engines: old.engines.map(item => item.id === engine ? { ...item, enabled } : item) } : old);
     try {
       const next = await request<AgentCatalog>('/ai/agents/enabled', new AbortController().signal, { engine, enabled });
@@ -42,18 +44,21 @@ export default function LearningTargets({ api, children, focusRequest = 0 }: { a
     finally { setSavingAgent(''); }
   }
   async function discover(engine: string) {
-    if (discovery.current) return;
+    const source = catalog?.engines.find(item => item.id === engine);
+    if (discovery.current || !source?.installed || source.enabled === false) return;
     const controller = new AbortController(); discovery.current = controller;
+    setDiscoveryErrors(old => ({ ...old, [engine]: '' }));
     setReading(engine); setStatus(''); setFailed(false);
     try {
       const next = await request<AgentCatalog>('/ai/agents/discover', controller.signal, { confirm: true, engine, model: '' });
       if (controller.signal.aborted) return;
       setCatalog(next);
       const problem = next.engines.find(item => item.id === engine && item.error);
-      setFailed(!!problem); setStatus(problem ? problem.error : '已读取本机模型列表。');
+      setDiscoveryErrors(old => ({ ...old, [engine]: problem?.error || '' }));
+      setStatus(problem ? '' : '已读取本机模型列表。');
       window.dispatchEvent(new CustomEvent('video-parser:agents-changed'));
     } catch (reason) {
-      if (!controller.signal.aborted) { setFailed(true); setStatus(reason instanceof Error ? reason.message : '无法读取本地 agent。'); }
+      if (!controller.signal.aborted) { setDiscoveryErrors(old => ({ ...old, [engine]: reason instanceof Error ? reason.message : '无法读取本地 agent。' })); }
     } finally { if (discovery.current === controller) { discovery.current = null; setReading(''); } }
   }
   const current = targetKey(preferences.target);
@@ -69,8 +74,18 @@ export default function LearningTargets({ api, children, focusRequest = 0 }: { a
     return { ...source, engine, rows };
   });
   const apiRow: Row = { key: targetKey(API_TARGET), target: API_TARGET, label: api?.configured ? 'API · ' + api.provider_name + ' · ' + api.model : 'API（模型设置）', ready: true };
-  const known = [apiRow, ...groups.flatMap(group => group.rows)];
+  const apiGroups = (api?.providers || []).map(provider => ({ id: provider.id, name: provider.name, rows: provider.models.map(model => {
+    const target: AgentTarget = { engine: 'api', provider_id: provider.id, model, effort: '' };
+    return { key: targetKey(target), target, label: model, ready: provider.configured };
+  }) }));
+  const showLegacyAPI = !api?.providers?.length || (preferences.target.engine === 'api' && !preferences.target.provider_id);
+  const known = [apiRow, ...apiGroups.flatMap(group => group.rows), ...groups.flatMap(group => group.rows)];
+  const visibleAPIGroups = apiGroups.map(group => ({ ...group, rows: group.rows.filter(row => row.ready) })).filter(group => group.rows.length > 0);
+  const visibleGroups = groups.map(group => ({ ...group, rows: group.rows.filter(row => row.ready && isEnabled(preferences, row.target)) }))
+    .filter(group => group.rows.length > 0);
+  const offered = [...(showLegacyAPI ? [apiRow] : []), ...visibleAPIGroups.flatMap(group => group.rows), ...visibleGroups.flatMap(group => group.rows)];
   const selected = known.find(row => row.key === current);
+  const currentVisible = offered.some(row => row.key === current);
   const enabledKeys = () => preferences.enabled ?? known.map(row => row.key);
   function store(enabled: string[], target: AgentTarget, message: string) {
     const saved = saveAgentPreferences({ enabled, target });
@@ -83,30 +98,32 @@ export default function LearningTargets({ api, children, focusRequest = 0 }: { a
     store(keys, preferences.target, on ? '已在模型选择器中显示。' : '已在模型选择器中隐藏。');
   }
   function makeDefault(key: string) {
-    const row = known.find(item => item.key === key);
+    const row = offered.find(item => item.key === key);
     if (!row?.ready) return;
     const keys = enabledKeys();
     store(keys.includes(row.key) ? keys : [...keys, row.key], row.target, '默认模型已保存，仅此浏览器生效。');
   }
   const problem = !selected ? '所选默认模型不在当前列表，请检查工具或更换。' : selected.target.engine === 'api'
-    ? api && !api.configured ? 'API 连接尚未配置，请展开下方 API 配置。' : ''
+    ? api && (selected.target.provider_id ? !selected.ready : !api.configured) ? '所选供应商尚未配置完成，请检查接口地址、密钥和模型。' : ''
     : !catalog ? '正在读取所选工具状态…' : selected.ready ? '' : '所选默认工具未安装或已关闭，请检查对应来源；不会自动切换模型。';
 
   return <div className="learning-targets">
     <section className="learning-default-control settings-card" aria-labelledby="learning-targets-title">
-      <div className="learning-targets-title"><label id="learning-targets-title" htmlFor="learning-default-model">默认模型</label><small>本浏览器</small></div>
-      <select id="learning-default-model" aria-describedby={problem ? 'learning-default-state' : undefined} value={current} onChange={event => makeDefault(event.target.value)}>
-        <option value={apiRow.key} translate={api?.configured ? 'no' : undefined}>{apiRow.label}</option>
-        {groups.map(group => <optgroup key={group.id} label={group.name}>{group.rows.map(row =>
-          <option key={row.key} value={row.key} disabled={!row.ready} translate={row.target.model ? 'no' : undefined}>{group.name + ' · ' + row.label}</option>)}</optgroup>)}
+      <div className="learning-targets-title"><label id="learning-targets-title" htmlFor="learning-default-model">默认模型</label></div>
+      <select id="learning-default-model" aria-describedby={problem ? 'learning-default-state' : undefined} value={currentVisible ? current : ''} onChange={event => makeDefault(event.target.value)}>
+        {!currentVisible && <option value="" disabled>请选择默认模型</option>}
+        {showLegacyAPI && <option value={apiRow.key} translate={api?.configured ? 'no' : undefined}>{apiRow.label}</option>}
+        {visibleAPIGroups.map(group => <optgroup key={group.id} label={'API · ' + group.name}>{group.rows.map(row =>
+          <option key={row.key} value={row.key} translate="no">{group.name + ' · ' + row.label}</option>)}</optgroup>)}
+        {visibleGroups.map(group => <optgroup key={group.id} label={group.name}>{group.rows.map(row =>
+          <option key={row.key} value={row.key} translate={row.target.model ? 'no' : undefined}>{group.name + ' · ' + row.label}</option>)}</optgroup>)}
       </select>
       {problem && <p id="learning-default-state" className="settings-hint" role="status">{problem}</p>}
-      {selected && selected.target.engine !== 'api' && !selected.target.model && <p className="settings-hint">跟随工具默认不代表离线或免费，联网与费用由对应工具配置决定。</p>}
     </section>
     {status && <p role={failed ? 'alert' : 'status'} aria-live="polite" className={failed ? 'error-text' : 'settings-save-status'}>{status}</p>}
+    {children}
     <section className="model-sources" aria-labelledby="model-sources-title">
-      <h3 id="model-sources-title" ref={heading} tabIndex={-1}>模型来源</h3>
-      {children}
+      <h3 id="model-sources-title" ref={heading} tabIndex={-1}>本机 Agent 工具</h3>
       {groups.map(group => {
         const { engine } = group, open = opened.includes(group.id), term = (query[group.id] || '').trim().toLocaleLowerCase();
         const rows = group.rows.filter(row => !term || `${row.label} ${row.target.model}`.toLocaleLowerCase().includes(term));
@@ -116,14 +133,13 @@ export default function LearningTargets({ api, children, focusRequest = 0 }: { a
             <div className="model-source-copy"><h4 id={'source-' + group.id} translate="no">{group.name}</h4><span className="model-source-state">{state}</span></div>
             <div className="model-source-actions">
               <label className="settings-check agent-tool-switch"><input type="checkbox" role="switch" aria-label={group.name} checked={!!engine && engine.enabled !== false}
-                disabled={!engine || !!savingAgent || !!reading} onChange={event => { void toggleAgent(group.id, event.target.checked); }} /><span>允许调用</span><small>本机</small></label>
+                disabled={!engine || !!savingAgent || !!reading} onChange={event => { void toggleAgent(group.id, event.target.checked); }} /><span>允许调用</span></label>
               <button type="button" aria-label={'管理 ' + group.name + ' 模型'} aria-expanded={open} aria-controls={'models-' + group.id}
                 onClick={() => setOpened(old => open ? old.filter(id => id !== group.id) : [...old, group.id])}>{open ? '收起' : '管理模型'}</button>
             </div>
           </div>
-          {engine?.error && <p className="error-text" role="alert">{engine.error}</p>}
+          {engine?.enabled !== false && discoveryErrors[group.id] && <p className="error-text" role="alert">{discoveryErrors[group.id]}</p>}
           <div id={'models-' + group.id} className="model-source-config" hidden={!open}>
-            <p className="settings-hint">模型可见性 · 本浏览器。与工具开关独立；隐藏前请先更换当前默认模型。</p>
             <div className="learning-targets-heading">
               <label className="learning-model-search"><span className="sr-only">搜索可见模型</span><input type="search" aria-label={'搜索 ' + group.name + ' 模型'} placeholder="搜索模型名称或 ID" value={query[group.id] || ''}
                 onChange={event => setQuery(old => ({ ...old, [group.id]: event.target.value }))} onKeyDown={event => { if (event.key === 'Escape') setQuery(old => ({ ...old, [group.id]: '' })); }} /></label>

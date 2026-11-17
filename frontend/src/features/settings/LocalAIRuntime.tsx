@@ -3,10 +3,10 @@ import { request } from '../../lib/api';
 import type { AISettings, AIRuntimeStatus } from '../../lib/api';
 
 const labels = { unconfigured: '待保存配置', stopped: '未启动', starting: '加载中', running: '已就绪', failed: '启动失败', occupied: '需检查现有服务' };
-type Props = { saved: AISettings; visible: boolean; busy: boolean; invalid: boolean; dirty: boolean;
+type Props = { saved: AISettings; visible: boolean; busy: boolean; invalid: boolean; dirty: boolean; providerId?: string;
   onStart: () => Promise<AIRuntimeStatus | null> };
 
-export default function LocalAIRuntime({ saved, visible, busy, invalid, dirty, onStart }: Props) {
+export default function LocalAIRuntime({ saved, visible, busy, invalid, dirty, providerId, onStart }: Props) {
   const [runtime, setRuntime] = useState<AIRuntimeStatus | null>(null);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -19,7 +19,7 @@ export default function LocalAIRuntime({ saved, visible, busy, invalid, dirty, o
       if (reading || controller.signal.aborted) return;
       reading = true; setRefreshing(true);
       try {
-        const next = await request<AIRuntimeStatus>('/ai/runtime', controller.signal);
+        const next = await request<AIRuntimeStatus>('/ai/runtime' + (providerId ? '?provider_id=' + encodeURIComponent(providerId) : ''), controller.signal);
         if (!controller.signal.aborted) { setRuntime(next); setError(''); }
       } catch (reason) { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '无法读取模型运行状态。'); }
       finally { reading = false; if (!controller.signal.aborted) setRefreshing(false); }
@@ -27,7 +27,7 @@ export default function LocalAIRuntime({ saved, visible, busy, invalid, dirty, o
     refresh.current = load; void load();
     const timer = window.setInterval(() => { void load(); }, 2500);
     return () => { controller.abort(); window.clearInterval(timer); refresh.current = null; };
-  }, [visible, busy, saved.provider, saved.base_url, saved.model, saved.startup]);
+  }, [visible, busy, providerId, saved.provider, saved.base_url, saved.model, saved.startup]);
   async function start() {
     setError('');
     const next = await onStart();

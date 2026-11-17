@@ -25,6 +25,9 @@ export interface Configuration {
 }
 
 export interface AIPreset { name: string; base_url: string; model: string; key_required: boolean; models: string[]; hint: string }
+export interface AITestTarget { id: string; provider: string; base_url: string; model: string; api_key?: string; provider_id?: string }
+export interface AITestResult { id: string; provider: string; ok: boolean; latency_ms: number; model: string; error: string }
+export interface AITestResponse { results: AITestResult[] }
 export interface AILaunchSettings {
   server_path: string; model_path: string; vision_path: string; port: number;
   context_size: number; gpu_layers: number; threads: number; parallel: number;
@@ -34,7 +37,13 @@ export interface AIRuntimeStatus {
   state: 'unconfigured' | 'stopped' | 'starting' | 'running' | 'failed' | 'occupied';
   message: string; owned: boolean; elapsed_seconds: number; model?: string; base_url?: string;
 }
+export interface AIProvider {
+  id: string; name: string; provider: string; base_url: string; model: string; models: string[];
+  key_saved: boolean; key_hint: string; price_input: number | null; price_output: number | null;
+  configured: boolean; local: boolean; consented: boolean; source: 'settings' | 'env' | 'none'; startup?: AILaunchSettings;
+}
 export interface AISettings {
+  providers?: AIProvider[]; active_provider_id?: string;
   provider: string; provider_name: string; base_url: string; model: string;
   key_saved: boolean; key_hint: string; price_input: number | null; price_output: number | null;
   configured: boolean; local: boolean; consented: boolean; source: 'settings' | 'env' | 'none'; storage: string;
@@ -42,7 +51,7 @@ export interface AISettings {
   startup?: AILaunchSettings; startup_defaults?: AILaunchSettings; startup_command?: string; startup_error?: string;
 }
 export type AgentEngine = 'api' | 'claude' | 'codex' | 'opencode' | 'dsh';
-export interface AgentTarget { engine: AgentEngine; model: string; effort: string }
+export interface AgentTarget { engine: AgentEngine; model: string; effort: string; provider_id?: string }
 export interface AgentModel { id: string; label: string; efforts: string[]; images: boolean | null }
 export interface AgentCommand { name: string; prefix: string; description: string }
 export interface AgentCatalog {

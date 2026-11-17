@@ -54,12 +54,13 @@ def start(kind,project_id,title,payload):
     job=Job(uuid4().hex,kind,project_id,title,payload)
     if kind == 'analysis':
         from video_parser.services import ai_settings, model_calls
-        agent = payload.get('agent') or {'engine': 'api'}
-        if agent.get('engine', 'api') == 'api':
-            settings = ai_settings.current()
-            job.payload = {**payload, 'api_binding': model_calls.api_binding(settings)}
+        agent = model_calls.target(payload.get('agent') or {'engine': 'api'})
+        settings = ai_settings.resolve(agent) if agent['engine'] == 'api' else None
+        job.payload = {**payload, 'agent': agent}
+        if settings is not None:
+            job.payload['api_binding'] = model_calls.api_binding(settings)
         job.details = {key: payload.get(key) for key in ('template', 'source', 'frame_mode', 'count')}
-        job.details.update(engine=agent.get('engine', 'api'), model=agent.get('model') or (settings.get('model', '') if agent.get('engine', 'api') == 'api' else ''))
+        job.details.update(engine=agent.get('engine', 'api'), model=agent.get('model') or (settings.get('model', '') if settings else ''))
     with lock:
         # Avoid duplicate downloads/paid requests caused by a second click or another browser tab.
         if any(j.project_id==project_id and j.kind==kind and j.state in task_runtime.ACTIVE for j in jobs.values()):

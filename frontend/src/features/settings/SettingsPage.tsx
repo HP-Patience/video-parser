@@ -112,7 +112,10 @@ export default function SettingsPage({ settings, onChange, config, configError, 
         <LearningTargets api={config?.ai ?? loadedAI} focusRequest={focusAI && visible && focusAITarget === 'sources' ? focusAIRequest : 0}>
           <AISettingsSection onChange={onAIChange} onLoad={setLoadedAI} autoFocus={focusAI && visible && focusAITarget === 'api'} visible={visible && group === 'ai'} />
         </LearningTargets>
-        <EmbeddingSettings />
+        <section className="model-sources" aria-labelledby="settings-retrieval-title">
+          <h3 id="settings-retrieval-title">检索模型</h3>
+          <EmbeddingSettings />
+        </section>
       </div>}
     </div>
     <div hidden={group !== 'usage'}>

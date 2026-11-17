@@ -112,7 +112,7 @@ def start(identifier, consent, agent=None):
     from video_parser.services import naming
     plan = new_plan(identifier, 'analyzing')
     plan['agent'] = model_calls.require(agent)
-    plan['api_binding'] = model_calls.api_binding(ai_settings.current()) if plan['agent']['engine'] == 'api' else None
+    plan['api_binding'] = model_calls.api_binding(ai_settings.resolve(plan['agent'])) if plan['agent']['engine'] == 'api' else None
     names.save_plan(plan)
     try: return naming.view(naming._start(identifier, {'mode': 'folder_plan', 'plan_id': plan['id']}, plan['id']))
     except BaseException:
@@ -125,7 +125,7 @@ def propose(plan, directory):
     if root.relative_to(library.LIBRARY_ROOT).as_posix() != plan['old']:
         raise ValueError('项目目录已改变，请重新生成建议。')
     selected = model_calls.target(plan['agent'])
-    settings = ai_settings.current() if selected['engine'] == 'api' else {'model': selected['model'], 'provider': 'custom'}
+    settings = ai_settings.resolve(selected) if selected['engine'] == 'api' else {'model': selected['model'], 'provider': 'custom'}
     if selected['engine'] == 'api': model_calls.check_api_binding(plan.get('api_binding'), settings)
     # A one-part video has no episode names to send: its platform P1 title is the uploader's raw
     # file name, which would only pollute the folder-name request.

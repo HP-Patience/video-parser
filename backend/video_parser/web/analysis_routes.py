@@ -2,7 +2,7 @@
 from typing import Annotated, Literal
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field, field_validator
 
@@ -44,11 +44,16 @@ class AgentTargetBody(BaseModel):
     engine: Literal['api', 'claude', 'codex', 'opencode', 'dsh'] = 'api'
     model: str = Field(default='', max_length=200, strict=True)
     effort: str = Field(default='', max_length=32, strict=True)
+    provider_id: str | None = Field(default=None, pattern=r'^[A-Za-z0-9_-]{1,64}$', strict=True)
 
     @field_validator('model', 'effort')
     @classmethod
     def valid_selection(cls, value, info):
-        local_agents.normalize({'engine': 'codex', info.field_name: value})
+        if info.field_name == 'model' and info.data.get('engine', 'api') == 'api':
+            if any(ch.isspace() or ord(ch) < 32 or ord(ch) == 127 for ch in value):
+                raise ValueError('无效模型 ID。')
+        else:
+            local_agents.normalize({'engine': 'codex', info.field_name: value})
         return value
 
 
@@ -72,7 +77,7 @@ class AgentDiscoveryBody(BaseModel):
 
 def selected_agent(value=None, fallback=None):
     target = handled(model_calls.target, value.model_dump() if value is not None else fallback)
-    if target['engine'] == 'api' and not ai_settings.configured():
+    if target['engine'] == 'api' and not ai_settings.configured(handled(ai_settings.resolve, target)):
         raise HTTPException(503, NOT_CONFIGURED)
     return handled(local_agents.require, target)
 
@@ -129,6 +134,7 @@ class SettingsBody(BaseModel):
 class RuntimeStartBody(BaseModel):
     model_config = {'extra': 'forbid'}
     confirm: Literal[True]
+    provider_id: str | None = Field(default=None, pattern=r'^[A-Za-z0-9_-]{1,64}$', strict=True)
 
     @field_validator('confirm', mode='before')
     @classmethod
@@ -165,7 +171,7 @@ def start_analysis(entry, choice, body):
     payload = {'resource': choice['media']['resource'], 'quality_id': choice['id'], 'template': body.template, 'source': body.source,
                'transcript_resource': body.transcript_resource, 'frame_mode': body.frame_mode, 'count': body.count,
                'preview_token': body.preview_token, 'frames': body.frames, 'prompt': body.prompt.strip(), 'consent': True}
-    if agent['engine'] != 'api':
+    if agent['engine'] != 'api' or agent.get('provider_id'):
         payload['agent'] = agent
     return handled(workflows.start, 'analysis', entry.project_id, entry.parsed.metadata['title'], payload)
 
@@ -206,6 +212,26 @@ def save_settings(body: SettingsBody):
     return handled(ai_settings.save, body.provider, body.base_url, body.model, body.api_key, body.clear_key, body.price_input, body.price_output, body.startup)
 
 
+@router.post('/ai/providers')
+def save_provider(body: object = Body(default=None)):
+    allowed = {'id', 'name', 'provider', 'base_url', 'models', 'model', 'api_key', 'clear_key', 'price_input', 'price_output', 'startup', 'activate'}
+    if not isinstance(body, dict) or body.keys() - allowed:
+        raise HTTPException(422, '供应商配置格式不正确。')
+    return handled(lambda: ai_settings.save_provider(**body))
+
+
+@router.post('/ai/providers/models')
+def provider_models(body: object = Body(default=None)):
+    if not isinstance(body, dict) or body.keys() - {'id', 'provider', 'base_url', 'api_key'}:
+        raise HTTPException(422, '模型列表请求格式不正确。')
+    return handled(lambda: ai_settings.discover_models(**body))
+
+
+@router.post('/ai/providers/{provider_id}/delete')
+def delete_provider(provider_id: str):
+    return handled(ai_settings.delete_provider, provider_id)
+
+
 @router.post('/ai/startup/check')
 def check_startup(body: StartupCheckBody):
     return handled(ai_startup.inspect, body.startup, body.model)
@@ -217,17 +243,26 @@ def pick_model_file(body: ModelFileBody):
 
 
 @router.get('/ai/runtime')
-def model_runtime():
+def model_runtime(provider_id: str | None = None):
+    if provider_id:
+        return handled(ai_runtime.status, handled(ai_settings.resolve, {'provider_id': provider_id}))
     return handled(ai_runtime.status)
 
 
 @router.post('/ai/runtime/start', status_code=202)
 def start_model(body: RuntimeStartBody):
+    if body.provider_id:
+        return handled(ai_runtime.start, handled(ai_settings.resolve, {'provider_id': body.provider_id}))
     return handled(ai_runtime.start)
 
 
 @router.post('/ai/settings/test')
-def test_settings():
+def test_settings(body: object = Body(default=None)):
+    # Validate here so FastAPI never includes a submitted API key in validation errors.
+    if body is not None and (not isinstance(body, dict) or body.keys() - {'targets'}):
+        raise HTTPException(422, '测试请求只支持 targets 字段。')
+    if body and 'targets' in body:
+        return handled(ai_settings.test_targets, body['targets'])
     if not ai_settings.configured():
         raise HTTPException(503, NOT_CONFIGURED)
     return handled(ai_settings.test)
@@ -332,7 +367,7 @@ def ask_task(project_id: str, record_id: str, body: AskBody):
     project = handled(library.get, project_id)
     handled(model_calls.consent, agent)
     payload = {'mode': 'ask', 'record': record_id, 'question': body.question.strip(), 'consent': True}
-    if agent['engine'] != 'api':
+    if agent['engine'] != 'api' or agent.get('provider_id'):
         payload['agent'] = agent
     return handled(workflows.start, 'analysis', project_id, project['title'], payload)
 
@@ -457,7 +492,7 @@ def ask_conversation(project_id: str, conversation_id: str, body: ConversationAs
     payload = {'mode': 'conversation', 'conversation': conversation_id, 'resource': body.resource,
         'position': body.position, 'question': body.question, 'consent': True,
         'images': [image.model_dump() for image in body.images]}
-    if agent['engine'] != 'api':
+    if agent['engine'] != 'api' or agent.get('provider_id'):
         payload['agent'] = agent
     return handled(workflows.start, 'analysis', project_id, project['title'], payload)
 

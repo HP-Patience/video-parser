@@ -35,7 +35,6 @@ export default function EmbeddingSettings() {
     {dirty && <p className="settings-hint" role="status">有未保存的检索配置修改。</p>}
     {message && <p className={failed ? 'error-text' : 'settings-save-status'} role={failed ? 'alert' : 'status'} aria-live="polite">{message}</p>}
     <div className="model-source-config" id="embedding-source-config" hidden={!open}>
-      <p className="settings-hint">用于语义检索，与生成模型独立。不自动下载模型、不上传字幕、不自动重建索引。</p>
       {data && <>
         <div className="settings-form-fields">
           <div className="settings-field"><label htmlFor="embedding-url">接口地址</label>

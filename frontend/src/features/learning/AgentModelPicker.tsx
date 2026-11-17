@@ -1,8 +1,9 @@
 import type { AgentTarget } from '../../lib/api';
+import { targetFromKey, targetKey } from './agentPreferences';
 import type { AgentModelsState } from './useAgentModels';
 import './agent-models.css';
 
-const valueOf = (target: Pick<AgentTarget, 'engine' | 'model'>) => target.engine + '|' + encodeURIComponent(target.model);
+const valueOf = targetKey;
 const ENGINES = [{ id: 'claude', name: 'Claude Code' }, { id: 'codex', name: 'Codex' }, { id: 'opencode', name: 'OpenCode' }, { id: 'dsh', name: 'DeepSeek Harness' }] as const;
 
 type Props = { state: AgentModelsState; disabled?: boolean; onManage?: (button: HTMLButtonElement) => void };
@@ -14,15 +15,18 @@ export default function AgentModelPicker({ state, disabled = false }: Props) {
   // Only targets enabled in Settings are offered; the current choice always stays visible so the select remains truthful.
   const shown = (target: Pick<AgentTarget, 'engine' | 'model'>) => state.enabled(target) || valueOf(target) === valueOf(selected);
   function choose(value: string) {
-    const [engine, model] = value.split('|');
-    if (['api', 'claude', 'codex', 'opencode', 'dsh'].includes(engine || '')) {
-      state.select({ engine: engine as AgentTarget['engine'], model: decodeURIComponent(model || ''), effort: '' });
-    }
+    const target = targetFromKey(value);
+    if (target) state.select(target);
   }
+  const apiKnown = !selected.provider_id || state.apiProviders.some(provider => provider.id === selected.provider_id && provider.models.includes(selected.model));
   return <div className="agent-controls">
     <div className="agent-model-row">
       <select aria-label="引擎与模型" value={valueOf(selected)} disabled={locked} onChange={event => choose(event.target.value)}>
-        <optgroup label="API"><option value="api|" translate={state.apiModel ? 'no' : 'yes'}>{state.apiModel ? 'API · ' + state.apiModel : 'API（模型设置）'}</option></optgroup>
+        {(!state.apiProviders.length || (selected.engine === 'api' && !selected.provider_id)) && <optgroup label="API"><option value="api|" translate={state.apiModel ? 'no' : 'yes'}>{state.apiModel ? 'API · ' + state.name + ' · ' + state.apiModel : 'API（模型设置）'}</option></optgroup>}
+        {state.apiProviders.filter(provider => provider.models.length > 0).map(provider => <optgroup key={provider.id} label={'API · ' + provider.name} disabled={!provider.configured}>
+          {provider.models.map(model => <option key={model} translate="no" value={valueOf({ engine: 'api', provider_id: provider.id, model })}>{provider.name + ' · ' + model}</option>)}
+        </optgroup>)}
+        {!apiKnown && <option value={valueOf(selected)} disabled>所选供应商或模型已移除</option>}
         {ENGINES.map(engine => {
           const entry = state.catalog?.engines.find(item => item.id === engine.id);
           const models = entry?.models.filter(model => shown({ engine: engine.id, model: model.id })) || [];

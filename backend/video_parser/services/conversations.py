@@ -247,7 +247,7 @@ def ask(project_id, identifier, question, resource, position, directory, agent=N
     duration = analysis.video_info(project, resource)['duration']
     if type(position) not in (int, float) or not math.isfinite(position) or not 0 <= position <= duration:
         raise analysis.AnalysisError('视频时间无效，请重新提问。')
-    settings = ai_settings.current() if not native else {'model': selected['model'], 'provider': 'custom'}
+    settings = ai_settings.resolve(selected) if not native else {'model': selected['model'], 'provider': 'custom'}
     raw_subtitles = library.resource_from_project(project, status['transcript_resource']).read_text(encoding='utf-8', errors='replace')
     # The user requested the entire subtitle file: never silently sample away content.
     transcript = {'resource': status['transcript_resource'], 'body': raw_subtitles, 'merged': False}
