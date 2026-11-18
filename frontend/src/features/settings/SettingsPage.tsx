@@ -10,6 +10,7 @@ import EmbeddingSettings from './EmbeddingSettings';
 import UsageDashboard from './UsageDashboard';
 import ArchiveHealthPanel from './ArchiveHealth';
 import UpdatePanel from './UpdatePanel';
+import TranscriptionInstall from './TranscriptionInstall';
 import CloudStorage from './CloudStorage';
 import { setLanguage, useLanguage } from '../../lib/i18n';
 import type { Language } from '../../lib/i18n';
@@ -25,9 +26,9 @@ function groupFromURL(): Group {
 type Props = { settings: Settings; onChange: (value: Settings) => void; config: Configuration | null;
   configError: string; saveStatus: string; activeCount: number | null; onAIChange: (value: AISettings) => void;
   onArchiveRootChange: (archiveRoot: string) => void;
-  visible: boolean; focusAIRequest: number; focusAITarget?: 'api' | 'sources' };
+  visible: boolean; focusAIRequest: number; focusAITarget?: 'api' | 'sources'; onTranscriptionReady: (ready: boolean) => void };
 
-export default function SettingsPage({ settings, onChange, config, configError, saveStatus, activeCount, onAIChange, onArchiveRootChange, visible, focusAIRequest, focusAITarget = 'api' }: Props) {
+export default function SettingsPage({ settings, onChange, config, configError, saveStatus, activeCount, onAIChange, onArchiveRootChange, visible, focusAIRequest, focusAITarget = 'api', onTranscriptionReady }: Props) {
   const [group, setGroup] = useState<Group>(() => focusAIRequest ? 'ai' : groupFromURL());
   const [aiVisited, setAIVisited] = useState(() => group === 'ai');
   const language = useLanguage();
@@ -144,7 +145,7 @@ export default function SettingsPage({ settings, onChange, config, configError, 
           {config ? <dl className="service-status">
             <dt>媒体工具：</dt><dd>{config.media_ready ? '就绪' : '未就绪'}</dd>
             <dt>字幕：</dt><dd>{config.subtitles_ready ? '就绪' : '未就绪'}</dd>
-            <dt>转录：</dt><dd>{config.transcription_ready ? '就绪' : '未安装'}</dd>
+            <dt>转录：</dt><TranscriptionInstall visible={visible} ready={config.transcription_ready} onReady={onTranscriptionReady} />
             <dt>AI 连接配置：</dt><dd>{config.ai_configured ? '已配置' : '未配置'}</dd>
             {config.version && <><dt>版本：</dt><dd>{config.version}</dd></>}
           </dl> : <p className="settings-hint">{configError || '正在读取…'}</p>}

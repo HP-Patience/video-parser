@@ -15,6 +15,10 @@ from video_parser.services import task_runtime
 from video_parser.core.paths import ROOT, CACHE_DIR
 BUNDLED_ROOT = ROOT / 'backend/video_parser/integrations/whisper'
 TOOL_ROOT = Path(os.getenv('WHISPER_ROOT') or BUNDLED_ROOT)
+MANAGED_WHISPER = ROOT / 'runtimes/whisper-managed'
+MANAGED_PYTHON = MANAGED_WHISPER / 'venv/Scripts/python.exe'
+WHISPER_READY = MANAGED_WHISPER / 'cuda-verified'
+TRANSCRIPTION_LOCK = CACHE_DIR / 'whisper/.transcription.lock'
 OUTPUT_ROOT = ROOT / 'outputs/transcriptions'
 UPLOAD_ROOT = CACHE_DIR / 'react-workspace/transcription-inputs'
 MAX_UPLOAD_BYTES = 512 * 1024 * 1024
@@ -29,7 +33,8 @@ worker_lock = Lock()
 def runtime_python():
     if TOOL_ROOT != BUNDLED_ROOT:
         return TOOL_ROOT / '.venv/Scripts/python.exe'
-    # Portable builds install an embedded interpreter (python.exe at the root); developer setups use a venv.
+    if WHISPER_READY.is_file() and MANAGED_PYTHON.is_file():
+        return MANAGED_PYTHON
     embedded = ROOT / 'runtimes/whisper/python.exe'
     return embedded if embedded.is_file() else ROOT / 'runtimes/whisper/Scripts/python.exe'
 
@@ -39,7 +44,21 @@ def model_directory():
 
 
 def available():
-    return all(p.is_file() for p in (runtime_python(), TOOL_ROOT / 'cli.py', model_directory() / 'model.bin'))
+    executable = runtime_python()
+    if not all(p.is_file() for p in (executable, TOOL_ROOT / 'cli.py', model_directory() / 'model.bin')):
+        return False
+    # A moved Windows venv can retain its launcher but still refer to a missing base Python.
+    config = executable.parent.parent / 'pyvenv.cfg'
+    if TOOL_ROOT == BUNDLED_ROOT and executable.parent.name == 'Scripts' and config.is_file():
+        try:
+            for line in config.read_text(encoding='utf-8-sig').splitlines():
+                key, _, value = line.partition('=')
+                if key.strip() == 'home':
+                    return (Path(value.strip()) / 'python.exe').is_file()
+        except (OSError, ValueError):
+            return False
+        return False
+    return True
 
 
 def require_tool():
@@ -179,7 +198,7 @@ def transcribe(source, language='auto', output_dir=None, timestamps=False, reuse
         reader = ProgressReader(progress_file)
     # OS file locks serialize CLI and web invocations, and release even after a crash.
     try:
-        with library.file_lock((CACHE_DIR / 'whisper/.transcription.lock') if TOOL_ROOT == BUNDLED_ROOT else (TOOL_ROOT / 'work/.video-parser-transcription.lock'), timeout=7200):
+        with library.file_lock(TRANSCRIPTION_LOCK if TOOL_ROOT == BUNDLED_ROOT else (TOOL_ROOT / 'work/.video-parser-transcription.lock'), timeout=7200):
             if reuse_model and TOOL_ROOT==BUNDLED_ROOT:
                 from video_parser.services import whisper_pool
                 process=whisper_pool.run(command,progress=reader)

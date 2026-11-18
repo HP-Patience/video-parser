@@ -16,7 +16,9 @@ ROOT = Path(__file__).resolve().parents[2]
 def check_updates(browser, base_url):
     context = browser.new_context(viewport={'width': 1280, 'height': 900})
     context.add_init_script("localStorage.setItem('vp-language','zh')")
-    installs, external, errors = [], [], []
+    installs, transcription_installs, external, errors = [], [], [], []
+    transcription = {'state': 'idle', 'supported': True, 'ready': False,
+                     'downloaded_bytes': 0, 'total_bytes': None, 'error': None}
     progress = {'state': 'idle', 'version': None, 'downloaded_bytes': 0, 'total_bytes': None, 'error': None}
     status = {'current_version': '3.4.1', 'latest_version': '3.5.0', 'release_found': True,
               'available': True, 'can_install': True, 'install_reason': 'portable',
@@ -33,7 +35,12 @@ def check_updates(browser, base_url):
             route.continue_()
             return
         path = url.path.removeprefix('/api/workspace')
-        if path == '/updates/check':
+        if path == '/transcriptions/install':
+            if request.method == 'POST':
+                transcription_installs.append(request.post_data_json)
+                transcription.update(state='downloading', downloaded_bytes=50, total_bytes=100, error=None)
+            route.fulfill(json=transcription)
+        elif path == '/updates/check':
             route.fulfill(json=status)
         elif path == '/updates/status':
             route.fulfill(json=progress)
@@ -88,6 +95,26 @@ def check_updates(browser, base_url):
         assert len(installs) == 2
         progress.update(state='applying', downloaded_bytes=100)
         expect(panel).to_contain_text('正在安装并重启')
+        services = page.locator('section[aria-labelledby="settings-services"]')
+        expect(services.get_by_role('button', name='安装转录组件', exact=True)).to_be_enabled()
+        assert transcription_installs == [], 'Loading settings must not start transcription setup'
+        services.get_by_role('button', name='安装转录组件', exact=True).click()
+        expect(services.get_by_role('progressbar')).to_have_attribute('aria-valuenow', '50')
+        page.reload()
+        page.get_by_role('button', name='设置', exact=True).click()
+        page.get_by_role('button', name='存储与维护', exact=True).click()
+        expect(services.get_by_role('progressbar')).to_have_attribute('aria-valuenow', '50')
+        assert transcription_installs == [{'confirm': True}], transcription_installs
+        transcription.update(state='checking_cuda', downloaded_bytes=100)
+        expect(services).to_contain_text('正在检查 CUDA 转录')
+        transcription.update(state='failed', error='测试 CUDA 检查失败。')
+        expect(services.get_by_role('alert')).to_have_text('测试 CUDA 检查失败。')
+        services.get_by_role('button', name='重试安装', exact=True).click()
+        expect(services.get_by_role('progressbar')).to_have_attribute('aria-valuenow', '50')
+        transcription.update(state='ready', ready=True, downloaded_bytes=100)
+        expect(services.locator('dd').nth(2)).to_have_text('就绪')
+        expect(services.get_by_role('button')).to_have_count(0)
+        assert transcription_installs == [{'confirm': True}, {'confirm': True}], transcription_installs
         page.set_viewport_size({'width': 390, 'height': 844})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Update panel overflow at 390px'
         assert external == [], external

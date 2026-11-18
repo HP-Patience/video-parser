@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { request } from './lib/api';
 import { projectDisplayTitle, videoDisplayTitle } from './lib/projectTitles';
@@ -199,6 +199,9 @@ export default function App() {
     if (ai) setSettingsFocusRequest(value => value + 1);
     navigate('settings', true);
   }
+  const updateTranscriptionReady = useCallback((transcription_ready: boolean) => {
+    setConfig(current => current && current.transcription_ready !== transcription_ready ? { ...current, transcription_ready } : current);
+  }, []);
   function updateAI(ai: AISettings) { setConfig(current => current && { ...current, ai, ai_configured: ai.configured }); }
   function updateArchiveRoot(archiveRoot: string) {
     setConfig(current => current && { ...current, archive_root: archiveRoot, archive_root_source: 'settings' });
@@ -834,7 +837,7 @@ export default function App() {
         <WorkbenchPage page="settings" activePage={page}>
           {(page === 'settings' || settingsVisited) && <SettingsPage settings={settings} onChange={saveSettings} config={config}
             configError={configError} saveStatus={settingsSaveStatus} activeCount={activeCount} onAIChange={updateAI}
-            onArchiveRootChange={updateArchiveRoot} visible={page === 'settings'} focusAIRequest={settingsFocusRequest} focusAITarget={settingsFocusTarget} />}
+            onArchiveRootChange={updateArchiveRoot} onTranscriptionReady={updateTranscriptionReady} visible={page === 'settings'} focusAIRequest={settingsFocusRequest} focusAITarget={settingsFocusTarget} />}
         </WorkbenchPage>
   </WorkbenchLayout>;
 }

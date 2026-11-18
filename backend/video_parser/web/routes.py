@@ -29,7 +29,7 @@ from video_parser.platforms.downloaders.youtube_downloader import YoutubeAccessE
 
 videos.load_environment()
 from video_parser.services import subtitles, bili_auth
-from video_parser.services import transcription, folders, translations
+from video_parser.services import transcription, transcription_install, folders, translations
 logger = logging.getLogger(__name__)
 WORKSPACE_ROOT = CACHE_DIR / 'react-workspace'
 SESSION_TTL = 24 * 60 * 60
@@ -69,6 +69,10 @@ class UpdateInstallBody(BaseModel):
         if value is not True:
             raise ValueError('请确认开始更新。')
         return value
+
+
+class TranscriptionInstallBody(BaseModel):
+    confirm: bool = Field(strict=True)
 
 
 class LibraryRootBody(BaseModel):
@@ -189,6 +193,21 @@ def configuration():
             'transcription_upload_limit': transcription.MAX_UPLOAD_BYTES,
             'archive_root': str(library.LIBRARY_ROOT.resolve()),
             'archive_root_source': library.library_root_source(), 'version': app_version()}
+
+
+@router.get('/transcriptions/install')
+def transcription_install_status():
+    return transcription_install.status()
+
+
+@router.post('/transcriptions/install')
+def install_transcription(body: TranscriptionInstallBody):
+    if not body.confirm:
+        raise HTTPException(400, '请确认安装转录组件。')
+    try:
+        return transcription_install.start()
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from None
 
 
 @router.get('/updates/check')
