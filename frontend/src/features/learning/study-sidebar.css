@@ -63,7 +63,8 @@ body.is-resizing-study-sidebar, body.is-resizing-study-sidebar * { cursor: row-r
 .study-sidebar .timestamp-note-meta > button { padding-inline: 8px; font-size: var(--font-size-control); }
 /* A single fixed frame for cover -> download/merge/archive -> player. Tiny screens retain readable progress. */
 .modern-app .unified-media-stage { position: relative; min-height: 240px; box-sizing: border-box; }
-.unified-media-stage > video, .unified-media-stage > img { position: absolute; inset: 0; }
+.unified-media-stage > video, .unified-media-stage > img, .unified-media-stage > .online-player { position: absolute; inset: 0; }
+.unified-media-stage > .online-player { display: block; width: 100%; height: 100%; border: 0; }
 .unified-media-stage > .empty-stage { position: absolute; inset: 0; width: 100%; box-sizing: border-box; overflow-y: auto; padding: 16px; align-content: center; }
 .media-feedback-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .media-phase { margin: 0 0 8px; color: var(--color-text-secondary); font-size: var(--font-size-caption); }

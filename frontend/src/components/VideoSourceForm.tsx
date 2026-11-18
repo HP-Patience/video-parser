@@ -3,14 +3,15 @@ import Icon from './Icon';
 
 type Props = {
   value: string; parsing: boolean; importingLocal: boolean; inputRef: RefObject<HTMLTextAreaElement | null>;
-  onChange: (value: string) => void; onParse: () => void; onClear: () => void;
+  onChange: (value: string) => void; onParse: () => void; onClear: () => void; onImportLocal: () => void;
 };
 
-export default function VideoSourceForm({ value, parsing, importingLocal, inputRef, onChange, onParse, onClear }: Props) {
+export default function VideoSourceForm({ value, parsing, importingLocal, inputRef, onChange, onParse, onClear, onImportLocal }: Props) {
   return <form onSubmit={event => { event.preventDefault(); onParse(); }}>
     <label id="source-label" htmlFor="source" className="sr-only">视频链接或分享文本</label>
     <div className="source-row">
-      <Icon name="link-2" />
+      <button className="source-import-button" type="button" aria-label="选择本机视频" title="选择本机视频"
+        aria-busy={importingLocal} disabled={parsing || importingLocal} onClick={onImportLocal}><Icon name="link-2" /></button>
       <textarea ref={inputRef} id="source" value={value} maxLength={8192} rows={1}
         placeholder="粘贴视频链接，或带链接的分享文本…" onChange={event => onChange(event.target.value)}
         onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); onParse(); } }} />

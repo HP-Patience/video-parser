@@ -12,15 +12,15 @@ import VideoControls from './VideoControls';
 const SPACE_OWNERS = 'input, textarea, select, button, a, [contenteditable="true"], [role="slider"], [role="textbox"], [role="tablist"]';
 
 type Props = {
-  projectId?: string; title?: string; coverURL?: string | null; media: Media | null;
+  projectId?: string; title?: string; coverURL?: string | null; media: Media | null; onlineURL?: string | null;
   videoRef: RefObject<HTMLVideoElement | null>; coverError: boolean;
   onCoverError: () => void; onVideoError: () => void;
   preparing: boolean; failed: boolean; message: string; task?: TaskInfo;
   cancelDisabled: boolean; retryDisabled: boolean; onCancel: () => void; onRetry: () => void;
 };
-export default function MediaStage({ projectId, title, coverURL, media, videoRef, coverError, onCoverError,
+export default function MediaStage({ projectId, title, coverURL, media, onlineURL, videoRef, coverError, onCoverError,
   onVideoError, preparing, failed, message, task, cancelDisabled, retryDisabled, onCancel, onRetry }: Props) {
-  const state = media ? 'player' : preparing ? 'progress' : failed ? 'failure' : 'cover';
+  const state = media ? 'player' : preparing ? 'progress' : failed ? 'failure' : onlineURL ? 'online' : 'cover';
   const cancelled = task?.state === 'cancelled';
   // Space toggles playback like a normal player, but never while typing, on a control, or off-screen.
   useEffect(() => {
@@ -61,7 +61,10 @@ export default function MediaStage({ projectId, title, coverURL, media, videoRef
         {preparing && task?.phase === 'downloading' && task.progress && <ProgressBar progress={task.progress} />}
         <div className="media-feedback-actions">{preparing ? <button type="button" disabled={cancelDisabled} onClick={onCancel}>
           {task?.state === 'cancelling' ? '正在取消…' : '取消下载'}</button> : <button type="button" className="primary" disabled={retryDisabled} onClick={onRetry}>重新下载并归档</button>}</div>
-      </div></div> : coverURL && !coverError ? <ProgressiveImage src={coverURL} alt={`${title || '视频'}的封面`} decoding="async" onError={onCoverError} />
+      </div></div> : onlineURL ? <iframe key={onlineURL} className="online-player" src={onlineURL}
+        title="在线播放器" allow="encrypted-media; fullscreen; picture-in-picture" allowFullScreen
+        sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="strict-origin-when-cross-origin" />
+      : coverURL && !coverError ? <ProgressiveImage src={coverURL} alt={`${title || '视频'}的封面`} decoding="async" onError={onCoverError} />
       : <div className="empty-stage"><Icon name="image" className="empty-glyph" /><p>{projectId ? '暂无可用封面，选择画质即可下载归档' : '解析链接后在这里查看视频封面'}</p></div>}
       {media && <VideoControls videoRef={videoRef} projectId={projectId} resource={media.resource} mediaKey={`${projectId}:${media.preview_url}`} />}
   </div>;

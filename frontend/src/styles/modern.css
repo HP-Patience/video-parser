@@ -233,8 +233,18 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,t
   align-items:center;
   gap:12px
 }
-.source-row>.icon {
-  color:var(--color-text-tertiary)
+.modern-app .source-row .source-import-button {
+  --button-edge: transparent;
+  flex: 0 0 32px;
+  width: 32px;
+  min-height: 32px;
+  padding: 7px;
+  background: transparent;
+  color: var(--color-text-tertiary)
+}
+.modern-app .source-row .source-import-button:hover:not(:disabled) {
+  background: var(--color-fill-hover);
+  color: var(--color-text)
 }
 .source-row textarea {
   flex:1;
@@ -820,7 +830,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,t
     gap:6px
   }
   .source-row textarea {
-    flex-basis:calc(100% - 70px);
+    flex-basis:calc(100% - 76px);
     font-size: var(--font-size-body);
     min-height:33px;
     height:33px

@@ -13,6 +13,8 @@ from playwright.sync_api import sync_playwright, expect
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = 'e' * 32
+SOURCE = 'https://www.bilibili.com/video/BV1ADSrY9EuC?p=1'
+PLAYER = 'https://player.bilibili.com/player.html?bvid=BV1ADSrY9EuC&p=1&autoplay=0'
 
 
 def main():
@@ -29,9 +31,9 @@ def main():
     project = {'id': PROJECT, 'title': '统一视频区域测试', 'platform': '哔哩哔哩', 'part': 1,
                'location': 'fixture/P1', 'identity_status': 'verified', 'resources': [], 'archive_url': '/fixture.zip'}
 
-    def parsed():
+    def parsed(source=SOURCE):
         return {'id': PROJECT, 'project': project, 'title': project['title'], 'platform': '哔哩哔哩',
-                'source_url': 'https://www.bilibili.com/video/FIXTURE', 'cover_url': image, 'cover_download_url': image,
+                'source_url': source, 'cover_url': image, 'cover_download_url': image,
                 'default_quality_id': '1080p', 'qualities': [{'id': '1080p', 'label': '1080P', 'media': media if state['archived'] else None}],
                 'duration': 20, 'episodes': [], 'warning': None}
 
@@ -47,7 +49,13 @@ def main():
         path = urlsplit(request.url).path.split('/api/workspace', 1)[-1]
         state['requests'].append((request.method, path))
         if path == '/config': return route.fulfill(json={'platforms': ['哔哩哔哩'], 'ai_configured': False, 'media_ready': True, 'transcription_ready': True, 'subtitles_ready': True})
-        if path == '/parse' or path == f'/projects/{PROJECT}/resume': return route.fulfill(json=parsed())
+        if path == '/parse': return route.fulfill(json=parsed(request.post_data_json['text']))
+        if path == f'/projects/{PROJECT}/resume': return route.fulfill(json=parsed())
+        if path == '/local-media/import' and request.method == 'POST': return route.fulfill(json={'cancelled': True})
+        if path == '/ai/settings': return route.fulfill(json={'configured': False, 'presets': {}})
+        if path == '/ai/runtime': return route.fulfill(json={'state': 'stopped', 'owned': False})
+        if path == '/accounts': return route.fulfill(json={'platforms': []})
+        if path == '/ai/providers': return route.fulfill(json={'providers': [], 'presets': {}, 'active_id': ''})
         if path == '/tasks': return route.fulfill(json={'jobs': [state['job']] if state['job'] else []})
         if path.endswith('/subtitle-cues'): return route.fulfill(json={'sources': [], 'resource': '', 'cues': []})
         if path == '/embedding/settings': return route.fulfill(json={'base_url': '', 'model': '', 'key_saved': False, 'configured': False})
@@ -85,12 +93,26 @@ def main():
             errors = []; page.on('pageerror', lambda error: errors.append(str(error)))
             page.route('**/api/workspace/**', api)
             page.route('**/media-fixture.wav', lambda route: route.fulfill(content_type='audio/wav', body=sound.getvalue()))
+            page.route('https://player.bilibili.com/**', lambda route: route.fulfill(content_type='text/html', body='<button>Fixture online player</button>'))
             page.goto(f'http://127.0.0.1:{server.server_port}', wait_until='networkidle')
-            page.get_by_role('textbox', name='视频链接或分享文本', exact=True).fill('https://www.bilibili.com/video/FIXTURE')
-            page.get_by_role('button', name='解析视频', exact=True).click()
+            assert page.get_by_text('没有链接？').count() == 0
+            with page.expect_response('**/local-media/import'):
+                page.get_by_role('button', name='选择本机视频', exact=True).click()
+            source = page.get_by_role('textbox', name='视频链接或分享文本', exact=True)
+            parse = page.get_by_role('button', name='解析视频', exact=True)
+            source.fill('https://www.bilibili.com.example.invalid/video/BV1ADSrY9EuC')
+            parse.click()
             frame = page.locator('#video-stage')
             expect(frame).to_have_attribute('data-state', 'cover')
             expect(frame.locator('img')).to_be_visible()
+            expect(frame.locator('iframe')).to_have_count(0)
+            source.fill(SOURCE)
+            parse.click()
+            expect(frame).to_have_attribute('data-state', 'online')
+            expect(frame.locator('iframe')).to_have_attribute('src', PLAYER)
+            expect(frame.frame_locator('iframe').get_by_role('button', name='Fixture online player')).to_be_visible()
+            expect(page.get_by_role('link', name='在原站观看')).to_have_attribute('href', SOURCE)
+            assert state['count'] == 0, 'Parsing must not enqueue downloads'
             assert page.get_by_role('tab', name='视频预览', exact=True).count() == 0
             assert page.locator('.media-stage').count() == 1
             page.evaluate('window.originalMediaStage = document.querySelector("#video-stage")')
@@ -131,22 +153,23 @@ def main():
             out = ROOT / '.local'; out.mkdir(exist_ok=True)
             frame.screenshot(path=str(out / 'unified-media-progress.png'))
             update(state='failed', phase='failed', message='模拟下载失败，请重试')
-            expect(frame).to_have_attribute('data-state', 'failure')
-            expect(frame.get_by_role('alert')).to_have_text('模拟下载失败，请重试')
+            expect(frame).to_have_attribute('data-state', 'online')
+            expect(page.locator('#project-context').get_by_text('模拟下载失败，请重试')).to_be_visible()
             expect(frame.locator('img')).to_have_count(0)
-            frame.get_by_role('button', name='重新下载并归档', exact=True).click()
+            page.get_by_role('button', name='重新下载并归档', exact=True).click()
             expect(frame).to_have_attribute('data-state', 'progress')
             frame.get_by_role('button', name='取消下载', exact=True).click()
             expect(frame.get_by_role('button', name='正在取消…', exact=True)).to_be_disabled()
             update(state='cancelled', phase='cancelled', message='下载已取消，未完成归档')
-            expect(frame).to_have_attribute('data-state', 'failure')
-            expect(frame.locator('.download-preview-heading')).to_have_text('下载已取消')
-            frame.get_by_role('button', name='重新下载并归档', exact=True).click()
+            expect(frame).to_have_attribute('data-state', 'online')
+            expect(page.locator('#project-context').get_by_text('下载已取消，未完成归档')).to_be_visible()
+            page.get_by_role('button', name='重新下载并归档', exact=True).click()
             expect(frame).to_have_attribute('data-state', 'progress')
             state['archived'] = True
             update(state='completed', phase='completed', message='已完成归档', result=media)
             expect(frame).to_have_attribute('data-state', 'player')
             expect(frame.locator('video')).to_be_visible()
+            expect(frame.locator('iframe')).to_have_count(0)
             # The custom bar hides as soon as the pointer leaves the video area (paused included).
             controls = frame.locator('.video-controls')
             box = frame.bounding_box()

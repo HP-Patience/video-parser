@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { request } from './lib/api';
+import { platformPlayerURL } from './lib/platform-player';
 import { projectDisplayTitle, videoDisplayTitle } from './lib/projectTitles';
 import { useLanguage } from './lib/i18n';
 import { cancelTask, isActive, pollJob, remember, remembered, runWorkflow } from './lib/jobs';
@@ -415,7 +416,7 @@ export default function App() {
     restoringRequest.current?.abort();
     ++projectNavigation.current; const epoch = ++parseEpoch.current;
     const controller = new AbortController(); parsingRequest.current = controller;
-    setImportingLocal(true); setParseError(false); setParseStatus('请选择本机视频文件…');
+    setImportingLocal(true); setParseError(false); setParseStatus('');
     try {
       const picked = await request<LocalVideoImport>('/local-media/import', controller.signal, {});
       if (controller.signal.aborted || epoch !== parseEpoch.current) return;
@@ -607,6 +608,7 @@ export default function App() {
   const showStatus = !!inspectorStatus && (!!selected?.error || busy !== null || !QUIET_STATUS.has(inspectorStatus));
   const cancelDisabled = !selected?.task || !isActive(selected.task.state) || selected.task.state === 'cancelling' || cancellingTask !== null;
   const fullInspector = !learning && activeTab === '视频';
+  const onlineURL = page === 'workspace' && fullInspector && parsed && !media ? platformPlayerURL(parsed.source_url, parsed.project.part) : null;
   const archiveProblem = !!selected?.error && !media && busy !== 'analyze';
   const currentTimeline = analysisTimeline?.projectId === parsed?.project.id ? analysisTimeline : null;
   const currentChat = learningChat?.projectId === parsed?.project.id && learningChat?.resource === media?.resource ? learningChat : null;
@@ -641,10 +643,8 @@ export default function App() {
   }
 
   const sourceEntry = <VideoSourceForm value={source} parsing={parsing} importingLocal={importingLocal} inputRef={sourceInput}
-    onChange={setSource} onParse={() => { void parse(); }} onClear={() => { clearSource(); sourceInput.current?.focus(); }} />;
-  const localImport = <div className="source-local"><span>没有链接？</span>
-    <button type="button" className="link-button" disabled={parsing || importingLocal} onClick={() => { void importLocalVideo(); }}>
-      {importingLocal ? '正在导入本地视频…' : '选择本机视频…'}</button></div>;
+    onChange={setSource} onParse={() => { void parse(); }} onClear={() => { clearSource(); sourceInput.current?.focus(); }}
+    onImportLocal={() => { void importLocalVideo(); }} />;
   const episodeToggle = currentEpisode && <LearningToggle episode={currentEpisode} placement="player"
     disabled={parsing || !!restoringId || busy !== null || (selected?.learningPendingPart !== null && selected?.learningPendingPart !== undefined)}
     onChange={learned => { void setEpisodeLearned(currentEpisode.part, learned); }} />;
@@ -690,12 +690,12 @@ export default function App() {
           </div>
           {!learning && !parsed && tab !== '字幕与转写' && tab !== '文件重命名' && <WorkspaceStart onContinue={openLearning}>
             <Panel className="source-panel" aria-labelledby="source-label">{sourceEntry}</Panel>
-            <div className="examples-row"><div className="examples">{!source && <><span>试试示例</span>
+            {!source && <div className="examples-row"><div className="examples"><span>试试示例</span>
               {Object.entries(examples).map(([name, url]) => <button key={name} className="chip" type="button" onClick={() => { setSource(url); sourceInput.current?.focus(); }}>{name}</button>)}
-            </>}</div>{localImport}</div>
+            </div></div>}
           </WorkspaceStart>}
-          {fullInspector && parsed && <Panel className="source-panel" aria-labelledby="source-label">{sourceEntry}{localImport}</Panel>}
-          {(parsing || importingLocal || parseError) && <p className={parseError ? 'error-text' : 'notice'} role="status">{parseStatus}
+          {fullInspector && parsed && <Panel className="source-panel" aria-labelledby="source-label">{sourceEntry}</Panel>}
+          {parseStatus && (parsing || importingLocal || parseError) && <p className={parseError ? 'error-text' : 'notice'} role="status">{parseStatus}
           {parseNeedsLogin && <button type="button" className="link-button" onClick={() => openAccounts(parseLoginPlatform(parseStatus, source))}>去登录</button>}
           </p>}
           <div key="workpanel" id="workpanel" hidden={(!parsed && !learning) || (!learning && (tab === '字幕与转写' || tab === '文件重命名'))} role={page === 'learning' ? 'region' : 'tabpanel'} aria-labelledby={page === 'learning' ? 'page-title-learning' : 'tab-' + tabs.find(item => item.name === tab)?.id} className={`work-grid study-workspace${!fullInspector ? ' compact-context' : ''}${learning && media && studyCollapsed ? ' study-workspace-collapsed' : ''}${managing || (learning && !parsed) ? ' study-single-column' : ''}`}>
@@ -703,10 +703,12 @@ export default function App() {
               <section className="preview-panel" aria-labelledby="content-heading" hidden={managing || !parsed}>
                 <h2 id="content-heading" className="sr-only">项目内容</h2>
                 <MediaStage projectId={parsed?.project.id} title={parsed?.title} coverURL={parsed?.cover_url}
-                  media={media} videoRef={videoRef} coverError={coverError} onCoverError={() => setCoverError(true)}
-                  onVideoError={() => setVideoError(true)} preparing={busy === 'prepare'} failed={archiveProblem}
+                  media={media} onlineURL={onlineURL} videoRef={videoRef} coverError={coverError} onCoverError={() => setCoverError(true)}
+                  onVideoError={() => setVideoError(true)} preparing={busy === 'prepare'} failed={archiveProblem && !onlineURL}
                   message={selected?.status || ''} task={selected?.task} cancelDisabled={cancelDisabled}
                   retryDisabled={busy !== null || !quality} onCancel={() => { void cancelWorkflow(); }} onRetry={() => { void run('prepare'); }} />
+                {onlineURL && parsed && busy !== 'prepare' && <a className="source-link" href={parsed.source_url} target="_blank" rel="noreferrer">
+                  在原站观看</a>}
                 {videoError && <p className="error-text" role="alert">浏览器无法播放，请在归档目录中用本地播放器打开。</p>}
                 {/* Resume is a player concern, so it also shows on the workspace tab, not only in the study view. */}
                 {parsed && media && <PlaybackResume key={`${parsed.project.id}:${media.resource}`}
@@ -778,10 +780,10 @@ export default function App() {
           </FormField>
           </>}
               {fullInspector && <>
-          {parsed && !media && busy !== 'prepare' && !archiveProblem && <button className="primary download-button" type="button" disabled={!quality || busy !== null} onClick={() => { void run('prepare'); }}>
-          <Icon name="download" />{fullInspector ? '下载并归档' : '先归档视频'}
+          {parsed && !media && busy !== 'prepare' && (!archiveProblem || onlineURL) && <button className="primary download-button" type="button" disabled={!quality || busy !== null} onClick={() => { void run('prepare'); }}>
+          <Icon name="download" />{archiveProblem ? '重新下载并归档' : '下载并归档'}
           </button>}
-          {busy !== 'prepare' && !archiveProblem && <div className={`status inset ${selected?.error ? 'status-error' : ''}`} role="status" aria-live="polite" aria-atomic="true">{showStatus ? inspectorStatus : ''}</div>}
+          {busy !== 'prepare' && (!archiveProblem || onlineURL) && <div className={`status inset ${selected?.error ? 'status-error' : ''}`} role="status" aria-live="polite" aria-atomic="true">{showStatus ? inspectorStatus : ''}</div>}
           </>}
               {fullInspector && parsed && <>
           <ProjectPanel key={parsed.project.id} project={parsed.project} onRenamed={renameProject} />
