@@ -1,7 +1,7 @@
 """YouTube-only yt-dlp adapter. Existing platform engines remain unchanged."""
 from pathlib import Path
 from video_parser.services import task_runtime, youtube_auth
-from video_parser.platforms.downloaders.youtube_downloader import describe_failure
+from video_parser.platforms.downloaders.youtube_downloader import describe_failure, js_runtime_options
 
 DEFAULT_FORMAT = 'bv*[ext=mp4][vcodec^=avc1][height<=1080]+ba[ext=m4a]/b[ext=mp4][height<=1080]'
 
@@ -68,12 +68,14 @@ def download_youtube(url, target, progress_cb=None, format_id=None, has_audio=No
                'retries': 2, 'fragment_retries': 2, 'socket_timeout': 15,
                'logger': QuietLogger(), 'progress_hooks': [hook], 'postprocessor_hooks': [postprocess]}
     options.update(youtube_auth.cookie_options())
+    options.update(js_runtime_options())
     try:
         task_runtime.progress('reading', '正在读取 YouTube 下载信息；剩余时间未知。', force=True)
         with yt_dlp.YoutubeDL(options) as ydl:
             ydl.download([url])
     except DownloadError as error:
-        raise RuntimeError(describe_failure(str(error))) from None
+        raise RuntimeError(describe_failure(
+            str(error), logged_in=bool(youtube_auth.status()['configured']))) from None
     task_runtime.checkpoint()
     # A codec/container mismatch may change the extension. Never publish an absent file.
     if not target.is_file() or not target.stat().st_size:

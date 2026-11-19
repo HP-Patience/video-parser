@@ -92,7 +92,15 @@ class YoutubeAuthTests(unittest.TestCase):
         from video_parser.platforms.downloaders.youtube_downloader import describe_failure
         bot = describe_failure('ERROR: [youtube] x: Sign in to confirm you’re not a bot. Use --cookies-from-browser')
         self.assertIn('cookies', bot)
-        self.assertIn('设置', bot)
+        self.assertIn('账号与登录', bot)
+        self.assertIn('JavaScript', describe_failure('n challenge solving failed'))
+        # A 403 from googlevideo means the exit IP is blocked, not that parsing failed.
+        self.assertIn('节点', describe_failure('unable to download video data: HTTP Error 403: Forbidden'))
+        # Once cookies exist the bot wall is an IP problem, so the hint must not loop back to cookies.
+        with_cookies = describe_failure('ERROR: [youtube] x: Sign in to confirm you’re not a bot.', logged_in=True)
+        self.assertIn('节点', with_cookies)
+        self.assertNotIn('先导入', with_cookies)
+        self.assertIn('11 位', describe_failure('ERROR: Unsupported URL: https://www.youtube.com/watch?v=short'))
         self.assertIn('代理', describe_failure("Unable to connect to proxy: Tunnel connection failed: 502"))
         self.assertIn('已不可用', describe_failure('ERROR: [youtube] x: Video unavailable'))
         self.assertIn('地区', describe_failure('The uploader has not made this video available in your country'))
