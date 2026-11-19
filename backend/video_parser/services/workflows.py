@@ -94,25 +94,39 @@ def worker(job):
         except (OSError,ValueError):pass
     task_runtime.progress('downloading' if job.kind=='video' else 'analyzing',
                           '正在下载并校验视频…' if job.kind=='video' else '正在提取画面并分析；不会自动重试付费请求…')
-    with subprocess.Popen(command,cwd=ROOT,env=env,stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,
-                          stderr=subprocess.DEVNULL,text=True,encoding='utf-8') as process:
-        task_runtime.communicate(process,7200,consume,input=json.dumps(payload,ensure_ascii=False,default=str))
-        consume()
-        task_runtime.checkpoint()
-        if not result_path.is_file() or result_path.is_symlink() or result_path.stat().st_size>16*1024*1024:
-            raise RuntimeError('Worker returned no result')
-        result=json.loads(result_path.read_text(encoding='utf-8'))
-        if process.returncode or not result.get('ok'):
-            job.error_code=result.get('error_code','operation_failed')
-            job.message=('视频准备失败：' if job.kind=='video' else '分析失败：')+result.get('message','请检查本机诊断。')
-            job.state='failed'
-        else:
-            job.result=result['result']
-            record = job.result.get('record') or {}
-            for key in ('template', 'source', 'model'):
-                if record.get(key): job.details[key] = record[key]
-            if record.get('frame_count') is not None: job.details['count'] = record['frame_count']
-            job.state='completed';job.message='视频已校验归档。' if job.kind=='video' else '分析结果与画面已归档。'
+    log_path=directory/'worker.log'
+    log_handle=log_path.open('w',encoding='utf-8',errors='replace')
+    try:
+        process=subprocess.Popen(command,cwd=ROOT,env=env,stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,
+                                 stderr=log_handle,text=True,encoding='utf-8')
+    except Exception:
+        log_handle.close(); raise
+    try:
+        with process:
+            task_runtime.communicate(process,7200,consume,input=json.dumps(payload,ensure_ascii=False,default=str))
+            consume()
+            task_runtime.checkpoint()
+            if not result_path.is_file() or result_path.is_symlink() or result_path.stat().st_size>16*1024*1024:
+                raise RuntimeError('Worker returned no result')
+            result=json.loads(result_path.read_text(encoding='utf-8'))
+            if process.returncode or not result.get('ok'):
+                job.error_code=result.get('error_code','operation_failed')
+                job.message=('视频准备失败：' if job.kind=='video' else '分析失败：')+result.get('message','请检查本机诊断。')
+                job.state='failed'
+                # The worker's own traceback is the only place the real cause survives.
+                log_handle.flush()
+                try: tail=log_path.read_text(encoding='utf-8',errors='replace')[-2000:]
+                except OSError: tail=''
+                if tail.strip(): logger.warning('worker %s failed (%s): %s', job.id, job.error_code, tail.strip())
+            else:
+                job.result=result['result']
+                record = job.result.get('record') or {}
+                for key in ('template', 'source', 'model'):
+                    if record.get(key): job.details[key] = record[key]
+                if record.get('frame_count') is not None: job.details['count'] = record['frame_count']
+                job.state='completed';job.message='视频已校验归档。' if job.kind=='video' else '分析结果与画面已归档。'
+    finally:
+        log_handle.close()
     # Only this task's owned scratch directory; the journal already holds the result or the failure.
     # Nothing raised here may demote a completed task: some environments wrap shutil.rmtree with a
     # guard that raises SystemExit, which is not an OSError.
