@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { request } from './lib/api';
-import { platformPlayerURL } from './lib/platform-player';
+import { platformOpensExternally, platformPlayerURL } from './lib/platform-player';
 import { projectDisplayTitle, videoDisplayTitle } from './lib/projectTitles';
 import { useLanguage } from './lib/i18n';
 import { cancelTask, isActive, pollJob, remember, remembered, runWorkflow } from './lib/jobs';
@@ -605,6 +605,8 @@ export default function App() {
   const cancelDisabled = !selected?.task || !isActive(selected.task.state) || selected.task.state === 'cancelling' || cancellingTask !== null;
   const fullInspector = !learning && activeTab === '视频';
   const onlineURL = page === 'workspace' && fullInspector && parsed && !media ? platformPlayerURL(parsed.source_url, parsed.project.part) : null;
+  // YouTube cannot be framed with a session here, so the stage shows the cover and a way out.
+  const externalOnly = page === 'workspace' && fullInspector && parsed && !media && platformOpensExternally(parsed.source_url);
   const archiveProblem = !!selected?.error && !media && busy !== 'analyze';
   const currentTimeline = analysisTimeline?.projectId === parsed?.project.id ? analysisTimeline : null;
   const currentChat = learningChat?.projectId === parsed?.project.id && learningChat?.resource === media?.resource ? learningChat : null;
@@ -697,8 +699,9 @@ export default function App() {
                   onVideoError={() => setVideoError(true)} preparing={busy === 'prepare'} failed={archiveProblem && !onlineURL}
                   message={selected?.status || ''} task={selected?.task} cancelDisabled={cancelDisabled}
                   retryDisabled={busy !== null || !quality} onCancel={() => { void cancelWorkflow(); }} onRetry={() => { void run('prepare'); }} />
-                {onlineURL && parsed && busy !== 'prepare' && <a className="source-link" href={parsed.source_url} target="_blank" rel="noreferrer">
+                {parsed && !media && busy !== 'prepare' && <a className="source-link" href={parsed.source_url} target="_blank" rel="noreferrer">
                   在原站观看</a>}
+                {externalOnly && busy !== 'prepare' && <p className="muted source-hint">YouTube 的内嵌播放器无法带上本机登录态，解析结果不受影响；播放请用上面的「在原站观看」。</p>}
                 {videoError && <p className="error-text" role="alert">浏览器无法播放，请在归档目录中用本地播放器打开。</p>}
                 {/* Resume is a player concern, so it also shows on the workspace tab, not only in the study view. */}
                 {parsed && media && <PlaybackResume key={`${parsed.project.id}:${media.resource}`}
