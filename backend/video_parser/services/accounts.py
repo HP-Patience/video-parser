@@ -39,6 +39,14 @@ PLATFORMS = {
         'qr_app': '小红书 App 或微信', 'session_cookie': 'web_session',
         'benefit': '小红书视频基本需要登录后才能解析。',
     },
+    'youtube': {
+        # Sign-in happens in the app's own browser window (Playwright reads the live session, so the
+        # platform's v20 cookie encryption never matters), and an exported cookies.txt is accepted too.
+        'name': 'YouTube', 'login_url': 'https://www.youtube.com/',
+        'domains': ('youtube.com', 'google.com'), 'keys': ('SID', 'SAPISID', '__Secure-1PSID', '__Secure-3PSID'),
+        'import_cookies': True,
+        'benefit': 'YouTube 会对陌生 IP 要求“确认你不是机器人”；登录一次或导入 cookies 后，解析与下载会复用该会话。',
+    },
 }
 
 FIELDS = ('name', 'value', 'domain', 'path', 'expires', 'httpOnly', 'secure', 'sameSite')
@@ -145,11 +153,23 @@ def save(platform, cookies):
             for item in cookies if isinstance(item, dict) and matches(item.get('domain'), domains)]
     if not has_key(platform, kept):
         raise RuntimeError('没有检测到登录成功的凭据，请在弹出的窗口里完成登录后再保存。')
+    if platform == 'youtube':
+        # yt-dlp reads a Netscape file, not this module's JSON shape.
+        from video_parser.services import youtube_auth
+        youtube_auth.save_cookies(kept)
+        return len(kept)
     atomic_write(cookie_path(platform), json.dumps(kept, ensure_ascii=False))
     return len(kept)
 
 
 def local_status(platform):
+    if platform == 'youtube':
+        # The yt-dlp cookie file is the only source; it is a Netscape file, not this module's JSON.
+        from video_parser.services import youtube_auth
+        state = youtube_auth.status()
+        configured = bool(state.get('configured'))
+        return {'state': 'saved' if configured else 'missing',
+                'saved_at': state.get('updated_at'), 'expires_at': None}
     path = cookie_path(platform)
     cookies = load(platform)
     keys = spec(platform)['keys']
@@ -173,6 +193,7 @@ def public(platform):
     session = current_session(platform)
     return {'id': platform, 'name': item['name'], 'benefit': item['benefit'],
             'qr_login': bool(item.get('qr')), 'qr_mode': item.get('qr'), 'manual_finish': bool(item.get('manual')),
+            'import_cookies': bool(item.get('import_cookies')),
             **local_status(platform), 'login': session}
 
 
@@ -182,6 +203,11 @@ def overview():
 
 def check(platform):
     result = public(platform)
+    if platform == 'youtube':
+        result['verified'] = None
+        result['message'] = ('已导入浏览器登录态；是否仍被 YouTube 认可，以实际解析结果为准。'
+                             if result['state'] == 'saved' else '尚未导入 YouTube 登录态。')
+        return result
     if platform == 'bilibili' and result['state'] == 'saved':
         from video_parser.services import bili_auth
         try:
@@ -205,6 +231,10 @@ def check(platform):
 
 def logout(platform):
     spec(platform)
+    if platform == 'youtube':
+        from video_parser.services import youtube_auth
+        youtube_auth.clear()
+        return public(platform)
     # Older versions also wrote a Netscape copy for yt-dlp; remove it with the JSON file.
     for path in (cookie_path(platform), CREDENTIALS / f'{platform}-cookies.txt'):
         try:

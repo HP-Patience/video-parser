@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Panel from '../../components/Panel';
 import BiliLogin from '../subtitles/BiliLogin';
 import QrLogin from './QrLogin';
+import YoutubeLogin from './YoutubeLogin';
 import { request } from '../../lib/api';
 import './accounts.css';
 
@@ -9,6 +10,7 @@ import './accounts.css';
 type LoginSession = { id: string; mode: 'window' | 'qr'; state: 'starting' | 'waiting' | 'scanned' | 'saving' | 'saved' | 'failed' | 'cancelled' | 'expired' | 'verify'; message: string; started_at: number; qr?: string | null };
 export type Account = {
   id: string; name: string; benefit: string; qr_login: boolean; qr_mode: 'bili' | 'browser' | null; manual_finish: boolean;
+  import_cookies?: boolean;
   state: 'saved' | 'expired' | 'missing'; saved_at: number | null; expires_at: number | null;
   login: LoginSession | null; verified?: boolean | null; message?: string;
 };
@@ -24,6 +26,7 @@ export default function Accounts({ visible, focusPlatform, onChange }: { visible
   const [busy, setBusy] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [qrOpen, setQrOpen] = useState<string | null>(null);
+  const [youtubeOpen, setYoutubeOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState<string | null>(null);
   // Logged-in rows show one 重新登录; it expands into the two ways to log in only when asked.
   const [relogin, setRelogin] = useState<string | null>(null);
@@ -94,7 +97,19 @@ export default function Accounts({ visible, focusPlatform, onChange }: { visible
           </div>}
         </div>
         <div className="account-actions">
-          {session ? <>
+          {item.import_cookies ? (session ? <>
+            <button type="button" className="primary" disabled={busy !== null || session.state !== 'waiting'} onClick={() => { void act(item.id, 'login/finish'); }}>完成登录</button>
+            <button type="button" disabled={busy !== null} onClick={() => { void act(item.id, 'login/cancel'); }}>取消</button>
+          </> : <>
+            {item.state === 'saved' ? <>
+              <button type="button" disabled={busy !== null} aria-busy={busy === item.id + 'check'} onClick={() => { void act(item.id, 'check'); }}>检查</button>
+              <button type="button" disabled={busy !== null || other} aria-busy={busy === item.id + 'login'}
+                onClick={() => { void act(item.id, 'login'); }}>重新登录</button>
+            </> : <button type="button" className="primary" disabled={busy !== null || other} aria-busy={busy === item.id + 'login'}
+              onClick={() => { void act(item.id, 'login'); }}>登录窗口</button>}
+            <button type="button" disabled={busy !== null} onClick={() => setYoutubeOpen(true)}>导入 cookies</button>
+            {item.state !== 'missing' && <button type="button" disabled={busy !== null} onClick={() => setConfirmLogout(item.id)}>退出登录</button>}
+          </>) : session ? <>
             <button type="button" className="primary" disabled={busy !== null || session.state !== 'waiting'} onClick={() => { void act(item.id, 'login/finish'); }}>完成登录</button>
             <button type="button" disabled={busy !== null} onClick={() => { void act(item.id, 'login/cancel'); }}>取消</button>
           </> : <>
@@ -115,7 +130,9 @@ export default function Accounts({ visible, focusPlatform, onChange }: { visible
       </li>;
     })}</ul>
     {!accounts.length && !error && <p className="notice">正在读取登录状态…</p>}
-    <p className="accounts-footnote">登录信息只保存在本机{storage ? `（${storage.split('（')[0]}）` : ''}。YouTube 不需要登录。</p>
+    <p className="accounts-footnote">登录信息只保存在本机{storage ? `（${storage.split('（')[0]}）` : ''}。YouTube 需要导入浏览器登录态。</p>
+    {youtubeOpen && <YoutubeLogin onClose={() => setYoutubeOpen(false)}
+      onSuccess={() => { setNotes(value => ({ ...value, youtube: 'YouTube 登录态已保存到本机。' })); void load(new AbortController().signal); changed.current?.(); }} />}
     {qrOpen === 'bilibili' && <BiliLogin onClose={() => setQrOpen(null)} onSuccess={() => { setQrOpen(null); setNotes(value => ({ ...value, bilibili: 'B站扫码登录成功，已保存到本机。' })); void load(new AbortController().signal); changed.current?.(); }} />}
     {qrOpen && qrOpen !== 'bilibili' && (() => {
       const account = accounts.find(item => item.id === qrOpen);

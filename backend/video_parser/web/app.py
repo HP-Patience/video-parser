@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """FastAPI entrypoint for the local React workspace."""
 from pathlib import Path
+import logging
+import os
+import subprocess
+import threading
 import time
+import webbrowser
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
@@ -10,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from video_parser.web.routes import router as workspace_router
 
 from video_parser.core.paths import FRONTEND_DIR, instance_id
+logger = logging.getLogger(__name__)
 app = FastAPI(
     title='Video Parser 工作台',
     description='本地视频解析、归档、画面分析、字幕与转写服务',
@@ -36,6 +42,55 @@ from video_parser.web.cloud_routes import router as cloud_router
 app.include_router(cloud_router)
 from video_parser.web.local_media_routes import router as local_media_router
 app.include_router(local_media_router)
+from video_parser.web.youtube_auth_routes import router as youtube_auth_router
+app.include_router(youtube_auth_router)
+
+def open_in_default_browser(address):
+    """Hand the address to the default browser.
+
+    On Windows `cmd /c start` is used instead of webbrowser.open: os.startfile goes through
+    ShellExecute and is silently accepted but dropped by some existing browser instances (observed
+    with a Chrome started by a third-party manager), while `start` still reaches them."""
+    if os.name != 'nt':
+        return webbrowser.open(address)
+    try:
+        # No manual quoting: subprocess escapes the arguments itself, and an extra pair of quotes
+        # would reach `start` verbatim as part of the path.
+        subprocess.Popen(['cmd', '/c', 'start', '', address],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True,
+                         creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        return True
+    except OSError:
+        return webbrowser.open(address)
+
+
+def maybe_open_browser(environ=None):
+    """Open the workspace once, when the launcher asked for it (VIDEO_PARSER_OPEN_BROWSER=1).
+
+    The server opens it itself instead of having the launcher spawn a second PowerShell: the browser
+    then belongs to a process that is already running interactively, and nothing relies on a hidden
+    child process being allowed to raise a window."""
+    environ = os.environ if environ is None else environ
+    if environ.get('VIDEO_PARSER_OPEN_BROWSER') != '1':
+        return False
+    address = environ.get('VIDEO_PARSER_OPEN_URL') or 'http://127.0.0.1:15001'
+    try:
+        delay = max(float(environ.get('VIDEO_PARSER_OPEN_DELAY') or 1), 0)
+    except ValueError:
+        delay = 1.0
+
+    def open_later():
+        time.sleep(delay)
+        try:
+            opened = open_in_default_browser(address)
+            logger.info('open-browser: %s -> %s', address, 'ok' if opened else 'reported failure')
+        except Exception as error:
+            # A headless session may have no browser; the console already prints the address.
+            logger.warning('open-browser failed for %s: %s', address, error)
+
+    threading.Thread(target=open_later, name='open-browser', daemon=True).start()
+    return True
+
 
 @app.on_event('startup')
 def restore_task_history():
@@ -45,6 +100,7 @@ def restore_task_history():
     tasks()
     from video_parser.services import cloud_sync
     cloud_sync.start()
+    maybe_open_browser()
 
 @app.on_event('shutdown')
 def stop_owned_workers():

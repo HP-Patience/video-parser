@@ -22,6 +22,8 @@ class AccountTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         patch.object(accounts, 'CREDENTIALS', self.root / 'credentials').start()
         patch.object(bili_auth, 'cookie_path', lambda: self.root / 'credentials/bilibili-cookies.json').start()
+        from video_parser.services import youtube_auth
+        patch.object(youtube_auth, 'ROOT', self.root).start()  # Never touch the real .local/credentials.
         self.addCleanup(patch.stopall)
 
     def test_missing_then_saved_without_exposing_values(self):
@@ -56,7 +58,7 @@ class AccountTests(unittest.TestCase):
 
     def test_unknown_platform_is_404(self):
         from fastapi import HTTPException
-        for removed in ('weibo', 'kuaishou', 'youtube'):
+        for removed in ('weibo', 'kuaishou'):
             with self.assertRaises(HTTPException) as caught:
                 account_routes.account_detail(removed)
             self.assertEqual(caught.exception.status_code, 404)
@@ -73,9 +75,37 @@ class AccountTests(unittest.TestCase):
 
     def test_qr_modes(self):
         self.assertEqual({item['id']: item['qr_mode'] for item in accounts.overview()['platforms']},
-                         {'bilibili': 'bili', 'douyin': 'browser', 'xiaohongshu': 'browser'})
+                         {'bilibili': 'bili', 'douyin': 'browser', 'xiaohongshu': 'browser', 'youtube': None})
         with self.assertRaises(RuntimeError):
             accounts.start_qr('bilibili')  # B站 keeps its own API-based QR login.
+
+    def test_youtube_shares_the_yt_dlp_cookie_file(self):
+        from video_parser.services import youtube_auth
+        rows = '# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t1893456000\tSID\tabc\n'
+        self.assertEqual(accounts.public('youtube')['state'], 'missing')
+        self.assertTrue(accounts.public('youtube')['import_cookies'])
+        with self.assertRaises(RuntimeError):
+            accounts.start_qr('youtube')  # No QR login for YouTube.
+        youtube_auth.save_text(rows)
+        public = accounts.public('youtube')
+        self.assertEqual(public['state'], 'saved')
+        self.assertNotIn('abc', json.dumps(public, ensure_ascii=False))
+        self.assertIn('以实际解析结果为准', accounts.check('youtube')['message'])
+        self.assertEqual(accounts.logout('youtube')['state'], 'missing')
+
+    def test_youtube_window_login_saves_a_netscape_file(self):
+        saved = accounts.save('youtube', [
+            {'name': 'SID', 'value': 'v1', 'domain': '.youtube.com', 'path': '/', 'expires': 1893456000, 'secure': True},
+            {'name': 'SAPISID', 'value': 'v2', 'domain': '.google.com', 'path': '/', 'expires': 0},
+            {'name': 'OTHER', 'value': 'v3', 'domain': '.example.com', 'path': '/', 'expires': 0}])
+        self.assertEqual(saved, 2)  # Foreign domains never reach the file.
+        text = (self.root / '.local/credentials/youtube-cookies.txt').read_text(encoding='utf-8')
+        self.assertIn('SID', text)
+        self.assertIn('SAPISID', text)
+        self.assertNotIn('OTHER', text)
+        self.assertEqual(accounts.public('youtube')['state'], 'saved')
+        with self.assertRaises(RuntimeError):
+            accounts.save('youtube', [{'name': 'OTHER', 'value': 'v', 'domain': '.youtube.com', 'path': '/'}])
 
     def test_qr_login_detection_needs_a_new_session_cookie(self):
         guest = [cookie('web_session', 'guest', domain='.xiaohongshu.com')]

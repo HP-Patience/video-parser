@@ -1,5 +1,32 @@
 {
  "exact": {
+   "导入 cookies": "Import cookies",
+   "登录窗口": "Sign-in window",
+   "选择 cookies.txt 文件": "Choose a cookies.txt file",
+   "文件过大，请只导出 youtube.com 的 cookies。": "That file is too large. Export only youtube.com cookies.",
+   "Chrome / Edge 127 以后把 cookie 换成了系统级加密，直接读取可能失败；失败时请用浏览器扩展导出 cookies.txt 再粘贴到下面。": "Chrome and Edge 127+ encrypt cookies with a system key, so reading them directly can fail. If it does, export cookies.txt with a browser extension and paste it below.",
+   "重新导入": "Re-import",
+   "导入登录态": "Import sign-in",
+   "导入 YouTube 登录态": "Import YouTube sign-in",
+   "。YouTube 需要导入浏览器登录态。": ". YouTube needs an imported browser session.",
+   "浏览器需要处于已登录 YouTube 的状态；导入后可以关闭浏览器，也可以直接用下面的 cookies 文件。": "The browser must be signed in to YouTube. You can close it after importing, or use the cookies file below.",
+   "YouTube 登录态已保存到本机。": "YouTube sign-in saved on this computer.",
+   "YouTube 登录态": "YouTube sign-in",
+   "YouTube 对陌生 IP 会要求“确认你不是机器人”。导入本机浏览器的 YouTube 登录态后，解析与下载都会复用该会话。": "YouTube asks unfamiliar IPs to confirm you're not a bot. Import this computer's browser session and both parsing and downloads reuse it.",
+   "保存位置：.local/credentials；仅存在本机，不会上传，也不会在界面上显示内容。": "Saved to .local/credentials; stored on this computer only, never uploaded or shown here.",
+   "未配置：YouTube 视频会被要求登录校验。": "Not configured: YouTube will ask you to sign in.",
+   "跟随浏览器登录态": "Uses the browser session",
+   "已导入 cookies 文件": "Imported cookies file",
+   "条 cookie": "cookies",
+   "更新于": "Updated",
+   "清除登录态": "Clear sign-in",
+   "或粘贴 cookies.txt（Netscape 格式，也支持浏览器扩展导出的 JSON）": "Or paste cookies.txt (Netscape format; JSON exports from browser extensions also work)",
+   "正在导入…": "Importing…",
+   "导入粘贴内容": "Import pasted content",
+   "提示：导入时浏览器需要处于已登录 YouTube 的状态；导完可以关闭浏览器，登录态过期后重新导入即可。": "The browser must be signed in to YouTube while importing. You can close it afterwards; re-import once the session expires.",
+   "无法读取 YouTube 登录态。": "Couldn't read the YouTube sign-in state.",
+   "已清除 YouTube 登录态。": "YouTube sign-in cleared.",
+   "已导入 cookies。": "Cookies imported.",
    "· 默认 API": "· Default API",
    "个模型 ·": "models ·",
    "个模型": "models",
@@ -2881,6 +2908,10 @@
   [
    "^侧栏 (\\d+) 像素宽$",
    "Sidebar $1 px wide"
-  ]
+  ],
+  ["^从 (.+) 导入$", "Import from $1"],
+  ["^正在读取 (.+)…$", "Reading $1…"],
+  ["^已从 (.+) 读取登录态。$", "Sign-in state imported from $1."],
+  ["^已配置：(.+)（(\\d+) 条 cookie）$", "Configured: $1 ($2 cookies)"]
  ]
 }

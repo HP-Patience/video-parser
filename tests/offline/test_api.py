@@ -55,3 +55,42 @@ class APIEntrypointTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class OpenBrowserTests(unittest.TestCase):
+    """The launcher's browser hand-off must stay opt-in and never open a window during tests."""
+
+    def test_disabled_without_the_launcher_flag(self):
+        from video_parser.web import app as api
+        with patch.object(api.webbrowser, 'open') as opened:
+            self.assertFalse(api.maybe_open_browser({'VIDEO_PARSER_OPEN_URL': 'http://127.0.0.1:15001'}))
+            opened.assert_not_called()
+
+    def test_opens_the_requested_address(self):
+        import time
+        from video_parser.web import app as api
+        with patch.object(api, 'open_in_default_browser') as opened:
+            self.assertTrue(api.maybe_open_browser({'VIDEO_PARSER_OPEN_BROWSER': '1',
+                                                    'VIDEO_PARSER_OPEN_URL': 'http://127.0.0.1:15123',
+                                                    'VIDEO_PARSER_OPEN_DELAY': '0'}))
+            for _ in range(50):
+                if opened.called:
+                    break
+                time.sleep(0.02)
+        opened.assert_called_once_with('http://127.0.0.1:15123')
+
+    def test_bad_delay_falls_back_instead_of_raising(self):
+        from video_parser.web import app as api
+        with patch.object(api.webbrowser, 'open') as opened:
+            self.assertTrue(api.maybe_open_browser({'VIDEO_PARSER_OPEN_BROWSER': '1',
+                                                    'VIDEO_PARSER_OPEN_DELAY': 'soon'}))
+            opened.assert_not_called()  # Still sleeping when the check runs; no crash is what matters.
+
+    def test_windows_uses_cmd_start_without_extra_quotes(self):
+        """An extra pair of quotes reaches `start` verbatim and silently drops the address."""
+        from video_parser.web import app as api
+        with patch.object(api.subprocess, 'Popen') as popen, patch.object(api, 'os') as fake_os:
+            fake_os.name = 'nt'
+            self.assertTrue(api.open_in_default_browser('http://127.0.0.1:15001'))
+        command = popen.call_args.args[0]
+        self.assertEqual(command, ['cmd', '/c', 'start', '', 'http://127.0.0.1:15001'])
