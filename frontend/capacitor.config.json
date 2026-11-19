@@ -1,0 +1,7 @@
+{
+  "appId": "com.hpvideo.parser",
+  "appName": "Video Parser",
+  "webDir": "dist",
+  "android": { "allowMixedContent": false },
+  "server": { "cleartext": false }
+}

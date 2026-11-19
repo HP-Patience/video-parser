@@ -1,3 +1,5 @@
+import { workspaceUrl } from './api-base';
+
 export interface UpdateStatus {
   current_version: string;
   latest_version: string | null;
@@ -180,7 +182,7 @@ function requestFailure(status: number, detail: unknown, requestId: string | nul
 
 export async function request<T>(path: string, signal: AbortSignal, body?: unknown): Promise<T> {
   const uploading = body instanceof File;
-  const response = await fetch(`/api/workspace${path}`, {
+  const response = await fetch(workspaceUrl(path), {
     method: body === undefined ? 'GET' : 'POST',
     headers: body === undefined ? undefined : { 'Content-Type': uploading ? 'application/octet-stream' : 'application/json' },
     body: body === undefined ? undefined : uploading ? body : JSON.stringify(body),

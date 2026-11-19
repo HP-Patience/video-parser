@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import Icon from './Icon';
 import { formatClock } from '../lib/format';
+import { workspaceUrl } from '../lib/api-base';
 import { readAutoNext, readRate, saveAutoNext, saveRate, SPEED_PRESETS } from '../lib/playback';
 import './video-controls.css';
 
@@ -130,9 +131,8 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
     const rect = event.currentTarget.getBoundingClientRect();
     return rect.width ? Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) : 0;
   }
-
   const thumb = projectId && resource && duration > 0
-    ? `/api/workspace/projects/${projectId}/preview-frame?resource=${encodeURIComponent(resource)}&time=${Math.max(0, Math.floor(hover?.seconds ?? 0))}`
+    ? workspaceUrl(`/projects/${projectId}/preview-frame?resource=${encodeURIComponent(resource)}&time=${Math.max(0, Math.floor(hover?.seconds ?? 0))}`)
     : '';
 
   return <div className={'video-controls' + (hidden ? ' is-hidden' : '') + (playing ? ' is-playing' : '')}

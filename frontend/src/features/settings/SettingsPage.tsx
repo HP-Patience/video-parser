@@ -13,6 +13,7 @@ import UpdatePanel from './UpdatePanel';
 import TranscriptionInstall from './TranscriptionInstall';
 import CloudStorage from './CloudStorage';
 import { setLanguage, useLanguage } from '../../lib/i18n';
+import { getApiBaseUrl, setApiBaseUrl } from '../../lib/api-base';
 import type { Language } from '../../lib/i18n';
 import './settings-page.css';
 
@@ -37,6 +38,8 @@ export default function SettingsPage({ settings, onChange, config, configError, 
   const [libraryNotice, setLibraryNotice] = useState('');
   // /config only carries ai_configured; the full AI settings come from the AI section (config.ai is set after a save).
   const [loadedAI, setLoadedAI] = useState<AISettings | null>(null);
+  const [cloudBaseUrl, setCloudBaseUrl] = useState(() => getApiBaseUrl());
+  const [cloudBaseError, setCloudBaseError] = useState('');
   const previousRequest = useRef(0);
   useEffect(() => {
     if (focusAIRequest && focusAIRequest !== previousRequest.current) {
@@ -86,6 +89,15 @@ export default function SettingsPage({ settings, onChange, config, configError, 
           <div className="language-switch" role="radiogroup" aria-labelledby="settings-language">{LANGUAGES.map(([value, label, lang]) =>
             <label key={value} className={language === value ? 'checked' : ''} translate="no" lang={lang}>
               <input type="radio" name="interface-language" value={value} checked={language === value} onChange={() => setLanguage(value)} />{label}</label>)}</div>
+        </section>
+        <section className="settings-card settings-card-wide" aria-labelledby="settings-cloud-base"><h3 id="settings-cloud-base">工作台服务地址</h3>
+          <label htmlFor="cloud-base-url">云端后端地址</label>
+          <input id="cloud-base-url" type="url" inputMode="url" value={cloudBaseUrl} placeholder="留空使用当前网站服务" onChange={event => { setCloudBaseUrl(event.target.value); setCloudBaseError(''); }} onBlur={() => {
+            if (!setApiBaseUrl(cloudBaseUrl)) setCloudBaseError('请输入不含路径、参数或账号信息的 HTTP(S) 地址。');
+            else setCloudBaseUrl(getApiBaseUrl());
+          }} />
+          {cloudBaseError && <p className="error-text" role="alert">{cloudBaseError}</p>}
+          <p className="settings-hint">APK 中填写已部署的 HTTPS 后端地址；桌面版留空即可使用当前服务。</p>
         </section>
         <section className="settings-card" aria-labelledby="settings-preferences"><h3 id="settings-preferences">下载偏好</h3>
           <label htmlFor="default-quality">默认画质</label>

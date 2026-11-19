@@ -1,3 +1,5 @@
+import { workspaceUrl } from '../../lib/api-base';
+
 export interface PlaybackPoint { position: number; duration: number; revision: number }
 export interface NoteImage { name: string; mime?: string; size?: number }
 export interface PersonalNote { id: string; time: number; text: string; revision: number; images?: NoteImage[]; created_at?: string; updated_at?: string }
@@ -6,7 +8,7 @@ export class StudyError extends Error { constructor(message: string, public stat
 export async function studyRequest<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   let response: Response;
   try {
-    response = await fetch('/api/workspace' + path, { method: body === undefined ? 'GET' : 'POST', signal,
+    response = await fetch(workspaceUrl(path), { method: body === undefined ? 'GET' : 'POST', signal,
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body), keepalive: body !== undefined, cache: 'no-store' });
   } catch { throw new StudyError('无法连接工作台，未保存内容仍保留在本机草稿中。'); }

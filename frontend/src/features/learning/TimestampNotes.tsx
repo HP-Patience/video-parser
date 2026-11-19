@@ -2,6 +2,7 @@ import MathText from '../../components/MathText';
 import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { Media } from '../../lib/api';
+import { workspaceUrl } from '../../lib/api-base';
 import { t } from '../../lib/i18n';
 import { chapterTime } from '../analysis/chapters';
 import { backupKey, clearBackup, errorText, noteId, readBackup, studyPath, studyRequest, writeBackup } from './studyApi';
@@ -176,9 +177,9 @@ export default function TimestampNotes({ projectId, media, videoRef, onSeek }: P
   }
   return <section className="timestamp-notes" aria-label="我的时间戳笔记">
     {!!notes.length && <div className="timestamp-notes-tools" aria-label="导出个人笔记">
-      <a className="button" download href={`/api/workspace/projects/${projectId}/study/notes/export?resource=${encodeURIComponent(media.resource)}&format=md`}>导出笔记</a>
-      <a className="button" download href={`/api/workspace/projects/${projectId}/study/notes/export?resource=${encodeURIComponent(media.resource)}&format=csv`}>导出 CSV</a>
-      <a className="button" download href={`/api/workspace/projects/${projectId}/study/notes/export?resource=${encodeURIComponent(media.resource)}&format=anki`}>导出 Anki</a>
+      <a className="button" download href={workspaceUrl(`/projects/${projectId}/study/notes/export?resource=${encodeURIComponent(media.resource)}&format=md`)}>导出笔记</a>
+      <a className="button" download href={workspaceUrl(`/projects/${projectId}/study/notes/export?resource=${encodeURIComponent(media.resource)}&format=csv`)}>导出 CSV</a>
+      <a className="button" download href={workspaceUrl(`/projects/${projectId}/study/notes/export?resource=${encodeURIComponent(media.resource)}&format=anki`)}>导出 Anki</a>
     </div>}
     {(loading || draft || error) && <p className="study-save-status" role="status">{status}</p>}
     {error && <div className="study-error" role="alert"><p>{error}</p>

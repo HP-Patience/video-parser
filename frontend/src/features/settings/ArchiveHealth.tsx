@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { request } from '../../lib/api';
 import type { ArchiveHealth, ArchiveHealthIssue } from '../../lib/api';
 import { formatBytes } from '../../lib/format';
+import { workspaceUrl } from '../../lib/api-base';
 import './archive-health.css';
 
 type Listing = { items: unknown[]; total: number; shown: number };
@@ -32,7 +33,7 @@ export default function ArchiveHealthPanel({ visible }: { visible: boolean }) {
       </div>
       <div className="health-actions">
         <button type="button" className="primary" disabled={busy} aria-busy={busy} onClick={() => { void scan(); }}>{busy ? '正在扫描归档…' : report ? '重新扫描' : '开始体检'}</button>
-        {report && <a className="button" download href="/api/workspace/archive/health/export?format=md">导出体检报告</a>}
+        {report && <a className="button" download href={workspaceUrl('/archive/health/export?format=md')}>导出体检报告</a>}
       </div>
     </div>
     {error && <p className="error-text" role="alert">{error}</p>}

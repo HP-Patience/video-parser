@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { request } from '../../lib/api';
 import type { AgentTarget, AISettings, AnalysisBody, AnalysisContext, AnalysisFrame, AnalysisRecord, AnalysisSource, Configuration, Media, ParsedVideo } from '../../lib/api';
+import { workspaceUrl } from '../../lib/api-base';
 import { phases } from '../../lib/jobs';
 import type { TaskInfo } from '../../lib/jobs';
 import Icon from '../../components/Icon';
@@ -381,9 +382,9 @@ export default function AnalysisPanel(props: Props) {
           <button type="button" className="primary" disabled={!recordMatches} onClick={useForLearning}
             title={recordMatches ? '在学习视图中使用这份材料' : '这份记录不是当前归档视频的材料'}>用于当前学习</button>
           <button type="button" onClick={() => { void copyRecord(); }}><Icon name="copy" />复制</button>
-          <a className="button" href={`/api/workspace/projects/${projectId}/analyses/${record.id}/export?format=md`} download><Icon name="file-down" />导出 Markdown</a>
-          <a className="button" href={`/api/workspace/projects/${projectId}/analyses/${record.id}/export?format=docx`} download><Icon name="file-down" />导出 Word</a>
-          {!!record.quiz?.questions.length && <a className="button" href={`/api/workspace/projects/${projectId}/analyses/${record.id}/export?format=anki`} download><Icon name="file-down" />导出 Anki</a>}
+          <a className="button" href={workspaceUrl(`/projects/${projectId}/analyses/${record.id}/export?format=md`)} download><Icon name="file-down" />导出 Markdown</a>
+          <a className="button" href={workspaceUrl(`/projects/${projectId}/analyses/${record.id}/export?format=docx`)} download><Icon name="file-down" />导出 Word</a>
+          {!!record.quiz?.questions.length && <a className="button" href={workspaceUrl(`/projects/${projectId}/analyses/${record.id}/export?format=anki`)} download><Icon name="file-down" />导出 Anki</a>}
           {confirmDelete ? <span className="analysis-confirm">删除这条记录和它的画面？
             <button type="button" disabled={working} onClick={() => { void deleteRecord(); }}>删除</button><button type="button" onClick={() => setConfirmDelete(false)}>取消</button></span>
             : <button type="button" className="analysis-delete" disabled={working} onClick={() => setConfirmDelete(true)}><Icon name="trash-2" />删除</button>}

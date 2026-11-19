@@ -205,7 +205,10 @@ outputs/
 
 需要核对归档时，用**设置 → 归档体检**：只读列出缺失或可能移动的文件、重复内容、未登记文件和各项目磁盘占用，并可导出 Markdown 报告；不提供一键清理。
 
-## 命令行
+## Android 客户端
+
+`frontend/android/` 是基于 Capacitor 的 Android 外壳。先执行 `frontend` 目录中的 `npm run android:sync`，然后用 Android Studio 打开该目录，或执行 `npm run android:build` 生成 `frontend/android/app/build/outputs/apk/debug/app-debug.apk`。首次使用 APK 时，在**设置 → 常用设置 → 工作台服务地址**填写已部署的 HTTPS 后端地址；留空仅适用于桌面版同源服务。Android SDK 和 Java 是构建前置条件。
+
 
 CLI 不要求启动 Web 服务。以下命令在仓库根目录执行：
 

@@ -1,5 +1,7 @@
 import { request } from '../../lib/api';
 
+import { workspaceUrl } from '../../lib/api-base';
+
 export const IMAGE_LIMIT = 4;
 export const IMAGE_MAX_BYTES = 4 * 1024 * 1024;
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -8,7 +10,7 @@ const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 export type StoredImage = { name: string; mime?: string; size?: number };
 
 export const attachmentUrl = (projectId: string, name: string) =>
-  `/api/workspace/projects/${projectId}/attachments/${name}`;
+  workspaceUrl(`/projects/${projectId}/attachments/${name}`);
 
 export function clipboardImages(event: { clipboardData: DataTransfer | null }): File[] {
   const items = event.clipboardData?.items;

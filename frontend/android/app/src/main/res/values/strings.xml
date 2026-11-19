@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Video Parser</string>
+    <string name="title_activity_main">Video Parser</string>
+    <string name="package_name">com.hpvideo.parser</string>
+    <string name="custom_url_scheme">com.hpvideo.parser</string>
+</resources>
