@@ -2,3 +2,19 @@
 .project-rename input { flex: 1 1 auto; min-width: 0; }
 .project-rename button { flex: none; box-shadow: none; }
 .project-context-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+
+/* The theme rounds this section like a card while only giving it a top border, which reads as a
+   box missing three sides. Keep the divider straight; the path below carries its own full box. */
+.modern-app .panel.details-panel > .project-panel {
+  border-radius: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+/* The inspector is ~300px wide, so the path owns a full row and the buttons share the next one. */
+.project-panel .project-actions { flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.project-panel .project-path {
+  box-sizing: border-box; flex: 1 1 100%; min-width: 0;
+  padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  background: none; color: var(--color-text-secondary); line-height: 1.45;
+}
+.project-panel .project-actions button { flex: 0 0 auto; }
