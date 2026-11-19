@@ -397,12 +397,13 @@ input:where([type=text], [type=number], [type=search], [type=url], [type=passwor
     min-height: calc(100dvh - 20px);
     border-radius: 25px;
   }
-  .app-topbar { height: var(--topbar-height); padding-inline: 17px; border-radius: 25px 25px 0 0; }
+  .app-topbar { height: calc(var(--topbar-height) + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); padding-right: max(17px, env(safe-area-inset-right)); padding-left: max(17px, env(safe-area-inset-left)); padding-bottom: 0; border-radius: 25px 25px 0 0; z-index: 70; }
   .topbar-kicker { display: none; }
   .topbar-title { font-size: var(--font-size-page-compact); }
   .modern-main { padding: 20px 17px 26px; }
-  .modern-app .workspace-toolbar { padding: 7px 8px; border-radius: 16px; }
-  .modern-app .workspace-toolbar > .learning-project-picker { max-width: none; }
+  .modern-app .workspace-toolbar > .tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; gap: 8px; margin-bottom: 0; scrollbar-width: none; }
+  .modern-app .workspace-toolbar > .tabs::-webkit-scrollbar { display: none; }
+  .modern-app .workspace-toolbar > .tabs button { flex: 0 0 auto; white-space: nowrap; }
   .modern-app .panel { padding: 18px 16px; border-radius: 20px; }
   .workspace-start { padding: 27px 20px; border-radius: 24px; }
   .workspace-start-intro h2 { font-size: 31px; }
@@ -417,7 +418,7 @@ input:where([type=text], [type=number], [type=search], [type=url], [type=passwor
   .modern-app { padding: 7px; }
   .app-sidebar { top: 7px; bottom: 7px; left: 7px; }
   .app-shell { min-height: calc(100vh - 14px); min-height: calc(100dvh - 14px); }
-  .app-topbar { padding-inline: 12px; }
+  .app-topbar { padding-top: env(safe-area-inset-top); padding-right: max(12px, env(safe-area-inset-right)); padding-left: max(12px, env(safe-area-inset-left)); padding-bottom: 0; }
   .modern-main { padding-inline: 13px; }
   .workspace-start { padding: 24px 16px; }
   .workspace-start-intro h2 { font-size: 27px; }

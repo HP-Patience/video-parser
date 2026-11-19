@@ -62,10 +62,6 @@ type VideoCollection = { title: string; total: number; items: CollectionItem[] }
 // Routine states already shown by the stage, button or quality select; the inspector stays quiet for these.
 const QUIET_STATUS = new Set(['等待解析', '解析完成，请选择画质后归档', '已复用归档视频', '已选择归档视频', '所选画质尚未归档', '所选视频已归档', '分析完成', '追问已回答']);
 const validId = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{32}$/.test(value);
-const loginPlatforms: [RegExp, string][] = [[/小红书|xiaohongshu|xhslink/, 'xiaohongshu'], [/抖音|douyin/, 'douyin'], [/B站|bilibili|b23\.tv/, 'bilibili']];
-function parseLoginPlatform(message: string, source: string) {
-  return loginPlatforms.find(([pattern]) => pattern.test(message) || pattern.test(source))?.[1] || null;
-}
 function formatDuration(seconds: number) {
   const total = Math.max(0, Math.round(seconds));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
@@ -92,7 +88,7 @@ export default function App() {
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [learningNavigationError, setLearningNavigationError] = useState('');
   const restoringRequest = useRef<AbortController | null>(null);
-  const [parseStatus, setParseStatus] = useState('等待解析');
+  const [, setParseStatus] = useState('等待解析');
   const [parseError, setParseError] = useState(false);
   useEffect(() => {
     if (!parsing) return;
@@ -628,7 +624,6 @@ export default function App() {
   // Short side, so a 480x852 portrait stream also counts as limited.
   const maxShortSide = Math.max(0, ...(parsed?.qualities.map(item => item.width && item.height ? Math.min(item.width, item.height) : item.height || 0) || []));
   const qualityLimited = maxShortSide > 0 && maxShortSide < 720;
-  const parseNeedsLogin = parseError && parseStatus.includes('账号与登录');
   const platformDuration = typeof parsed?.duration === 'number' && parsed.duration > 0 ? parsed.duration : null;
   const projectTitle = parsed ? projectDisplayTitle(parsed.project) : '';
   const videoTitle = parsed ? videoDisplayTitle(parsed.project) : '';
@@ -662,8 +657,6 @@ export default function App() {
     overlays={<>
       {archiveReminder && <div className="archive-reminder" role="status" aria-live="polite">视频已归档<button type="button" aria-label="关闭归档提醒" onClick={() => setArchiveReminder(false)}>×</button></div>}
     </>}>
-        {configError && <p className="error-text configuration-error" role="alert">{configError}</p>}
-        {page === 'workspace' && learningNavigationError && <p className="error-text configuration-error" role="alert">{learningNavigationError}</p>}
         <WorkbenchPage page="overview" activePage={page}>
           <ProjectOverview visible={page === 'overview'} version={libraryVersion} currentId={parsed?.project.id || null}
             onOpen={openOverviewProject} />
@@ -695,9 +688,6 @@ export default function App() {
             </div></div>}
           </WorkspaceStart>}
           {fullInspector && parsed && <Panel className="source-panel" aria-labelledby="source-label">{sourceEntry}</Panel>}
-          {parseStatus && (parsing || importingLocal || parseError) && <p className={parseError ? 'error-text' : 'notice'} role="status">{parseStatus}
-          {parseNeedsLogin && <button type="button" className="link-button" onClick={() => openAccounts(parseLoginPlatform(parseStatus, source))}>去登录</button>}
-          </p>}
           <div key="workpanel" id="workpanel" hidden={(!parsed && !learning) || (!learning && (tab === '字幕与转写' || tab === '文件重命名'))} role={page === 'learning' ? 'region' : 'tabpanel'} aria-labelledby={page === 'learning' ? 'page-title-learning' : 'tab-' + tabs.find(item => item.name === tab)?.id} className={`work-grid study-workspace${!fullInspector ? ' compact-context' : ''}${learning && media && studyCollapsed ? ' study-workspace-collapsed' : ''}${managing || (learning && !parsed) ? ' study-single-column' : ''}`}>
             <div className="study-main-column">
               <section className="preview-panel" aria-labelledby="content-heading" hidden={managing || !parsed}>
