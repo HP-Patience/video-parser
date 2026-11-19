@@ -74,14 +74,32 @@ export default function Accounts({ visible, focusPlatform, onChange }: { visible
 
   return <Panel className="accounts-panel" aria-labelledby="page-title-accounts">
     {error && <p className="error-text" role="alert">{error}</p>}
-    <ul className="account-list">{accounts.map(item => {
+    {/* Placeholders hold the row layout so nothing jumps when the real rows arrive. */}
+    {!accounts.length && !error && <>
+      <p className="sr-only" role="status">正在读取登录状态…</p>
+      <ul className="account-list account-skeleton" aria-hidden="true">
+        {[0, 1, 2, 3].map(index => <li key={index}>
+          <div className="account-main">
+            <span className="sk-line sk-title" />
+            <span className="sk-line sk-benefit" />
+            <span className="sk-line sk-meta" />
+          </div>
+          <div className="account-actions">
+            <span className="sk-line sk-pill" />
+            <span className="sk-line sk-pill" />
+          </div>
+        </li>)}
+      </ul>
+    </>}
+    <ul className="account-list" hidden={!accounts.length}>{accounts.map((item, index) => {
       // QR sessions run inside their own dialog; only window logins show progress in the row.
       const windowLogin = item.login?.mode === 'qr' ? null : item.login;
       const session = windowLogin && ACTIVE.includes(windowLogin.state) ? windowLogin : null;
       const ended = windowLogin && !session && windowLogin.state !== 'saved' ? windowLogin : null;
       const note = notes[item.id] || (ended ? ended.message : '') || (windowLogin?.state === 'saved' && item.state === 'saved' ? windowLogin.message : '');
       const other = loginActive && !session;
-      return <li key={item.id} id={'account-' + item.id} className={focusPlatform === item.id ? 'account-focus' : undefined}>
+      return <li key={item.id} id={'account-' + item.id} style={{ animationDelay: `${index * 45}ms` }}
+        className={['account-row', focusPlatform === item.id ? 'account-focus' : ''].filter(Boolean).join(' ')}>
         <div className="account-main">
           <div className="account-heading"><strong>{item.name}</strong>
             <span className={'account-state state-' + item.state}>{stateLabel[item.state]}</span>
@@ -129,7 +147,6 @@ export default function Accounts({ visible, focusPlatform, onChange }: { visible
         </div>
       </li>;
     })}</ul>
-    {!accounts.length && !error && <p className="notice">正在读取登录状态…</p>}
     <p className="accounts-footnote">登录信息只保存在本机{storage ? `（${storage.split('（')[0]}）` : ''}。YouTube 需要导入浏览器登录态。</p>
     {youtubeOpen && <YoutubeLogin onClose={() => setYoutubeOpen(false)}
       onSuccess={() => { setNotes(value => ({ ...value, youtube: 'YouTube 登录态已保存到本机。' })); void load(new AbortController().signal); changed.current?.(); }} />}

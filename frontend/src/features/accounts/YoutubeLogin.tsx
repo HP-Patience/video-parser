@@ -4,8 +4,9 @@ import { request } from '../../lib/api';
 type Status = { configured: boolean; cookies: number; browser: string | null; updated_at: number | null; source: 'file' | 'browser' | null };
 
 const BROWSERS: [string, string][] = [['chrome', 'Chrome'], ['edge', 'Edge'], ['firefox', 'Firefox'], ['brave', 'Brave']];
+const STORE = 'https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc';
 
-// YouTube has no in-app login: the reader's own browser session is imported and read by yt-dlp.
+// YouTube sign-in is imported from the reader's own browser session; nothing is typed into this app.
 export default function YoutubeLogin({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -38,7 +39,14 @@ export default function YoutubeLogin({ onClose, onSuccess }: { onClose: () => vo
     }
   }
 
-  return <dialog ref={dialog} className="settings-dialog login-dialog" aria-labelledby="youtube-login-title" onCancel={event => { event.preventDefault(); onClose(); }}>
+  async function pick(file: File | undefined) {
+    if (!file) return;
+    if (file.size > 1024 * 1024) { setError('文件过大，请只导出 youtube.com 的 cookies。'); return; }
+    setError('');
+    setPasted(await file.text());
+  }
+
+  return <dialog ref={dialog} className="settings-dialog login-dialog youtube-import" aria-labelledby="youtube-login-title" onCancel={event => { event.preventDefault(); onClose(); }}>
     <h2 id="youtube-login-title">导入 YouTube 登录态</h2>
     <p className="login-status" role="status" aria-live="polite">
       {status === null ? '正在读取…'
@@ -46,25 +54,23 @@ export default function YoutubeLogin({ onClose, onSuccess }: { onClose: () => vo
           ? `已配置：${status.source === 'browser' ? '跟随浏览器登录态' : '已导入 cookies 文件'}（${status.cookies} 条 cookie）`
           : '未配置：YouTube 视频会被要求登录校验。'}
     </p>
-    <div className="youtube-sources">
-      {BROWSERS.map(([value, label]) => <button type="button" key={value} disabled={Boolean(busy)}
-        aria-busy={busy === value} onClick={() => { void run(value, '/youtube-auth/import', { browser: value }); }}>
-        {busy === value ? `正在读取 ${label}…` : `从 ${label} 导入`}</button>)}
-    </div>
-    <p className="notice">Chrome / Edge 127 以后把 cookie 换成了系统级加密，直接读取可能失败；失败时请用浏览器扩展导出 cookies.txt 再粘贴到下面。</p>
-    <label htmlFor="youtube-cookies">或粘贴 cookies.txt（Netscape 格式，也支持浏览器扩展导出的 JSON）</label>
+
+    <section className="youtube-guide" aria-labelledby="youtube-guide-title">
+      <h3 id="youtube-guide-title">按这三步导入</h3>
+      <ol>
+        <li>安装浏览器扩展 <a href={STORE} target="_blank" rel="noreferrer">Get cookies.txt LOCALLY</a>（免费、开源，只在本机读写）</li>
+        <li>在已登录 YouTube 的浏览器里点扩展图标，按 Export 下载文件，或按 Copy 复制内容</li>
+        <li>回到这里：选择下载到的 cookies.txt 文件，或把复制的内容粘贴到下面的输入框</li>
+      </ol>
+      <p className="notice">不想装扩展的话，关掉这个窗口，直接点 YouTube 那行的「登录窗口」在应用内登录一次，效果一样。</p>
+    </section>
+
+    <label htmlFor="youtube-cookies">粘贴 cookies.txt 内容（Netscape 格式，也支持扩展导出的 JSON）</label>
     <textarea id="youtube-cookies" rows={5} spellCheck={false} value={pasted} disabled={Boolean(busy)}
       onChange={event => setPasted(event.target.value)} placeholder="# Netscape HTTP Cookie File…" />
     {error && <p className="error-text" role="alert">{error}</p>}
     <input ref={picker} type="file" accept=".txt,.json,text/plain,application/json" hidden
-      onChange={event => {
-        const picked = event.target.files?.[0];
-        event.target.value = '';
-        if (!picked) return;
-        if (picked.size > 1024 * 1024) { setError('文件过大，请只导出 youtube.com 的 cookies。'); return; }
-        setError('');
-        void picked.text().then(text => setPasted(text));
-      }} />
+      onChange={event => { void pick(event.target.files?.[0]); event.target.value = ''; }} />
     <div className="login-actions">
       <button type="button" disabled={Boolean(busy)} onClick={() => picker.current?.click()}>选择 cookies.txt 文件</button>
       <button type="button" disabled={Boolean(busy) || !pasted.trim()} aria-busy={busy === 'paste'}
@@ -72,5 +78,15 @@ export default function YoutubeLogin({ onClose, onSuccess }: { onClose: () => vo
         {busy === 'paste' ? '正在导入…' : '导入粘贴内容'}</button>
       <button type="button" onClick={onClose}>关闭</button>
     </div>
+
+    <details className="youtube-advanced">
+      <summary>进阶：直接读取本机浏览器</summary>
+      <p className="notice">Chrome / Edge 运行时会锁定数据库，而且 127 版以后 cookie 改为系统级加密，这条路多半失败——失败属于预期，请用上面的方式。</p>
+      <div className="youtube-sources">
+        {BROWSERS.map(([value, label]) => <button type="button" key={value} disabled={Boolean(busy)}
+          aria-busy={busy === value} onClick={() => { void run(value, '/youtube-auth/import', { browser: value }); }}>
+          {busy === value ? `正在读取 ${label}…` : `从 ${label} 导入`}</button>)}
+      </div>
+    </details>
   </dialog>;
 }

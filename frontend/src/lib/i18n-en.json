@@ -1,5 +1,15 @@
 {
  "exact": {
+   "YouTube 的内嵌播放器无法带上本机登录态，解析结果不受影响；播放请用上面的「在原站观看」。": "YouTube's embedded player cannot carry this computer's session. Parsing still works; use \"Watch on the original site\" above to play.",
+   "按这三步导入": "Three steps",
+   "安装浏览器扩展": "Install the browser extension",
+   "（免费、开源，只在本机读写）": " (free, open source, reads and writes locally only)",
+   "在已登录 YouTube 的浏览器里点扩展图标，按 Export 下载文件，或按 Copy 复制内容": "In a browser already signed in to YouTube, open the extension and press Export to download a file, or Copy to copy the contents",
+   "回到这里：选择下载到的 cookies.txt 文件，或把复制的内容粘贴到下面的输入框": "Back here: choose the downloaded cookies.txt file, or paste the copied contents into the box below",
+   "不想装扩展的话，关掉这个窗口，直接点 YouTube 那行的「登录窗口」在应用内登录一次，效果一样。": "Prefer no extension? Close this window and use the \"Sign-in window\" button on the YouTube row instead.",
+   "粘贴 cookies.txt 内容（Netscape 格式，也支持扩展导出的 JSON）": "Paste cookies.txt contents (Netscape format; JSON exports also work)",
+   "进阶：直接读取本机浏览器": "Advanced: read this computer's browser directly",
+   "Chrome / Edge 运行时会锁定数据库，而且 127 版以后 cookie 改为系统级加密，这条路多半失败——失败属于预期，请用上面的方式。": "Chrome and Edge lock the database while running and encrypt cookies with a system key since v127, so this usually fails. That is expected; please use the steps above.",
    "导入 cookies": "Import cookies",
    "登录窗口": "Sign-in window",
    "选择 cookies.txt 文件": "Choose a cookies.txt file",
