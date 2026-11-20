@@ -28,7 +28,7 @@ import AnalysisPanel from './features/analysis/AnalysisPanel';
 import ChapterTimeline from './features/analysis/ChapterTimeline';
 import type { AnalysisTimeline } from './features/analysis/chapters';
 import { preferredQualityId } from './features/settings/settings';
-import { readAutoNext } from './lib/playback';
+import { readPlayMode } from './lib/playback';
 import usePreferences from './features/settings/usePreferences';
 import WorkbenchLayout from './components/WorkbenchLayout';
 import WorkbenchPage from './components/WorkbenchPage';
@@ -512,24 +512,31 @@ export default function App() {
       }
     }
   }
-  // A finished episode continues with the next one while the learner keeps auto-advance on.
+  // The play mode decides what a finished video does: repeat it, continue in list order, or jump at random.
+  // Loop mode is native (`video.loop`), so it never reaches this handler.
   const selectEpisodeRef = useRef(selectEpisode);
   useEffect(() => { selectEpisodeRef.current = selectEpisode; });
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !learning) return;
+    if (!video) return;
     const advance = () => {
-      if (!readAutoNext()) return;
       const id = selectedRef.current, value = id ? projects.current[id] : undefined;
       const episodes = value?.parsed.episodes;
+      // A single video has nowhere to go; the ended state is the end of playback.
       if (!episodes || episodes.length < 2) return;
       const current = value.parsed.project.part || 1;
+      if (readPlayMode() === 'shuffle') {
+        const others = episodes.map(item => item.part).filter(part => part !== current);
+        if (!others.length) return;
+        void selectEpisodeRef.current(others[Math.floor(Math.random() * others.length)]);
+        return;
+      }
       const next = episodes.map(item => item.part).filter(part => part > current).sort((first, second) => first - second)[0];
       if (next !== undefined) void selectEpisodeRef.current(next);
     };
     video.addEventListener('ended', advance);
     return () => video.removeEventListener('ended', advance);
-  }, [learning, media?.resource, parsed?.project.id, parsed?.project.part, parsed?.episodes]);
+  }, [media?.resource, parsed?.project.id, parsed?.project.part, parsed?.episodes]);
   function chooseQuality(key: string) {
     if (!selectedId || busy) return;
     updateProject(selectedId, value => ({ ...value, quality: key, error: false, status: value.parsed.qualities.find(item => item.id === key)?.media ? '已选择归档视频' : '所选画质尚未归档' }));

@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import Icon from './Icon';
+import type { IconName } from './Icon';
 import { formatClock } from '../lib/format';
 import { workspaceUrl } from '../lib/api-base';
-import { readAutoNext, readRate, saveAutoNext, saveRate, SPEED_PRESETS } from '../lib/playback';
+import { PLAY_MODES, playModeLabel, readPlayMode, readRate, savePlayMode, saveRate, SPEED_PRESETS } from '../lib/playback';
+import type { PlayMode } from '../lib/playback';
 import './video-controls.css';
 
 /** Idle delay before the bar fades out while playing. */
 const HIDE_MS = 2200;
 const VOLUME_STEP = 0.05;
+const MODE_ICONS: Record<PlayMode, IconName> = { list: 'list-video', loop: 'repeat-1', shuffle: 'shuffle' };
 
 type Props = {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -25,13 +28,14 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [rate, setRate] = useState(readRate);
-  const [autoNext, setAutoNext] = useState(readAutoNext);
+  const [mode, setMode] = useState<PlayMode>(readPlayMode);
   const [idle, setIdle] = useState(false);
   // True once the pointer has left the video area: the bar then hides even while paused.
   const [away, setAway] = useState(false);
   const [focusWithin, setFocusWithin] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
   const [hover, setHover] = useState<{ left: number; seconds: number } | null>(null);
+  const speedBox = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const idleTimer = useRef<number | null>(null);
   // Keyboard focus keeps the bar up; a click does not, so the bar can still hide after playback starts.
@@ -54,6 +58,26 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
     names.forEach(name => video.addEventListener(name, sync));
     return () => names.forEach(name => video.removeEventListener(name, sync));
   }, [videoRef, mediaKey]);
+
+  // Looping is native and seamless here; the ended handlers in App own list and shuffle instead.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) video.loop = mode === 'loop';
+  }, [videoRef, mediaKey, mode]);
+
+  // An open speed menu closes on an outside click or Escape.
+  useEffect(() => {
+    if (!speedOpen) return;
+    const dismiss = (event: Event) => {
+      const target = event.target as Node | null;
+      if (target && speedBox.current?.contains(target)) return;
+      setSpeedOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setSpeedOpen(false); };
+    document.addEventListener('pointerdown', dismiss);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', escape); };
+  }, [speedOpen]);
 
   // Pointer over the video wakes the bar and keeps it up; leaving the video hides it right away.
   // Idle fading while playing still applies for a pointer that sits still on the video.
@@ -120,6 +144,17 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
     if (video) video.playbackRate = next;
   }
 
+  /** One icon is enough: each click steps to the next mode, the hover tip names the current one. */
+  function cycleMode() {
+    const index = PLAY_MODES.findIndex(item => item.id === mode);
+    const next = PLAY_MODES[(index + 1) % PLAY_MODES.length].id;
+    setMode(next);
+    savePlayMode(next);
+    // Apply immediately so the ended handler never sees the stale flag.
+    const video = videoRef.current;
+    if (video) video.loop = next === 'loop';
+  }
+
   function toggleFullscreen() {
     const stage = videoRef.current?.closest('.media-stage');
     if (!stage) return;
@@ -131,6 +166,7 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
     const rect = event.currentTarget.getBoundingClientRect();
     return rect.width ? Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) : 0;
   }
+
   const thumb = projectId && resource && duration > 0
     ? workspaceUrl(`/projects/${projectId}/preview-frame?resource=${encodeURIComponent(resource)}&time=${Math.max(0, Math.floor(hover?.seconds ?? 0))}`)
     : '';
@@ -179,17 +215,16 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
         <input type="range" aria-label="音量" min={0} max={1} step={VOLUME_STEP} value={muted ? 0 : volume}
           onChange={event => setVolumeTo(Number(event.target.value))} />
       </div>
-      <div className="vc-speed">
+      <button type="button" className="vc-button vc-mode" onClick={cycleMode} title={playModeLabel(mode)}
+        aria-label={`播放模式：${playModeLabel(mode)}，点击切换`} data-mode={mode}>
+        <Icon name={MODE_ICONS[mode]} />
+      </button>
+      <div className="vc-speed" ref={speedBox}>
         <button type="button" className="vc-button vc-rate" onClick={() => setSpeedOpen(value => !value)}
           aria-expanded={speedOpen} aria-label="播放速度" title="播放速度">{`${rate}×`}</button>
-        {speedOpen && <div className="vc-speed-menu" role="menu" aria-label="播放速度">
+        {speedOpen && <div className="vc-menu vc-speed-menu" role="menu" aria-label="播放速度">
           {SPEED_PRESETS.map(preset => <button type="button" key={preset} role="menuitem" aria-pressed={preset === rate}
             onClick={() => chooseRate(preset)}>{`${preset}×`}</button>)}
-          <label className="vc-auto-next">
-            <input type="checkbox" checked={autoNext}
-              onChange={event => { setAutoNext(event.target.checked); saveAutoNext(event.target.checked); }} />
-            播放结束自动播放下一集
-          </label>
         </div>}
       </div>
       <button type="button" className="vc-button" onClick={toggleFullscreen} aria-label="全屏" title="全屏"><Icon name="maximize" /></button>
