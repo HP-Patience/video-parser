@@ -11,6 +11,10 @@ import './video-controls.css';
 /** Idle delay before the bar fades out while playing. */
 const HIDE_MS = 2200;
 const VOLUME_STEP = 0.05;
+/** Scrub thumbnails cost one ffmpeg run each, so a moving pointer waits this long before asking. */
+const THUMB_DELAY_MS = 140;
+/** A drag fires far more pointer events than a video can seek to; keep the seek rate human. */
+const SEEK_INTERVAL_MS = 80;
 const MODE_ICONS: Record<PlayMode, IconName> = { list: 'list-video', loop: 'repeat-1', shuffle: 'shuffle' };
 
 type Props = {
@@ -35,9 +39,16 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
   const [focusWithin, setFocusWithin] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
   const [hover, setHover] = useState<{ left: number; seconds: number } | null>(null);
+  const [thumbSecond, setThumbSecond] = useState<number | null>(null);
+  // While dragging, the knob follows the pointer instead of waiting for the video's timeupdate.
+  const [dragPercent, setDragPercent] = useState<number | null>(null);
   const speedBox = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const idleTimer = useRef<number | null>(null);
+  const thumbTimer = useRef<number | null>(null);
+  const wantedThumb = useRef<number | null>(null);
+  const lastSeek = useRef(0);
+  const pendingSeek = useRef<number | null>(null);
   // Keyboard focus keeps the bar up; a click does not, so the bar can still hide after playback starts.
   const byKeyboard = useRef(false);
 
@@ -65,6 +76,13 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
     if (video) video.loop = mode === 'loop';
   }, [videoRef, mediaKey, mode]);
 
+  // A new video invalidates whatever thumbnail was pending, and the timer must not outlive the bar.
+  useEffect(() => {
+    wantedThumb.current = null;
+    setThumbSecond(null);
+    return () => { if (thumbTimer.current) clearTimeout(thumbTimer.current); };
+  }, [mediaKey]);
+
   // An open speed menu closes on an outside click or Escape.
   useEffect(() => {
     if (!speedOpen) return;
@@ -91,7 +109,7 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
     }
     function leave() {
       if (idleTimer.current) clearTimeout(idleTimer.current);
-      setAway(true); setIdle(false); setHover(null);
+      setAway(true); setIdle(false); setHover(null); clearThumb();
     }
     function keys() { byKeyboard.current = true; wake(); }
     function press() { byKeyboard.current = false; wake(); }
@@ -116,11 +134,30 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
 
   const hidden = (away || idle && playing) && !speedOpen && !hover && !focusWithin;
   const percent = duration > 0 ? Math.min(100, (time / duration) * 100) : 0;
+  const shownPercent = dragPercent ?? percent;
 
   function seek(seconds: number) {
     const video = videoRef.current;
     if (!video || !duration) return;
     video.currentTime = Math.max(0, Math.min(duration, seconds));
+  }
+
+  /** Throttled seek for dragging: the knob still tracks the pointer, the video catches up. */
+  function requestSeek(seconds: number) {
+    pendingSeek.current = seconds;
+    const now = performance.now();
+    if (now - lastSeek.current < SEEK_INTERVAL_MS) return;
+    lastSeek.current = now;
+    pendingSeek.current = null;
+    seek(seconds);
+  }
+
+  function endDrag(seconds: number | null) {
+    dragging.current = false;
+    setDragPercent(null);
+    if (seconds === null) return;
+    pendingSeek.current = null;
+    seek(seconds);
   }
 
   function toggle() {
@@ -167,8 +204,27 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
     return rect.width ? Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) : 0;
   }
 
-  const thumb = projectId && resource && duration > 0
-    ? workspaceUrl(`/projects/${projectId}/preview-frame?resource=${encodeURIComponent(resource)}&time=${Math.max(0, Math.floor(hover?.seconds ?? 0))}`)
+  /** Ask for a thumbnail only once the pointer settles, so a drag does not queue a frame per pixel. */
+  function queueThumb(seconds: number) {
+    const second = Math.max(0, Math.floor(seconds));
+    if (second === wantedThumb.current) return;
+    const entering = wantedThumb.current === null;
+    wantedThumb.current = second;
+    if (thumbTimer.current) clearTimeout(thumbTimer.current);
+    if (entering) { setThumbSecond(second); return; }
+    thumbTimer.current = window.setTimeout(() => {
+      if (wantedThumb.current === second) setThumbSecond(second);
+    }, THUMB_DELAY_MS);
+  }
+
+  function clearThumb() {
+    if (thumbTimer.current) clearTimeout(thumbTimer.current);
+    wantedThumb.current = null;
+    setThumbSecond(null);
+  }
+
+  const thumb = projectId && resource && duration > 0 && thumbSecond !== null
+    ? workspaceUrl(`/projects/${projectId}/preview-frame?resource=${encodeURIComponent(resource)}&time=${thumbSecond}`)
     : '';
 
   return <div className={'video-controls' + (hidden ? ' is-hidden' : '') + (playing ? ' is-playing' : '')}
@@ -179,22 +235,37 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
     <div className="vc-track-wrap">
       <div className="vc-track" role="slider" aria-label="播放进度" tabIndex={0} aria-valuemin={0} aria-valuemax={Math.round(duration)} aria-valuenow={Math.round(time)}
         aria-valuetext={formatClock(time)}
-        onPointerDown={event => { dragging.current = true; event.currentTarget.setPointerCapture(event.pointerId); seek(ratioAt(event) * duration); }}
-        onPointerUp={event => { dragging.current = false; event.currentTarget.releasePointerCapture(event.pointerId); }}
+        onPointerDown={event => {
+          dragging.current = true;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          const ratio = ratioAt(event);
+          setDragPercent(ratio * 100);
+          lastSeek.current = 0;
+          seek(ratio * duration);
+        }}
+        onPointerUp={event => {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          endDrag(pendingSeek.current ?? ratioAt(event) * duration);
+        }}
+        onPointerCancel={() => endDrag(pendingSeek.current)}
         onPointerMove={event => {
           const ratio = ratioAt(event);
           const rect = event.currentTarget.getBoundingClientRect();
-          setHover({ left: Math.max(0, Math.min(rect.width, event.clientX - rect.left)), seconds: ratio * duration });
-          if (dragging.current) seek(ratio * duration);
+          const seconds = ratio * duration;
+          setHover({ left: Math.max(0, Math.min(rect.width, event.clientX - rect.left)), seconds });
+          queueThumb(seconds);
+          if (!dragging.current) return;
+          setDragPercent(ratio * 100);
+          requestSeek(seconds);
         }}
-        onPointerLeave={() => setHover(null)}
+        onPointerLeave={() => { setHover(null); clearThumb(); }}
         onKeyDown={event => {
           if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
           event.preventDefault();
           seek(time + (event.key === 'ArrowRight' ? 5 : -5));
         }}>
-        <div className="vc-played" style={{ width: `${percent}%` }} />
-        <div className="vc-knob" style={{ left: `${percent}%` }} />
+        <div className="vc-played" style={{ width: `${shownPercent}%` }} />
+        <div className="vc-knob" style={{ left: `${shownPercent}%` }} />
       </div>
       {hover && duration > 0 && <div className="vc-preview" style={{ left: hover.left }}>
         {thumb && <img src={thumb} alt="" draggable={false} />}

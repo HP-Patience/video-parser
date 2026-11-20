@@ -36,8 +36,11 @@ def frame(identifier, resource, seconds):
         return target
     folder.mkdir(parents=True, exist_ok=True)
     try:
-        subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-nostdin', '-y',
-                        '-ss', str(second), '-i', str(video), '-frames:v', '1', '-vf', SCALE, '-q:v', '5', str(target)],
+        # One thread pool of ffmpeg's size costs more than the single frame it renders here:
+        # -cpucount 1 alone roughly halves the run time on a many-core machine.
+        subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-cpucount', '1',
+                        '-ss', str(second), '-i', str(video), '-frames:v', '1', '-an', '-sn', '-dn',
+                        '-vf', SCALE, '-q:v', '5', str(target)],
                        capture_output=True, timeout=TIMEOUT)
     except (OSError, subprocess.SubprocessError) as error:
         raise ValueError('没能截取预览画面，请检查 ffmpeg。') from error

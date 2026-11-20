@@ -29,6 +29,9 @@ def _shared_state_dir():
 CONFIG_PATH = _shared_state_dir() / 'library.json'
 DEFAULT_LIBRARY_ROOT = _shared_state_dir() / 'Library'
 LEGACY_LIBRARY_ROOT = ROOT / 'outputs'
+# How long a "no legacy library" / "legacy library" verdict is trusted; see _legacy_library().
+LEGACY_PROBE_SECONDS = 60.0
+_LEGACY_PROBE = {'key': None, 'at': 0.0, 'found': None}
 
 
 def _absolute_path(value):
@@ -39,10 +42,22 @@ def _absolute_path(value):
 
 
 def _legacy_library():
+    """Probe `outputs/` for an old-style project, at most once per probe window.
+
+    The walk costs ~250ms on a real outputs tree and the web app resolves the root on every API
+    request, which used to add that delay to each media Range request (seek, scrub thumbnail) too.
+    A new legacy project can only appear from outside the app, so a short cache is enough.
+    """
+    key = str(LEGACY_LIBRARY_ROOT)
+    now = time.monotonic()
+    if _LEGACY_PROBE['key'] == key and now - _LEGACY_PROBE['at'] < LEGACY_PROBE_SECONDS:
+        return _LEGACY_PROBE['found']
     try:
-        return LEGACY_LIBRARY_ROOT if next(LEGACY_LIBRARY_ROOT.rglob('project.json'), None) else None
+        found = LEGACY_LIBRARY_ROOT if next(LEGACY_LIBRARY_ROOT.rglob('project.json'), None) else None
     except OSError:
-        return None
+        found = None
+    _LEGACY_PROBE.update(key=key, at=now, found=found)
+    return found
 
 
 def resolve_library_root():
