@@ -91,3 +91,9 @@ logs/
 !.env.example
 *.pem
 *.key
+
+# Personal video library (local archives, hundreds of MB)
+/library/
+
+# WorkBuddy project memory and agent scratch space
+/.workbuddy/
