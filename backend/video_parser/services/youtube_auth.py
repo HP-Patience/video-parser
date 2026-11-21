@@ -11,7 +11,13 @@ BROWSERS = ('chrome', 'edge', 'firefox', 'brave', 'chromium', 'opera', 'vivaldi'
 # Authentication cookies live on youtube.com (session) and .google.com (identity).
 DOMAINS = {'youtube.com', 'www.youtube.com', 'm.youtube.com', 'google.com', 'www.google.com',
            'accounts.google.com'}
-MAX_BYTES = 1024 * 1024
+# A browser stays signed out without one of these, because they live on .google.com and an export
+# limited to the youtube.com domain never contains them. HSID/SSID/APISID alone are only the
+# companion signature cookies: they can be present while the session is still anonymous.
+IDENTITY_COOKIES = ('SID', '__Secure-1PSID', '__Secure-3PSID')
+# A full-browser export is large; only entries in DOMAINS are ever stored, so the ceiling can be
+# generous without keeping third-party cookies.
+MAX_BYTES = 8 * 1024 * 1024
 MAX_ROWS = 400
 LOCK = RLock()
 
@@ -22,6 +28,24 @@ def directory():
 
 def cookie_file():
     return directory() / 'youtube-cookies.txt'
+
+
+def browser_profile():
+    """A persistent Chromium profile.
+
+    Chrome 127+ encrypts session cookies against the installation and profile path, so SID can never
+    travel through an exported file. Keeping the profile means the browser itself holds the session:
+    sign in once, and every later launch of this profile is already authenticated.
+    """
+    return ROOT / '.local' / 'browser-profile' / 'youtube'
+
+
+def profile_ready():
+    try:
+        path = browser_profile()
+        return path.is_dir() and any(path.iterdir())
+    except OSError:
+        return False
 
 
 def settings_file():
@@ -145,14 +169,17 @@ def status():
     path = cookie_file()
     count = 0
     updated = None
+    complete = False
     try:
         if path.is_file() and not path.is_symlink() and path.stat().st_size <= MAX_BYTES:
-            count = len(_clean(path.read_text(encoding='utf-8')))
+            rows = _clean(path.read_text(encoding='utf-8'))
+            count = len(rows)
+            complete = any(row['name'] in IDENTITY_COOKIES for row in rows)
             updated = int(path.stat().st_mtime)
     except (OSError, UnicodeError, RuntimeError):
         count = 0
     browser = _preference()
-    return {'configured': bool(count) or bool(browser), 'cookies': count,
+    return {'configured': bool(count) or bool(browser), 'cookies': count, 'complete': complete,
             'browser': browser, 'updated_at': updated, 'source': 'file' if count else ('browser' if browser else None)}
 
 
@@ -161,7 +188,7 @@ def save_text(text):
     if not isinstance(text, str) or not text.strip():
         raise RuntimeError('请粘贴 cookies 内容。')
     if len(text.encode('utf-8', 'ignore')) > MAX_BYTES:
-        raise RuntimeError('cookies 内容过大，请只保留 youtube.com 的条目。')
+        raise RuntimeError('cookies 内容过大，请只导出 Google 与 YouTube 两个站点。')
     rows = _clean(text)
     with LOCK:
         _write(cookie_file(), _netscape(rows))

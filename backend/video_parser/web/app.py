@@ -45,6 +45,14 @@ app.include_router(local_media_router)
 from video_parser.web.youtube_auth_routes import router as youtube_auth_router
 app.include_router(youtube_auth_router)
 
+# The cookie-bridge extension lives on chrome-extension://, a different origin from the workspace.
+# Only that scheme is allowed, and only for the extension's JSON POST. allow_private_network covers
+# Chrome's preflight when an extension reaches loopback.
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(CORSMiddleware, allow_origin_regex=r'^(chrome|moz)-extension://.*$',
+                   allow_methods=['POST', 'OPTIONS'], allow_headers=['content-type'],
+                   allow_private_network=True, max_age=600)
+
 def open_in_default_browser(address):
     """Hand the address to the default browser.
 

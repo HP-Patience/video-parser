@@ -40,10 +40,13 @@ PLATFORMS = {
         'benefit': '小红书视频基本需要登录后才能解析。',
     },
     'youtube': {
-        # Sign-in happens in the app's own browser window (Playwright reads the live session, so the
-        # platform's v20 cookie encryption never matters), and an exported cookies.txt is accepted too.
+        # Sign-in happens in the app's own browser window backed by a persistent profile, so the
+        # session lives in the browser instead of an export (Chrome 127+ makes SID undecryptable
+        # outside its own profile). An exported cookies.txt is still accepted for parsing.
         'name': 'YouTube', 'login_url': 'https://www.youtube.com/',
-        'domains': ('youtube.com', 'google.com'), 'keys': ('SID', 'SAPISID', '__Secure-1PSID', '__Secure-3PSID'),
+        # SID / __Secure-1PSID / __Secure-3PSID are the session cookies; HSID/SAPISID alone mean nothing.
+        'domains': ('youtube.com', 'google.com'),
+        'keys': ('SID', '__Secure-1PSID', '__Secure-3PSID'),
         'import_cookies': True,
         'benefit': 'YouTube 会对陌生 IP 要求“确认你不是机器人”；登录一次或导入 cookies 后，解析与下载会复用该会话。',
     },
@@ -168,8 +171,17 @@ def local_status(platform):
         from video_parser.services import youtube_auth
         state = youtube_auth.status()
         configured = bool(state.get('configured'))
+        complete = bool(state.get('complete'))
+        # Exporting only the youtube.com domain leaves out the Google identity cookies, so parsing
+        # works while a browser still shows the signed-out wall. Say that instead of "signed in".
+        message = None
+        if configured and not complete:
+            message = ('登录态不完整：缺少 SID / __Secure-1PSID 等 Google 身份 cookie，'
+                       '解析可能可用，但浏览器里仍是未登录。导出扩展通常读不到这几项，'
+                       '需要在应用内用「登录窗口」登录一次。')
         return {'state': 'saved' if configured else 'missing',
-                'saved_at': state.get('updated_at'), 'expires_at': None}
+                'saved_at': state.get('updated_at'), 'expires_at': None,
+                'complete': complete, 'message': message}
     path = cookie_path(platform)
     cookies = load(platform)
     keys = spec(platform)['keys']
@@ -205,8 +217,14 @@ def check(platform):
     result = public(platform)
     if platform == 'youtube':
         result['verified'] = None
-        result['message'] = ('已导入浏览器登录态；是否仍被 YouTube 认可，以实际解析结果为准。'
-                             if result['state'] == 'saved' else '尚未导入 YouTube 登录态。')
+        if result['state'] != 'saved':
+            result['message'] = '尚未导入 YouTube 登录态。'
+        elif not result.get('complete'):
+            # Do not claim success here: HSID/SSID alone look like a session but sign nothing in.
+            result['message'] = ('登录态不完整：缺少 SID / __Secure-1PSID 等身份 cookie，'
+                                 '浏览器里仍是未登录。请在「登录窗口」里手动登录一次。')
+        else:
+            result['message'] = '已导入浏览器登录态；是否仍被 YouTube 认可，以实际解析结果为准。'
         return result
     if platform == 'bilibili' and result['state'] == 'saved':
         from video_parser.services import bili_auth
@@ -358,6 +376,10 @@ def _import_playwright(session):
 def _run(session):
     platform = session.platform
     item = PLATFORMS[platform]
+    if platform == 'youtube':
+        # YouTube needs a persistent profile; the shared flow below always starts from scratch.
+        _run_youtube(session, item)
+        return
     browser = None
     snapshot = []
     sync_playwright = _import_playwright(session)
@@ -419,8 +441,91 @@ def _run(session):
                 pass
 
 
-# ---- Headless QR login (抖音 / 小红书) --------------------------------------
+def _run_youtube(session, item):
+    """Sign in once inside a persistent profile.
 
+    Chrome 127+ encrypts session cookies against the install and profile path, so an exported file
+    can never carry SID. Keeping the profile means the browser owns the session and every later
+    launch is already signed in — no export, no re-login.
+    """
+    from video_parser.services import youtube_auth
+    sync_playwright = _import_playwright(session)
+    if sync_playwright is None:
+        return
+    directory = youtube_auth.browser_profile()
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        session.state, session.message = 'failed', '无法创建浏览器配置目录，请检查磁盘权限。'
+        return
+    context = None
+    cookies = []
+    try:
+        with sync_playwright() as playwright:
+            options = dict(user_data_dir=str(directory), locale='zh-CN', no_viewport=True,
+                           args=BROWSER_ARGS, timeout=20000)
+            try:
+                context = playwright.chromium.launch_persistent_context(channel='msedge', headless=False, **options)
+            except Exception:
+                context = playwright.chromium.launch_persistent_context(headless=False, **options)
+            context.add_init_script("Object.defineProperty(navigator,'webdriver',{get:()=>undefined})")
+            page = context.pages[0] if context.pages else context.new_page()
+            try:
+                page.goto(item['login_url'], wait_until='domcontentloaded', timeout=45000)
+            except Exception:
+                pass  # A slow page still lets the user sign in; the window stays open.
+            session.state = 'waiting'
+            session.message = '请在弹出的窗口中登录 YouTube；检测到登录后会自动保存并关闭窗口。'
+            detected_at = None
+            nudged = False
+            while True:
+                if session.cancel.is_set():
+                    session.state, session.message = 'cancelled', '已取消登录，未保存任何内容。'
+                    return
+                if time.time() - session.started > LOGIN_TIMEOUT:
+                    session.state, session.message = 'failed', '登录超时（15 分钟），窗口已关闭；可以重新开始。'
+                    return
+                try:
+                    if not context.pages:
+                        break  # User closed the window: keep whatever the profile already holds.
+                    cookies = context.cookies()
+                except Exception:
+                    break
+                if session.finish.is_set():
+                    break
+                # SID/__Secure-1PSID/__Secure-3PSID appear only after a real sign-in.
+                if any(entry.get('name') in youtube_auth.IDENTITY_COOKIES for entry in cookies):
+                    detected_at = detected_at or time.time()
+                    if time.time() - detected_at > 3:
+                        break
+                elif not nudged and time.time() - session.started > 25:
+                    # A fresh profile has no session to inherit, which is easy to miss.
+                    nudged = True
+                    session.message = ('还没检测到登录：这个窗口是干净的，请在窗口里输入账号密码完成登录，'
+                                       '不会自动带上你浏览器的登录态。')
+                try:
+                    context.pages[0].wait_for_timeout(1000)
+                except Exception:
+                    time.sleep(1)
+            signed_in = any(entry.get('name') in youtube_auth.IDENTITY_COOKIES for entry in cookies)
+            if not signed_in:
+                session.state, session.message = 'failed', '没有检测到 YouTube 登录成功，未保存。请重新登录。'
+                return
+            session.state, session.message = 'saving', '正在保存登录状态…'
+            # Keep the browser profile (it owns the session) and mirror the cookies for yt-dlp.
+            youtube_auth.save_cookies(cookies)
+            session.state, session.message = 'saved', '登录成功：浏览器配置与 cookies 都已保存在本机。'
+    except Exception:
+        session.state, session.message = 'failed', '无法打开登录窗口，请确认本机已安装 Edge 或项目自带浏览器。'
+    finally:
+        if context is not None:
+            try:
+                context.close()  # Closing flushes the persistent profile to disk.
+            except Exception:
+                pass
+
+
+# ---- Headless QR login (抖音 / 小红书) --------------------------------------
 SCANNED_WORDS = ('扫码成功', '已扫码', '请在手机上确认', '在手机上确认')
 EXPIRED_WORDS = ('已失效', '已过期', '二维码失效', '二维码过期')
 VERIFY_WORDS = ('身份验证', '安全验证', '验证身份', '短信验证', '手机号验证')

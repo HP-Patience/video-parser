@@ -32,8 +32,8 @@ class YoutubeAuthTests(unittest.TestCase):
         self.client = TestClient(app, base_url='http://127.0.0.1:15001', client=('127.0.0.1', 12345))
 
     def test_empty_status_and_no_cookie_args(self):
-        self.assertEqual(youtube_auth.status(), {'configured': False, 'cookies': 0, 'browser': None,
-                                                'updated_at': None, 'source': None})
+        self.assertEqual(youtube_auth.status(), {'configured': False, 'cookies': 0, 'complete': False,
+                                                'browser': None, 'updated_at': None, 'source': None})
         self.assertEqual(youtube_auth.cookie_args(), [])
         self.assertEqual(youtube_auth.cookie_options(), {})
 

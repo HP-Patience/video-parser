@@ -93,6 +93,18 @@ class AccountTests(unittest.TestCase):
         self.assertIn('以实际解析结果为准', accounts.check('youtube')['message'])
         self.assertEqual(accounts.logout('youtube')['state'], 'missing')
 
+    def test_youtube_companion_cookies_alone_do_not_mean_signed_in(self):
+        from video_parser.services import youtube_auth
+        # Anonymous visitors also receive HSID/SSID/SAPISID, so they cannot stand in for a session.
+        youtube_auth.save_text('# Netscape HTTP Cookie File\n'
+                               '.youtube.com\tTRUE\t/\tTRUE\t1893456000\tHSID\tabc\n'
+                               '.youtube.com\tTRUE\t/\tTRUE\t1893456000\tSAPISID\tabc\n')
+        public = accounts.public('youtube')
+        self.assertEqual(public['state'], 'saved')
+        self.assertFalse(public['complete'])
+        self.assertIn('不完整', public['message'])
+        self.assertIn('不完整', accounts.check('youtube')['message'])
+
     def test_youtube_window_login_saves_a_netscape_file(self):
         saved = accounts.save('youtube', [
             {'name': 'SID', 'value': 'v1', 'domain': '.youtube.com', 'path': '/', 'expires': 1893456000, 'secure': True},

@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Video Parser · YouTube 登录态桥接",
+  "version": "1.0.0",
+  "description": "把本机浏览器的 YouTube 登录态发送给本地 Video Parser。cookie 只走 127.0.0.1，不会上传到任何服务器。",
+  "permissions": ["cookies"],
+  "host_permissions": [
+    "https://*.youtube.com/*",
+    "https://*.google.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "发送 YouTube 登录态到 Video Parser"
+  }
+}
