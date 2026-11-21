@@ -116,10 +116,12 @@ $SitePackages = Join-Path $PythonDir 'Lib\site-packages'
 New-Item -ItemType Directory -Force -Path $SitePackages | Out-Null
 
 # 4. Locked dependencies straight into site-packages
+# A mirror can be injected for networks where pypi.org is unreachable; CI keeps the default.
+$IndexUrl = if ($env:VIDEO_PARSER_PYPI_INDEX) { $env:VIDEO_PARSER_PYPI_INDEX } else { 'https://pypi.org/simple' }
 Checked 'uv' @('pip', 'install', '--python', $Python, '--target', $SitePackages, '--no-deps', '--compile-bytecode',
     '-r', (Join-Path $Root 'configs\requirements\windows-main.lock.txt'),
     '-r', (Join-Path $Root 'configs\requirements\windows-desktop.lock.txt'),
-    '--index-url', 'https://pypi.org/simple')
+    '--index-url', $IndexUrl)
 
 # 5. Application files
 $Count = Copy-Listed @('backend', 'configs', 'pyproject.toml', 'LICENSE', 'README.md')
