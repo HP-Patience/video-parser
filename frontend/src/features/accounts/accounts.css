@@ -13,6 +13,8 @@
 .account-meta { font-family: var(--font-family-mono); font-size: var(--font-size-xs); color: var(--color-text-tertiary); }
 .account-progress { color: var(--color-text); }
 .account-note { color: var(--color-text); }
+/* An incomplete cookie set still parses, so the row must not read as plainly "signed in". */
+.account-warning { margin: 6px 0 0; font-size: var(--font-size-sm); color: var(--color-danger, #e06666); overflow-wrap: anywhere; }
 .account-confirm { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; font-size: var(--font-size-sm); }
 .account-confirm span { margin-right: 4px; }
 .account-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
@@ -38,50 +40,19 @@
 .youtube-advanced summary { cursor: pointer; color: var(--color-text-secondary); }
 .youtube-advanced .notice { margin: 10px 0; }
 
-/* Loading placeholders: same geometry as a real row, with a light sweep instead of text.
-   The sweep is a translucent highlight so it reads on both the light and dark surface. */
+/* Account rows: the placeholders keep the row geometry (the shimmer lives in styles/skeleton.css),
+   and the real rows arrive with a short de-blur rise so the swap reads as a reveal, not a jump. */
 .account-skeleton > li { pointer-events: none; }
-.sk-line { position: relative; display: block; overflow: hidden; border-radius: 7px; background: var(--color-surface-sunken); }
-.sk-line::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%);
-  background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.18) 50%, transparent 80%);
-  animation: sk-sweep 1500ms ease-in-out infinite; }
 .sk-title { width: 108px; height: 15px; }
 .sk-benefit { width: min(420px, 80%); height: 12px; margin-top: 12px; }
 .sk-meta { width: 160px; height: 11px; margin-top: 10px; opacity: 0.7; }
 .sk-pill { width: 74px; height: 34px; border-radius: var(--radius-md); }
-@keyframes sk-sweep { to { transform: translateX(100%); } }
 
-/* Real rows arrive with a short de-blur rise, so the swap reads as a reveal rather than a jump. */
 .account-list > li.account-row { animation: account-in 320ms cubic-bezier(.22, .61, .36, 1) both; }
 @keyframes account-in {
   from { opacity: 0; transform: translateY(6px); filter: blur(2px); }
   to { opacity: 1; transform: none; filter: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sk-line::after, .account-list > li.account-row { animation: none !important; }
-  .account-list > li.account-row { opacity: 1; transform: none; filter: none; }
-}
-
-/* Loading placeholders: same geometry as a real row, with a light sweep instead of text.
-   The sweep is a translucent highlight so it reads on both the light and dark surface. */
-.account-skeleton > li { pointer-events: none; }
-.sk-line { position: relative; display: block; overflow: hidden; border-radius: 7px; background: var(--color-surface-sunken); }
-.sk-line::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%);
-  background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.18) 50%, transparent 80%);
-  animation: sk-sweep 1500ms ease-in-out infinite; }
-.sk-title { width: 108px; height: 15px; }
-.sk-benefit { width: min(420px, 80%); height: 12px; margin-top: 12px; }
-.sk-meta { width: 160px; height: 11px; margin-top: 10px; opacity: 0.7; }
-.sk-pill { width: 74px; height: 34px; border-radius: var(--radius-md); }
-@keyframes sk-sweep { to { transform: translateX(100%); } }
-
-/* Real rows arrive with a short de-blur rise, so the swap reads as a reveal rather than a jump. */
-.account-list > li.account-row { animation: account-in 320ms cubic-bezier(.22, .61, .36, 1) both; }
-@keyframes account-in {
-  from { opacity: 0; transform: translateY(6px); filter: blur(2px); }
-  to { opacity: 1; transform: none; filter: none; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sk-line::after, .account-list > li.account-row { animation: none !important; }
-  .account-list > li.account-row { opacity: 1; transform: none; filter: none; }
+  .account-list > li.account-row { animation: none !important; opacity: 1; transform: none; filter: none; }
 }

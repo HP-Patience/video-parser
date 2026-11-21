@@ -59,6 +59,18 @@
   color: #fff; background: transparent; border: 0; border-radius: 4px;
 }
 .vc-menu button:hover, .vc-menu button[aria-pressed="true"] { background: rgba(255, 255, 255, .18); }
+/* Custom rate row: the presets stay one tap away, typing covers everything between them. */
+.vc-speed-menu { width: 176px; }
+.vc-speed-custom {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 4px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, .18);
+}
+/* The field and its button borrow the same surface as the presets above, so both themes stay coherent. */
+.vc-speed-custom input {
+  flex: 1; min-width: 0; height: 30px; padding: 0 10px;
+  font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.vc-speed-custom button { flex: none; padding: 5px 12px; font-size: 12px; }
 /* The list glyph is wide and thin, so it needs a touch more size to match its neighbours. */
 .vc-mode .icon { width: 21px; height: 21px; }
 

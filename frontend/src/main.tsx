@@ -8,6 +8,7 @@ createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictM
 
 import './styles/modern.css';
 import './styles/design-system.css';
+import './styles/skeleton.css';
 import './styles/ux-refinements.css';
 import './styles/spacing.css';
 import './styles/typography.css';

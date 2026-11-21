@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { request } from '../../lib/api';
 
-type Status = { configured: boolean; cookies: number; browser: string | null; updated_at: number | null; source: 'file' | 'browser' | null };
+type Status = { configured: boolean; cookies: number; complete: boolean; browser: string | null; updated_at: number | null; source: 'file' | 'browser' | null };
 
 const BROWSERS: [string, string][] = [['chrome', 'Chrome'], ['edge', 'Edge'], ['firefox', 'Firefox'], ['brave', 'Brave']];
 const STORE = 'https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc';
@@ -41,7 +41,7 @@ export default function YoutubeLogin({ onClose, onSuccess }: { onClose: () => vo
 
   async function pick(file: File | undefined) {
     if (!file) return;
-    if (file.size > 1024 * 1024) { setError('文件过大，请只导出 youtube.com 的 cookies。'); return; }
+    if (file.size > 8 * 1024 * 1024) { setError('文件过大，请只导出 Google 与 YouTube 两个站点。'); return; }
     setError('');
     setPasted(await file.text());
   }
@@ -54,13 +54,16 @@ export default function YoutubeLogin({ onClose, onSuccess }: { onClose: () => vo
           ? `已配置：${status.source === 'browser' ? '跟随浏览器登录态' : '已导入 cookies 文件'}（${status.cookies} 条 cookie）`
           : '未配置：YouTube 视频会被要求登录校验。'}
     </p>
+    {status?.configured && !status.complete && <p className="error-text" role="alert">
+      缺少 SID / __Secure-1PSID 等 Google 身份 cookie：解析能用，但浏览器里仍是未登录。导出通常读不到这几项，浏览器内播放请改用「登录窗口」。
+    </p>}
 
     <section className="youtube-guide" aria-labelledby="youtube-guide-title">
       <h3 id="youtube-guide-title">按这三步导入</h3>
       <ol>
         <li>安装浏览器扩展 <a href={STORE} target="_blank" rel="noreferrer">Get cookies.txt LOCALLY</a>（免费、开源，只在本机读写）</li>
-        <li>在已登录 YouTube 的浏览器里点扩展图标，按 Export 下载文件，或按 Copy 复制内容</li>
-        <li>回到这里：选择下载到的 cookies.txt 文件，或把复制的内容粘贴到下面的输入框</li>
+        <li>在已登录 YouTube 的浏览器里点扩展图标，选 <strong>Export All Cookies</strong>：只导出 youtube.com 会缺少 Google 身份 cookie</li>
+        <li>回到这里导入，其他站点的 cookie 会被自动丢弃，只保留 Google 与 YouTube 的条目</li>
       </ol>
       <p className="notice">不想装扩展的话，关掉这个窗口，直接点 YouTube 那行的「登录窗口」在应用内登录一次，效果一样。</p>
     </section>

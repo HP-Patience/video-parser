@@ -6,10 +6,14 @@
     <meta name="theme-color" content="#f1f0eb" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#191815" media="(prefers-color-scheme: dark)" />
     <script>
-      // 在首帧渲染前确定主题，避免闪烁；与 src/lib/theme.ts 使用同一个存储键
+      // 在首帧渲染前确定主题，避免闪烁；与 src/lib/theme.ts 同一个键：localStorage 优先，cookie 兜底
       (function () {
         var t = null;
         try { t = localStorage.getItem('vp-theme'); } catch (e) {}
+        if (t !== 'light' && t !== 'dark') {
+          var m = document.cookie.match(/(?:^|;\s*)vp-theme=(light|dark)/);
+          t = m ? m[1] : null;
+        }
         if (t !== 'light' && t !== 'dark') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', t);
         // 界面语言（与 src/lib/i18n.ts 同一存储键）；文字在 React 首次绘制前由 i18n.ts 替换

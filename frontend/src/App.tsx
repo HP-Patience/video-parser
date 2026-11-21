@@ -8,6 +8,8 @@ import { cancelTask, isActive, pollJob, remember, remembered, runWorkflow } from
 import type { TaskInfo, WorkflowJob } from './lib/jobs';
 import TaskCenter from './features/tasks/TaskCenter';
 import Icon from './components/Icon';
+import Toast from './components/Toast';
+import type { ToastPayload } from './components/Toast';
 import BiliLogin from './features/subtitles/BiliLogin';
 import Transcription from './features/transcription/Transcription';
 import Accounts from './features/accounts/Accounts';
@@ -90,6 +92,12 @@ export default function App() {
   const restoringRequest = useRef<AbortController | null>(null);
   const [, setParseStatus] = useState('等待解析');
   const [parseError, setParseError] = useState(false);
+  // Failures surface as a transient notice instead of an inline block that shifts the layout.
+  const [toast, setToast] = useState<ToastPayload | null>(null);
+  const toastSeq = useRef(0);
+  const notify = useCallback((text: string) => {
+    if (text) setToast({ id: ++toastSeq.current, text, tone: 'error' });
+  }, []);
   useEffect(() => {
     if (!parsing) return;
     const timer = window.setTimeout(() => setParseStatus('仍在读取视频信息。部分平台响应较慢，请保留当前页面，不要重复提交。'), 3000);
@@ -223,7 +231,7 @@ export default function App() {
     } catch (reason) {
       if (!controller.signal.aborted && version === projectNavigation.current && parseVersion === parseEpoch.current) {
         const message = reason instanceof Error ? reason.message : '无法恢复视频项目。';
-        if (focus) { setParseStatus(message); setParseError(true); navigate('workspace', true); }
+        if (focus) { setParseStatus(message); setParseError(true); notify(message); navigate('workspace', true); }
         else if (pageRef.current === 'learning' || pageRef.current === 'workspace') setLearningNavigationError(message);
       }
     } finally {
@@ -316,7 +324,10 @@ export default function App() {
       else if (job.state === 'completed' && explicit) applyWorkflowResult(id, job.result);
       else if (explicit) updateProject(id, value => ({ ...value, error: true, status: job.message, task: job }));
     } catch (reason) {
-      if (!controller.signal.aborted && explicit) { setParseStatus(reason instanceof Error ? reason.message : '无法读取任务结果。'); setParseError(true); }
+      if (!controller.signal.aborted && explicit) {
+        const message = reason instanceof Error ? reason.message : '无法读取任务结果。';
+        setParseStatus(message); setParseError(true); notify(message);
+      }
     } finally { restoreRequests.current.delete(controller); }
   }
   useEffect(() => {
@@ -403,7 +414,10 @@ export default function App() {
       if (controller.signal.aborted || epoch !== parseEpoch.current) return;
       const id = installProject(result); selectProject(id); setTab(targetTab); setParseStatus('');
     } catch (reason) {
-      if (!controller.signal.aborted && epoch === parseEpoch.current) { setParseError(true); setParseStatus(reason instanceof Error ? reason.message : '解析失败，请检查链接后重试。'); }
+      if (!controller.signal.aborted && epoch === parseEpoch.current) {
+        const message = reason instanceof Error ? reason.message : '解析失败，请检查链接后重试。';
+        setParseError(true); setParseStatus(message); notify(message);
+      }
     } finally { if (epoch === parseEpoch.current) { parsingRequest.current = null; setParsing(false); } }
   }
   // A local file becomes a library project first; the verified copy reports through the same parse status line.
@@ -665,6 +679,7 @@ export default function App() {
     onCloseMenu={() => { setMenuOpen(false); requestAnimationFrame(() => menuButton.current?.focus()); }}
     overlays={<>
       {archiveReminder && <div className="archive-reminder" role="status" aria-live="polite">视频已归档<button type="button" aria-label="关闭归档提醒" onClick={() => setArchiveReminder(false)}>×</button></div>}
+      <Toast payload={toast} />
     </>}>
         <WorkbenchPage page="overview" activePage={page}>
           <ProjectOverview visible={page === 'overview'} version={libraryVersion} currentId={parsed?.project.id || null}

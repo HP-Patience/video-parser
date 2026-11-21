@@ -12,7 +12,7 @@ export type Account = {
   id: string; name: string; benefit: string; qr_login: boolean; qr_mode: 'bili' | 'browser' | null; manual_finish: boolean;
   import_cookies?: boolean;
   state: 'saved' | 'expired' | 'missing'; saved_at: number | null; expires_at: number | null;
-  login: LoginSession | null; verified?: boolean | null; message?: string;
+  login: LoginSession | null; verified?: boolean | null; message?: string; complete?: boolean;
 };
 type Overview = { platforms: Account[]; storage: string };
 const ACTIVE = ['starting', 'waiting', 'scanned', 'saving'];
@@ -98,14 +98,19 @@ export default function Accounts({ visible, focusPlatform, onChange }: { visible
       const ended = windowLogin && !session && windowLogin.state !== 'saved' ? windowLogin : null;
       const note = notes[item.id] || (ended ? ended.message : '') || (windowLogin?.state === 'saved' && item.state === 'saved' ? windowLogin.message : '');
       const other = loginActive && !session;
+      // Only a saved session can be incomplete; nothing saved yet is simply "not signed in".
+      const incomplete = item.state === 'saved' && item.complete === false;
       return <li key={item.id} id={'account-' + item.id} style={{ animationDelay: `${index * 45}ms` }}
         className={['account-row', focusPlatform === item.id ? 'account-focus' : ''].filter(Boolean).join(' ')}>
         <div className="account-main">
           <div className="account-heading"><strong>{item.name}</strong>
-            <span className={'account-state state-' + item.state}>{stateLabel[item.state]}</span>
+            <span className={'account-state state-' + (incomplete ? 'missing' : item.state)}>
+              {incomplete ? '登录态不全' : stateLabel[item.state]}</span>
 </div>
           <p className="account-benefit">{item.benefit}</p>
           {item.state === 'saved' && <p className="account-meta">{item.saved_at ? `保存于 ${date(item.saved_at)}` : ''}{item.expires_at ? ` · 有效期至 ${date(item.expires_at)}` : ''}</p>}
+          {item.complete === false && item.message && item.message !== note
+            && <p className="account-warning" role="alert">{item.message}</p>}
           {session && <p className="account-progress" role="status" aria-live="polite">{session.message}</p>}
           {note && <p className="account-note" role="status">{note}</p>}
           {confirmLogout === item.id && <div className="account-confirm" role="alert">

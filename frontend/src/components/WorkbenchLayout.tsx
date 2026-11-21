@@ -28,7 +28,7 @@ export default function WorkbenchLayout({ page, mobile, menuOpen, activeCount,
     <aside ref={sidebarRef} className={'app-sidebar' + (menuOpen ? ' open' : '')}
       aria-label="主导航" inert={mobile && !menuOpen}
       role={menuOpen ? 'dialog' : undefined} aria-modal={menuOpen || undefined}>
-      <div className="brand"><span className="brand-mark"><Icon name="clapperboard" /></span><div className="brand-copy"><strong>Video Parser</strong><small>Local video workspace</small></div></div>
+      <div className="brand"><span className="brand-mark"><Icon name="clapperboard" /></span><div className="brand-copy"><strong>Video Parser</strong></div></div>
       <nav className="sidebar-nav" aria-label="工作区导航">{navigationGroups.map(group => <div className="nav-group" key={group.id}
         role="group" aria-labelledby={`nav-group-${group.id}`}>
         <p className="nav-caption" id={`nav-group-${group.id}`}>{group.label}</p>
@@ -43,7 +43,7 @@ export default function WorkbenchLayout({ page, mobile, menuOpen, activeCount,
       <header className="app-topbar">
         <button ref={menuButtonRef} className="mobile-menu" type="button" aria-label="打开导航菜单"
           aria-expanded={menuOpen} onClick={onOpenMenu}><Icon name="menu" /></button>
-        <div className="topbar-heading"><p className="topbar-kicker">Personal media workspace</p><h1 className="topbar-title" id={'page-title-' + page} tabIndex={-1}>{pageNames[page]}</h1></div>
+        <div className="topbar-heading"><h1 className="topbar-title" id={'page-title-' + page} tabIndex={-1}>{pageNames[page]}</h1></div>
         <div className="top-actions">
           {running > 0 && <button className="global-task-badge" type="button"
             aria-label={`运行任务 ${running} 项，打开任务中心`}

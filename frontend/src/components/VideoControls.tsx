@@ -4,7 +4,7 @@ import Icon from './Icon';
 import type { IconName } from './Icon';
 import { formatClock } from '../lib/format';
 import { workspaceUrl } from '../lib/api-base';
-import { PLAY_MODES, playModeLabel, readPlayMode, readRate, savePlayMode, saveRate, SPEED_PRESETS } from '../lib/playback';
+import { MAX_RATE, MIN_RATE, normalizeRate, PLAY_MODES, playModeLabel, readPlayMode, readRate, savePlayMode, saveRate, SPEED_PRESETS } from '../lib/playback';
 import type { PlayMode } from '../lib/playback';
 import './video-controls.css';
 
@@ -38,6 +38,8 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
   const [away, setAway] = useState(false);
   const [focusWithin, setFocusWithin] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
+  // The custom field starts at the current rate, so small nudges need one edit, not a full retype.
+  const [draft, setDraft] = useState('');
   const [hover, setHover] = useState<{ left: number; seconds: number } | null>(null);
   const [thumbSecond, setThumbSecond] = useState<number | null>(null);
   // While dragging, the knob follows the pointer instead of waiting for the video's timeupdate.
@@ -181,6 +183,13 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
     if (video) video.playbackRate = next;
   }
 
+  /** Typed rates are clamped to what browsers honour; anything unusable leaves the rate alone. */
+  function applyDraft() {
+    const typed = Number(draft);
+    if (!Number.isFinite(typed) || typed <= 0) return;
+    chooseRate(normalizeRate(typed));
+  }
+
   /** One icon is enough: each click steps to the next mode, the hover tip names the current one. */
   function cycleMode() {
     const index = PLAY_MODES.findIndex(item => item.id === mode);
@@ -291,11 +300,19 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
         <Icon name={MODE_ICONS[mode]} />
       </button>
       <div className="vc-speed" ref={speedBox}>
-        <button type="button" className="vc-button vc-rate" onClick={() => setSpeedOpen(value => !value)}
+        <button type="button" className="vc-button vc-rate"
+          onClick={() => { setDraft(String(rate)); setSpeedOpen(value => !value); }}
           aria-expanded={speedOpen} aria-label="播放速度" title="播放速度">{`${rate}×`}</button>
-        {speedOpen && <div className="vc-menu vc-speed-menu" role="menu" aria-label="播放速度">
-          {SPEED_PRESETS.map(preset => <button type="button" key={preset} role="menuitem" aria-pressed={preset === rate}
+        {speedOpen && <div className="vc-menu vc-speed-menu" role="dialog" aria-label="播放速度">
+          {SPEED_PRESETS.map(preset => <button type="button" key={preset} aria-pressed={preset === rate}
             onClick={() => chooseRate(preset)}>{`${preset}×`}</button>)}
+          <div className="vc-speed-custom">
+            <input type="number" inputMode="decimal" aria-label="自定义速度" min={MIN_RATE} max={MAX_RATE} step="0.05"
+              placeholder={`${MIN_RATE}–${MAX_RATE}`} value={draft}
+              onChange={event => setDraft(event.target.value)}
+              onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); applyDraft(); } }} />
+            <button type="button" aria-label="应用自定义速度" onClick={applyDraft}>应用</button>
+          </div>
         </div>}
       </div>
       <button type="button" className="vc-button" onClick={toggleFullscreen} aria-label="全屏" title="全屏"><Icon name="maximize" /></button>
