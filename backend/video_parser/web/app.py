@@ -138,15 +138,26 @@ async def request_identifier(request, call_next):
         response.headers['Cache-Control']='no-store'
     return response
 
+class HashedAssets(StaticFiles):
+    """Vite asset names carry a content hash, so a year of caching is safe: a rebuild changes the URL."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        return response
+
+
 if (FRONTEND_DIR / 'assets').is_dir():
-    app.mount('/assets', StaticFiles(directory=str(FRONTEND_DIR / 'assets')), name='react-assets')
+    app.mount('/assets', HashedAssets(directory=str(FRONTEND_DIR / 'assets')), name='react-assets')
 
 
 @app.get('/')
 async def root():
     index = FRONTEND_DIR / 'index.html'
     if index.is_file():
-        return FileResponse(index, headers={'Cache-Control': 'no-cache'})
+        # Never let a rebuilt bundle hide behind a cached shell: the HTML names the hashed assets.
+        return FileResponse(index, headers={'Cache-Control': 'no-store'})
     return {'status': 'ok', 'message': 'React frontend not built; run npm.cmd --prefix frontend run build.'}
 
 
