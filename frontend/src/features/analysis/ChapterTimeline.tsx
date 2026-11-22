@@ -71,13 +71,18 @@ export default function ChapterTimeline({ timeline, videoRef, mediaKey, duration
     {/* Shown once playback reaches a chapter (or when the record belongs to another video); nothing before that. */}
     <section className="chapter-timeline-intro" aria-label="当前章节介绍" aria-live="polite" aria-atomic="true" hidden={!current && enabled}>
       <div className="chapter-timeline-intro-header">
-        {current && <span className="chapter-timeline-intro-meta">{`当前章节 · ${active + 1} / ${chapters.length}`}</span>}
+        {current && !compact && <span className="chapter-timeline-intro-meta">{`当前章节 · ${active + 1} / ${chapters.length}`}</span>}
         <div className="chapter-timeline-current-heading" data-range={currentRange}>
           {current && <time>{currentRange}</time>}
           <h4 translate={current ? 'no' : undefined}>{current ? <MathText text={current.title} /> : '请切换到对应视频'}</h4>
         </div>
       </div>
-      {current && (compact ? <details key={`${mediaKey}:${timeline.recordId}`} className="chapter-timeline-description" open><summary>查看章节介绍</summary>{introduction}</details> : introduction)}
+      {/* In the compact player the chapter counter rides at the start of the description,
+          so the row above carries only the time range and the chapter title. */}
+      {current && (compact ? <div className="chapter-timeline-intro-line">
+        <span className="chapter-timeline-intro-meta">{`当前章节 · ${active + 1} / ${chapters.length}`}</span>
+        {introduction}
+      </div> : introduction)}
     </section>
     </>}
     {view === 'directory' && <>

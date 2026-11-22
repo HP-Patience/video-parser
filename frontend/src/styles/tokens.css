@@ -48,6 +48,8 @@
   --font-size-subheading: 15px;
   --font-size-body: var(--font-size-md);
   --font-size-control: var(--font-size-sm);
+  /* Every place a video name is shown uses this one size (components/ProjectTitle). */
+  --project-title-size: 18px;
   --font-size-caption: var(--font-size-xs);
 
   /* 字重 / 行高 / 字距 */
@@ -93,12 +95,27 @@
   --control-height-md: 40px;
   --control-height-lg: 46px;
 
-  /* 动效 */
-  --duration-fast: 140ms;
-  --duration-base: 220ms;
-  --duration-slow: 360ms;
+  /* 动效 · 时长阶梯：越靠近手指的动作越短，越远的位移越长。
+     同一层级只用一档，不要凭手感各写各的毫秒数。 */
+  --duration-instant: 90ms;   /* 按下、悬停这类即刻反馈 */
+  --duration-fast: 140ms;     /* 颜色、边框、透明度 */
+  --duration-base: 220ms;     /* 小元素进出、展开收起 */
+  --duration-slow: 360ms;     /* 面板、抽屉、跨区域位移 */
+  --duration-slower: 520ms;   /* 整块布局重排、页面级转场 */
+
+  /* 动效 · 曲线：三条主角 + 两条按需。
+     enter 快起慢停（像被推进来），exit 慢起快走（不拖尾），
+     standard 两头都有减速（原地变形），spring 带一点过冲（落定确认）。 */
   --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-emphasized: cubic-bezier(0.2, 1.4, 0.3, 1);
+
+  /* 动效 · 错峰：一组元素依次进入时的间隔，别让它们同时出现。 */
+  --stagger-tight: 16ms;
+  --stagger-base: 24ms;
+  --stagger-loose: 40ms;
 
   /* 层级 */
   --z-base: 0;
@@ -169,4 +186,22 @@
   --shadow-md: 0 14px 36px rgb(0 0 0 / 0.24), 0 2px 8px rgb(0 0 0 / 0.16);
   --shadow-lg: 0 30px 80px rgb(0 0 0 / 0.42), 0 8px 22px rgb(0 0 0 / 0.24);
   --ambient-glow: rgb(102 119 94 / 0.2);
+}
+
+/* =========================================================
+   动效可及性：系统要求减少动态时，把时长压到 1ms（保留状态变化，
+   去掉位移与惯性），曲线不变，所以淡入淡出仍然连得上。
+   位移类效果由各组件自己的 prefers-reduced-motion 规则关掉。
+   ========================================================= */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 1ms;
+    --duration-fast: 1ms;
+    --duration-base: 1ms;
+    --duration-slow: 1ms;
+    --duration-slower: 1ms;
+    --stagger-tight: 0ms;
+    --stagger-base: 0ms;
+    --stagger-loose: 0ms;
+  }
 }

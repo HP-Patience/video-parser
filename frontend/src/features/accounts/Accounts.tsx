@@ -5,6 +5,7 @@ import QrLogin from './QrLogin';
 import YoutubeLogin from './YoutubeLogin';
 import { request } from '../../lib/api';
 import './accounts.css';
+import { useDelayedFlag } from '../../lib/useDelayedFlag';
 
 // Cookie values never reach the browser: the API only reports presence, expiry and login progress.
 type LoginSession = { id: string; mode: 'window' | 'qr'; state: 'starting' | 'waiting' | 'scanned' | 'saving' | 'saved' | 'failed' | 'cancelled' | 'expired' | 'verify'; message: string; started_at: number; qr?: string | null };
@@ -60,6 +61,8 @@ export default function Accounts({ visible, focusPlatform, onChange }: { visible
     if (visible && focusPlatform) document.getElementById('account-' + focusPlatform)?.scrollIntoView({ block: 'center' });
   }, [visible, focusPlatform, accounts.length]);
 
+  const placeholder = useDelayedFlag(!accounts.length && !error);
+
   async function act(platform: string, action: 'login' | 'login/finish' | 'login/cancel' | 'check' | 'logout') {
     setBusy(platform + action); setNotes(value => ({ ...value, [platform]: '' }));
     try {
@@ -74,9 +77,10 @@ export default function Accounts({ visible, focusPlatform, onChange }: { visible
 
   return <Panel className="accounts-panel" aria-labelledby="page-title-accounts">
     {error && <p className="error-text" role="alert">{error}</p>}
-    {/* Placeholders hold the row layout so nothing jumps when the real rows arrive. */}
-    {!accounts.length && !error && <>
-      <p className="sr-only" role="status">正在读取登录状态…</p>
+    {/* Placeholders hold the row layout so nothing jumps when the real rows arrive.
+        但它们延迟 300ms 才出现、且至少留 400ms，免得快速返回时闪一下白条（第 017 期）。 */}
+    {!accounts.length && !error && <p className="sr-only" role="status">正在读取登录状态…</p>}
+    {placeholder && <>
       <ul className="account-list account-skeleton" aria-hidden="true">
         {[0, 1, 2, 3].map(index => <li key={index}>
           <div className="account-main">

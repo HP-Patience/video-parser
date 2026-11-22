@@ -1,0 +1,38 @@
+/* One title treatment everywhere a video name appears.
+   Size and truncation stay with the context (headline, row, card), but weight, line box
+   and the double-click affordance are shared, so the same name never looks like two
+   different things across pages. */
+.project-title {
+  min-width: 0;
+  /* One size for every inline occurrence; the overview headline keeps its display size. */
+  font-size: var(--project-title-size);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  color: inherit;
+}
+
+.project-title.is-editable { cursor: text; border-radius: 4px; }
+.project-title.is-editable:hover { text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.project-title[aria-busy='true'] { opacity: 0.6; cursor: progress; }
+/* Inside dense detail lists the name is supporting text, not a heading. */
+.project-title.is-compact { font-size: var(--font-size-md); font-weight: var(--font-weight-medium); }
+
+/* Scoped through the title so it beats the global .modern-app input rule, which would
+   otherwise bring its own padding, radius and 14px font into a 24px headline. */
+.project-title .project-title-field {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 4px;
+  border: 1px solid var(--color-border-focus);
+  border-radius: 6px;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  outline: none;
+}

@@ -385,7 +385,6 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,t
   margin-bottom:7px
 }
 .details-panel .info-title {
-  font-size: var(--font-size-subheading);
   line-height:1.65;
   color:var(--color-text);
   margin-bottom:13px;

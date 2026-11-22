@@ -18,6 +18,8 @@
 @media (max-width: 600px) { .task-list > li { align-items: flex-start; flex-direction: column; gap: 10px; } }
 
 .task-description { min-width: 0; flex: 1; }
+/* The row title (operation prefix + name) shares the one title size. */
+.task-description strong { font-size: var(--project-title-size); line-height: 1.5; }
 .task-description p, .task-description small { overflow-wrap: anywhere; }
 .task-actions button, .task-actions .button,
 .task-center > button, .task-inline-actions button { box-shadow: none; }

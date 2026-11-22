@@ -204,6 +204,29 @@ def reuse_subtitles(identifier, selected_ids=None):
     return {'plan_id': plan['id'], 'state': plan['state']}
 
 
+def start_inline_rename(identifier, title):
+    """Rename one project's archived files from an inline title edit.
+
+    Same manual plan the naming tab builds, but without asking a model: create the
+    draft, validate it (so the preview and its token exist) and start the
+    transactional apply. Every safety check of the naming flow still runs.
+    """
+    current = inventory(identifier)
+    entry = next((item for item in current['entries'] if item['project_id'] == identifier), None)
+    if not entry or not entry['files']:
+        raise NamingError('这个项目没有可改名的归档视频。')
+    if any(item['state'] in ('applying', 'recovery_required') for item in history(identifier)):
+        raise NamingError('本课程有未恢复的文件事务，请先恢复原命名。')
+    plan = {'version': 1, 'id': uuid4().hex, 'project_id': identifier, 'title': current['title'],
+            'created_at': now(), 'state': 'proposed', 'source': 'manual', 'rename_scope': JOINT_SCOPE,
+            'fingerprint': current['fingerprint'], 'entries': [entry],
+            'rows': [{'project_id': identifier, 'number': entry['number'], 'title': title}], 'last_error': ''}
+    save_plan(plan)
+    validated = validate(plan['id'], plan['rows'])
+    from video_parser.services import naming
+    return naming.start_apply(plan['id'], validated['preview_token'], True)
+
+
 def adjust_plan(project_id, identifier):
     """Fork only the applied subset into a fresh local draft, never reuse its transaction."""
     with task_runtime.exclusive_operation(), plan_lock(identifier), ExitStack() as stack:

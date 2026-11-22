@@ -234,3 +234,39 @@ img.progressive-image.is-error { background: var(--color-surface-sunken); filter
   .header-label, .header-divider { display: none; }
   .app-header h1 { white-space: nowrap; font-size: 17px; }
 }
+
+/* 第 016 期：可关闭的轻提示。整条都能点，右侧给一个小叉作为提示，
+   鼠标悬停时停止倒计时（见 Toast.tsx）。 */
+.app-toast.is-dismissable { cursor: pointer; }
+.app-toast-dismiss { margin-left: 10px; opacity: .6; font-size: 15px; line-height: 1; }
+.app-toast.is-dismissable:hover .app-toast-dismiss { opacity: 1; }
+
+/* 代码块复制按钮：贴在 pre 的右上角，平时淡出，鼠标进入或键盘聚焦才显形。
+   给 pre 留出右侧空间，长代码横向滚动时不会被按钮压住第一行。 */
+.md-code { position: relative; }
+.modern-app .md-code pre { padding-right: 64px; }
+.md-copy {
+  position: absolute; top: 6px; right: 6px; z-index: 1;
+  min-height: 24px; min-width: 0; padding: 2px 8px;
+  font-size: var(--font-size-caption); line-height: 1.4;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+.md-code:hover .md-copy, .md-copy:focus-visible { opacity: 1; }
+.md-copy:hover:not(:disabled) { color: var(--color-text); border-color: var(--color-border-strong); background: var(--color-surface-raised); }
+/* 触屏没有 hover，按钮必须常显，否则永远点不到。 */
+@media (hover: none) { .md-copy { opacity: 1; } }
+
+/* 第 015 期：视图切换的交叉淡化。旧页面稍快退出，新页面稍慢进入，
+   中间有一小段重叠，读起来是"换了一页"而不是"闪了一下"。 */
+::view-transition-old(root) { animation: vp-view-out var(--duration-base) var(--ease-exit) both; }
+::view-transition-new(root) { animation: vp-view-in var(--duration-slow) var(--ease-enter) both; }
+@keyframes vp-view-out { to { opacity: 0; } }
+@keyframes vp-view-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+}

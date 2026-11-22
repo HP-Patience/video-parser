@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import Icon from '../../components/Icon';
+import ProjectTitle from '../../components/ProjectTitle';
 import { request } from '../../lib/api';
-import type { ParsedVideo, VideoProjectSummary } from '../../lib/api';
+import type { ParsedVideo, VideoProject, VideoProjectSummary } from '../../lib/api';
 import { formatClock, formatMegabytes } from '../../lib/format';
 import { projectDisplayTitle, videoDisplayTitle } from '../../lib/projectTitles';
 import './project-overview.css';
@@ -30,6 +31,8 @@ type Props = {
   version?: number;
   currentId?: string | null;
   onOpen: (project: VideoProjectSummary, target: OpenTarget) => Promise<void>;
+  /** Files were renamed in place: reload the cards and let the page re-read the open project. */
+  onRenamed?: (project: VideoProject) => void;
 };
 
 const subtitleCount = (project: VideoProjectSummary) => project.subtitle_count ?? (project.has_subtitles ? 1 : 0);
@@ -82,7 +85,7 @@ function ProjectCover({ url }: { url?: string | null }) {
   </span>;
 }
 
-export default function ProjectOverview({ visible, version = 0, currentId, onOpen }: Props) {
+export default function ProjectOverview({ visible, version = 0, currentId, onOpen, onRenamed }: Props) {
   const [projects, setProjects] = useState<VideoProjectSummary[]>([]);
   // Start in the loading state, so the first paint is the skeleton instead of the empty state.
   const [loading, setLoading] = useState(true);
@@ -244,12 +247,11 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
           </div>
           <div className="overview-current-archive">
             <div className="overview-current-facts">
-              {[0, 1, 2, 3].map(cell => <div key={cell}>
+              {[0, 1, 2, 3, 4].map(cell => <div key={cell}>
                 <span className="sk-line sk-tiny" />
                 <span className="sk-line sk-value" />
               </div>)}
             </div>
-            <span className="sk-line sk-quality" />
             <span className="sk-line sk-origin" />
           </div>
           <div className="overview-current-actions"><span className="sk-line sk-button" /></div>
@@ -304,7 +306,9 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
           </div>
 
           <div className="overview-current-heading" aria-live="polite" aria-atomic="true">
-            <h3 id="overview-current-title" translate="no" title={projectDisplayTitle(current)}>{videoDisplayTitle(current)}</h3>
+            <ProjectTitle as="h3" id="overview-current-title" text={videoDisplayTitle(current)} full={projectDisplayTitle(current)}
+              projectId={current.id} disabled={openingId !== null}
+              onRenamed={project => { setReload(value => value + 1); onRenamed?.(project); }} />
             <span className="overview-completion-value">{completionPercent(current)}%</span>
           </div>
 
@@ -330,10 +334,8 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
               <div><dt>分集</dt><dd>{current.part ? `P${current.part}` : '—'}</dd></div>
               <div><dt>分辨率</dt><dd>{archivedMedia?.width && archivedMedia.height ? `${archivedMedia.width} × ${archivedMedia.height}` : '—'}</dd></div>
               <div><dt>实际大小</dt><dd>{archivedMedia ? formatMegabytes(archivedMedia.size_bytes) : '—'}</dd></div>
+              <div><dt>归档画质</dt><dd>{archivedQuality ? `${archivedQuality.label}${archivedQuality.label.includes('已归档') ? '' : ' · 已归档'}` : '未归档'}</dd></div>
             </dl>
-            <p className="overview-current-quality"><span>归档画质</span>
-              <strong>{archivedQuality ? `${archivedQuality.label}${archivedQuality.label.includes('已归档') ? '' : ' · 已归档'}` : '未归档'}</strong>
-            </p>
             <p className="overview-current-origin">
               {detail?.source_url
                 ? <a className="overview-origin-platform" href={detail.source_url} target="_blank" rel="noreferrer"
@@ -359,7 +361,7 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
               aria-label={`${videoDisplayTitle(project)}：${action.label}`} onClick={() => { void open(project); }}>
               <span className="overview-attention-index">{String(index + 1).padStart(2, '0')}</span>
               <span className="overview-attention-copy">
-                <strong translate="no" title={projectDisplayTitle(project)}>{videoDisplayTitle(project)}</strong>
+                <ProjectTitle as="strong" text={videoDisplayTitle(project)} full={projectDisplayTitle(project)} />
                 <small>{statusLabel(project)}</small>
               </span>
               <span className="overview-row-arrow" aria-hidden="true">↗</span>
@@ -412,7 +414,7 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
                 aria-label={`在上方预览 ${videoDisplayTitle(project)}`} onClick={() => setSelectedId(project.id)}>
                 <ProjectCover url={project.cover_url} />
                 <span className="overview-card-copy">
-                  <span className="overview-video-title" translate="no" title={projectDisplayTitle(project)}>{videoDisplayTitle(project)}</span>
+                  <ProjectTitle className="overview-video-title" text={videoDisplayTitle(project)} full={projectDisplayTitle(project)} />
                   <span className="overview-video-meta"><span>{project.platform}</span>{project.part ? <span>P{project.part}</span> : null}
                     <span>{videoAvailabilityLabel(project)}</span>{project.learned && <span>已学完</span>}</span>
                 </span>
@@ -445,7 +447,7 @@ export default function ProjectOverview({ visible, version = 0, currentId, onOpe
                 <th scope="row" data-label="视频">
                   <button type="button" className="overview-select-video" aria-pressed={isSelected}
                     aria-label={`在上方预览 ${videoDisplayTitle(project)}`} onClick={() => setSelectedId(project.id)}>
-                    <span className="overview-video-title" translate="no" title={projectDisplayTitle(project)}>{videoDisplayTitle(project)}</span>
+                    <ProjectTitle className="overview-video-title" text={videoDisplayTitle(project)} full={projectDisplayTitle(project)} />
                     <span className="overview-video-meta">
                       <span>{project.platform}</span>{project.part ? <span>P{project.part}</span> : null}
                       <span className={project.archived ? 'is-ready' : 'is-missing'}>{project.archived ? '已归档' : '未归档'}</span>

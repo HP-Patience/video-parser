@@ -16,6 +16,7 @@ import SlashCommandMenu from './SlashCommandMenu';
 import { completeCommand, matchingCommands, slashToken } from './slashCommands';
 import type { SlashCommand } from './slashCommands';
 import ImageTray from './ImageTray';
+import TypingMatrix from './TypingMatrix';
 import { IMAGE_LIMIT, clipboardImages, uploadClipboard } from './pastedImages';
 import type { StoredImage } from './pastedImages';
 import './ai-chat.css';
@@ -189,7 +190,7 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
         </li>)}
           {waiting && <li className="is-pending"><div className="ai-chat-question"><Markdown text={pending.question} onSeek={onSeek} maxSeconds={duration} />
             <ImageTray projectId={chat.projectId} images={pending.images ?? []} label="提问附带的图片" /></div>
-            <p className="ai-chat-thinking" role="status"><Icon name="loader-circle" className="spinner" />{busy ? <>{phase}{status || 'AI 正在回答…'}</> : '正在载入回答…'}</p></li>}
+            <p className="ai-chat-thinking" role="status"><TypingMatrix />{busy ? <>{phase}{status || 'AI 正在回答…'}</> : '正在载入回答…'}</p></li>}
         </ol>
         {(failure || chat.failure) && <p className="error-text ai-chat-failure" role="alert">{failure || chat.failure}</p>}
         {!chat.configured && !chat.models.native && <p className="notice">尚未配置 AI 模型，填写后无需重启。<button type="button" className="link-button" onClick={event => onOpenSettings(event.currentTarget)}>打开设置</button></p>}

@@ -1,0 +1,157 @@
+/* 第 020 期 · 选择控件：开关与分段。
+   两件事要同时成立——一眼看出"现在是什么"，以及一眼看出"还能改成什么"。
+   所以当前值必须有实心快照（轨道填充 / 滑块），不能只靠文字加粗。 */
+
+/* ---------- 开关 ---------- */
+.vp-switch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  min-width: 0;
+  font-size: var(--font-size-control);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+.vp-switch.is-disabled { cursor: not-allowed; color: var(--color-text-disabled); }
+
+/* 真正的 input 铺在轨道正上方：看不见，但它自己就是点击目标。
+   不用 clip 到 1px——那样鼠标与自动化都点不到，只能去点旁边的装饰，
+   结果是"看着能点、点不动"。 */
+.vp-switch > input {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  transform: translateY(-50%);
+  opacity: 0;
+  cursor: inherit;
+  z-index: 2;
+}
+
+.vp-switch-track {
+  flex: none;
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--color-fill-disabled);
+  border: 1px solid var(--color-border);
+  box-shadow: inset 0 1px 2px rgb(34 32 28 / 0.08);
+  transition: background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+.vp-switch-thumb {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-raised);
+  box-shadow: 0 1px 2px rgb(34 32 28 / 0.28);
+  /* 位移用 spring：到位时轻轻一顿，像真的有质量，而不是滑到线就停。 */
+  transition: transform var(--duration-base) var(--ease-spring);
+}
+
+.vp-switch > input:checked ~ .vp-switch-track {
+  background: var(--color-fill-primary);
+  border-color: var(--color-fill-primary);
+  box-shadow: none;
+}
+.vp-switch > input:checked ~ .vp-switch-track .vp-switch-thumb {
+  transform: translateX(14px);
+  background: var(--color-on-primary);
+}
+/* 聚焦环画在轨道上，而不是那个看不见的 input 上。 */
+.vp-switch > input:focus-visible ~ .vp-switch-track {
+  outline: var(--border-width-thick) solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+.vp-switch:hover:not(.is-disabled) > .vp-switch-track { border-color: var(--color-border-strong); }
+
+.vp-switch-text { display: grid; gap: 2px; min-width: 0; }
+.vp-switch-label { color: var(--color-text); }
+.vp-switch.is-disabled .vp-switch-label { color: var(--color-text-disabled); }
+.vp-switch-hint { font-size: var(--font-size-caption); color: var(--color-text-secondary); overflow-wrap: anywhere; }
+
+/* ---------- 分段控件 ---------- */
+.vp-segmented {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0;
+  padding: 3px;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+.vp-segmented.is-disabled { opacity: 0.6; }
+
+/* 滑块是一整块移过去的，不是每格各亮各的：眼睛能跟着它走。 */
+.vp-segmented-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--vp-seg-count, 2));
+  border-radius: calc(var(--radius-md) - 3px);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-sm);
+  transform: translateX(calc(var(--vp-seg-index, 0) * 100%));
+  transition: transform var(--duration-base) var(--ease-spring);
+  pointer-events: none;
+}
+
+/* 覆盖全局 button 的最小高度与边框：这一组格子是"分段"，不是一排按钮。 */
+.modern-app .vp-segmented > .vp-seg {
+  position: relative;
+  z-index: 1;
+  min-height: 28px;
+  min-width: 0;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-control);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+.modern-app .vp-segmented > .vp-seg:hover:not(:disabled) { background: transparent; color: var(--color-text); }
+.modern-app .vp-segmented > .vp-seg[aria-checked="true"] { color: var(--color-text); font-weight: var(--font-weight-semibold); }
+.modern-app .vp-segmented > .vp-seg:disabled { background: transparent; }
+.modern-app .vp-segmented > .vp-seg:focus-visible {
+  outline: var(--border-width-thick) solid var(--color-border-focus);
+  outline-offset: 1px;
+  border-radius: calc(var(--radius-md) - 3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vp-switch-thumb, .vp-segmented-thumb { transition: none; }
+}
+
+/* 当前值不在选项里时（手输了自定义速度），不能假装选中第一格。 */
+.vp-segmented.has-none .vp-segmented-thumb { opacity: 0; }
+
+/* 选项多时折行：滑块没法跨行，改成"选中的那一格自己亮起来"。 */
+.vp-segmented.is-grid {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(var(--vp-seg-cols, 3), minmax(0, 1fr));
+  gap: 3px;
+}
+.modern-app .vp-segmented.is-grid > .vp-seg[aria-checked="true"] {
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-sm);
+}

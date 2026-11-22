@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { KeyboardEvent } from 'react';
 import { request } from './lib/api';
 import { platformOpensExternally, platformPlayerURL } from './lib/platform-player';
@@ -8,6 +9,7 @@ import { cancelTask, isActive, pollJob, remember, remembered, runWorkflow } from
 import type { TaskInfo, WorkflowJob } from './lib/jobs';
 import TaskCenter from './features/tasks/TaskCenter';
 import Icon from './components/Icon';
+import ProjectTitle from './components/ProjectTitle';
 import Toast from './components/Toast';
 import type { ToastPayload } from './components/Toast';
 import BiliLogin from './features/subtitles/BiliLogin';
@@ -98,6 +100,15 @@ export default function App() {
   const notify = useCallback((text: string) => {
     if (text) setToast({ id: ++toastSeq.current, text, tone: 'error' });
   }, []);
+  // Inline edits happen deep inside cards; they announce their result through this event.
+  useEffect(() => {
+    const relay = (event: Event) => {
+      const detail = (event as CustomEvent<{ text?: string; tone?: 'error' | 'info' }>).detail;
+      if (detail?.text) setToast({ id: ++toastSeq.current, text: detail.text, tone: detail.tone || 'info' });
+    };
+    window.addEventListener('video-parser:toast', relay);
+    return () => window.removeEventListener('video-parser:toast', relay);
+  }, []);
   useEffect(() => {
     if (!parsing) return;
     const timer = window.setTimeout(() => setParseStatus('仍在读取视频信息。部分平台响应较慢，请保留当前页面，不要重复提交。'), 3000);
@@ -170,11 +181,13 @@ export default function App() {
     projects.current = { ...projects.current, [id]: next }; setProjectStates(projects.current);
     return id;
   }
-  // A course rename also applies to its other archived episodes that are open in this page.
-  function renameProject(project: VideoProject, renamed: string[]) {
+  // Renaming the archived files changes paths and resource ids, so the open project is
+  // re-read instead of patching the title in place.
+  function handleProjectRenamed(project: VideoProject) {
     setLibraryVersion(value => value + 1);
-    for (const id of new Set([project.id, ...renamed])) updateProject(id, value => ({ ...value,
-      parsed: { ...value.parsed, title: project.title, project: { ...value.parsed.project, title: project.title, display_title: project.display_title } } }));
+    // Only re-read when the renamed project is the one on screen: renaming another
+    // project from the overview or task center must not switch the workspace.
+    if (parsed?.project.id === project.id) void restoreProject(project.id, media?.resource || '', false, true);
   }
   function selectProject(id: string) {
     const value = projects.current[id]; if (!value) return;
@@ -192,7 +205,15 @@ export default function App() {
       else url.searchParams.set('page', next);
       history.pushState(null, '', url);
     }
-    pageRef.current = next; setPage(next); setMenuOpen(false);
+    // 第 015 期：换视图不该是硬切。同一份页面结构里换内容时，用 View Transition
+    // 做一次交叉淡化——旧页面退出、新页面进入，读者的眼睛能跟上"换到哪了"。
+    // flushSync 是必须的：React 的 setState 是批处理的，不强制同步提交，
+    // 浏览器截到的"新"快照还是旧内容。不支持或要求减少动态时直接提交。
+    const commit = () => { pageRef.current = next; setPage(next); setMenuOpen(false); };
+    const view = document as Document & { startViewTransition?: (callback: () => void) => unknown };
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (changed && view.startViewTransition && !calm) view.startViewTransition(() => flushSync(commit));
+    else commit();
     if (changed || focus) requestAnimationFrame(() => {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       if (focus) document.getElementById('page-title-' + next)?.focus({ preventScroll: true });
@@ -679,11 +700,11 @@ export default function App() {
     onCloseMenu={() => { setMenuOpen(false); requestAnimationFrame(() => menuButton.current?.focus()); }}
     overlays={<>
       {archiveReminder && <div className="archive-reminder" role="status" aria-live="polite">视频已归档<button type="button" aria-label="关闭归档提醒" onClick={() => setArchiveReminder(false)}>×</button></div>}
-      <Toast payload={toast} />
+      <Toast payload={toast} onDismiss={() => setToast(null)} />
     </>}>
         <WorkbenchPage page="overview" activePage={page}>
           <ProjectOverview visible={page === 'overview'} version={libraryVersion} currentId={parsed?.project.id || null}
-            onOpen={openOverviewProject} />
+            onOpen={openOverviewProject} onRenamed={handleProjectRenamed} />
         </WorkbenchPage>
         <WorkbenchPage page={page === 'learning' ? 'learning' : 'workspace'} activePage={page}>
         {(page === 'workspace' || page === 'learning') && config && !config.media_ready && <p className="error-text media-setup-error" role="alert">未检测到 ffmpeg 或 ffprobe，请安装并加入 PATH 后重启服务。</p>}
@@ -700,7 +721,8 @@ export default function App() {
           {learning && selected?.learningError && (parsed?.episodes?.length || 0) <= 1 && <p className="error-text" role="alert">{selected.learningError}</p>}
           {learning && learningNavigationError && <p className="error-text" role="alert">{learningNavigationError} 当前视频与学习数据保持不变。</p>}
           {parsed && (learning || managing || activeTab === '文件重命名') && <div className="video-context-heading">
-            <div><strong translate="no" title={videoTitle}>{videoTitle}</strong>
+            <div><ProjectTitle as="strong" text={videoTitle} projectId={parsed.project.id}
+              disabled={parsing || !!restoringId || busy !== null} onRenamed={handleProjectRenamed} />
               {learning ? <span translate="no">{[parsed.project.part ? `P${parsed.project.part}` : '', projectTitle !== videoTitle ? projectTitle : !parsed.project.episode_title ? catalogEpisode?.title : ''].filter(Boolean).join(' · ')}</span>
                 : <span translate="no">{[parsed.project.part ? `P${parsed.project.part}` : '', projectTitle !== videoTitle ? projectTitle : ''].filter(Boolean).join(' · ')}</span>}</div>
           </div>}
@@ -759,8 +781,9 @@ export default function App() {
             <Panel as="aside" id="project-context" hidden={!parsed || (learning && ((!!media && studyCollapsed) || (parsed?.episodes?.length || 0) <= 1))} className={'details-panel' + (!fullInspector ? ' compact-inspector' : '')} aria-labelledby={learning ? undefined : 'details-heading'} aria-label={learning ? '分集学习上下文' : undefined}>
           {!learning && <div className="project-context-heading"><PanelTitle secondary id="details-heading">{fullInspector ? '项目与归档' : '当前项目'}</PanelTitle></div>}
           <div className="inspector-identity" hidden={learning}>
-          <h3 className="info-title" translate={parsed?.title ? 'no' : undefined}>{videoTitle || '尚未选择视频'}
-          </h3>{parsed && projectTitle !== videoTitle && <p className="muted" translate="no">{projectTitle}</p>}{parsed && <div className="identity-meta"><span className="platform-mark">{parsed.platform}{!fullInspector && parsed.project.part ? ` · P${parsed.project.part}` : ''}
+          {parsed ? <ProjectTitle as="h3" className="info-title" text={videoTitle} projectId={parsed.project.id}
+            disabled={parsing || !!restoringId || busy !== null} onRenamed={handleProjectRenamed} />
+            : <h3 className="info-title">尚未选择视频</h3>}{parsed && projectTitle !== videoTitle && <p className="muted" translate="no">{projectTitle}</p>}{parsed && <div className="identity-meta"><span className="platform-mark">{parsed.platform}{!fullInspector && parsed.project.part ? ` · P${parsed.project.part}` : ''}
           </span><a className="source-link" href={parsed.source_url} target="_blank" rel="noreferrer" aria-label="打开原始链接" title="打开原始链接"><Icon name="external-link" /></a></div>}
           </div>
               {fullInspector && parsed && <>
@@ -801,7 +824,7 @@ export default function App() {
           {busy !== 'prepare' && (!archiveProblem || onlineURL) && <div className={`status inset ${selected?.error ? 'status-error' : ''}`} role="status" aria-live="polite" aria-atomic="true">{showStatus ? inspectorStatus : ''}</div>}
           </>}
               {fullInspector && parsed && <>
-          <ProjectPanel key={parsed.project.id} project={parsed.project} onRenamed={renameProject} />
+          <ProjectPanel key={parsed.project.id} project={parsed.project} />
           {qualityLimited && ['missing', 'missing_session', 'expired', 'invalid'].includes(parsed.bilibili_cookie_status || '') && <p className="notice quality-login">{qualityLogin === 'done' ? '已登录 B站，请重新解析链接以获取更高画质。' : <>画质受限：没有登录 B站，最高只有 480p。<button type="button" className="link-button" onClick={() => setQualityLogin('open')}>扫码登录</button><button type="button" className="link-button" onClick={() => openAccounts('bilibili')}>账号与登录</button></>}</p>}
           {qualityLogin === 'open' && <BiliLogin onClose={() => setQualityLogin('closed')} onSuccess={() => setQualityLogin('done')} />}
           </>}

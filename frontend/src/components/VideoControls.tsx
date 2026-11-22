@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import Icon from './Icon';
+import { Segmented } from './ChoiceControls';
 import type { IconName } from './Icon';
 import { formatClock } from '../lib/format';
 import { workspaceUrl } from '../lib/api-base';
@@ -45,6 +46,7 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
   // While dragging, the knob follows the pointer instead of waiting for the video's timeupdate.
   const [dragPercent, setDragPercent] = useState<number | null>(null);
   const speedBox = useRef<HTMLDivElement>(null);
+  const speedMenu = useRef<HTMLDivElement>(null), rateButton = useRef<HTMLButtonElement>(null);
   const dragging = useRef(false);
   const idleTimer = useRef<number | null>(null);
   const thumbTimer = useRef<number | null>(null);
@@ -86,14 +88,22 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
   }, [mediaKey]);
 
   // An open speed menu closes on an outside click or Escape.
+  // 第 009 期：它是一块非模态浮层，但也必须有完整的焦点路径——打开时把焦点送进去，
+  // 关闭时还给触发按钮。否则键盘用户按 Esc 后焦点会掉回页面顶部，得重新 Tab 一圈。
   useEffect(() => {
     if (!speedOpen) return;
+    speedMenu.current?.querySelector<HTMLElement>('button, input')?.focus();
+    const close = () => {
+      const inside = !!speedMenu.current?.contains(document.activeElement);
+      setSpeedOpen(false);
+      if (inside) rateButton.current?.focus();
+    };
     const dismiss = (event: Event) => {
       const target = event.target as Node | null;
       if (target && speedBox.current?.contains(target)) return;
-      setSpeedOpen(false);
+      close();
     };
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setSpeedOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') close(); };
     document.addEventListener('pointerdown', dismiss);
     document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', escape); };
@@ -300,12 +310,12 @@ export default function VideoControls({ videoRef, projectId, resource, mediaKey 
         <Icon name={MODE_ICONS[mode]} />
       </button>
       <div className="vc-speed" ref={speedBox}>
-        <button type="button" className="vc-button vc-rate"
+        <button type="button" ref={rateButton} className="vc-button vc-rate"
           onClick={() => { setDraft(String(rate)); setSpeedOpen(value => !value); }}
           aria-expanded={speedOpen} aria-label="播放速度" title="播放速度">{`${rate}×`}</button>
-        {speedOpen && <div className="vc-menu vc-speed-menu" role="dialog" aria-label="播放速度">
-          {SPEED_PRESETS.map(preset => <button type="button" key={preset} aria-pressed={preset === rate}
-            onClick={() => chooseRate(preset)}>{`${preset}×`}</button>)}
+        {speedOpen && <div ref={speedMenu} className="vc-menu vc-speed-menu" role="dialog" aria-label="播放速度">
+          <Segmented label="常用速度" columns={3} value={rate} onChange={chooseRate}
+            options={SPEED_PRESETS.map(preset => ({ value: preset, label: `${preset}×` }))} />
           <div className="vc-speed-custom">
             <input type="number" inputMode="decimal" aria-label="自定义速度" min={MIN_RATE} max={MAX_RATE} step="0.05"
               placeholder={`${MIN_RATE}–${MAX_RATE}`} value={draft}

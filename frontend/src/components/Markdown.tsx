@@ -1,4 +1,5 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { t, useLanguage } from '../lib/i18n';
 import MathFormula from './MathFormula';
 import { edgeTimeRange } from './markdownTimeRange';
 import { protectMath, type MathDocument } from './markdownMath';
@@ -50,6 +51,38 @@ function inline(text: string, onSeek: Seek, maxSeconds: number | undefined, key:
   return nodes;
 }
 
+/* 代码块复制：先试剪贴板 API，失败退到 execCommand，两者都不行就改按钮文字让用户手动选。
+   无论成败都给反馈——点了没反应最糟。
+   这段在 translate="no" 的 Markdown 子树里，DOM 重写管不到，所以文字要自己取：
+   useLanguage() 只负责在切换语言时触发重渲染，具体词条仍走同一份字典。 */
+function CodeCopy({ text }: { text: string }) {
+  useLanguage();
+  const [state, setState] = useState<'idle' | 'done' | 'fail'>('idle');
+  const words = { idle: t('复制'), done: t('已复制'), fail: t('请手动复制') };
+
+  async function copy() {
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+      else {
+        const area = document.createElement('textarea');
+        area.value = text;
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(area);
+        if (!ok) throw new Error('copy rejected');
+      }
+      setState('done');
+    } catch { setState('fail'); }
+    window.setTimeout(() => setState('idle'), 1600);
+  }
+
+  return <button type="button" className="md-copy" onClick={() => { void copy(); }}
+    aria-label={words.idle}>{words[state]}</button>;
+}
+
 function cells(row: string) {
   return row.trim().replace(/^\||\|$/g, '').split('|').map(cell => cell.trim());
 }
@@ -85,7 +118,8 @@ export default function Markdown({ text, onSeek, maxSeconds, className = '', tim
       index++;
       while (index < lines.length && !lines[index].trim().startsWith('```')) body.push(lines[index++]);
       index++;
-      blocks.push(<pre key={key}><code>{body.join('\n')}</code></pre>);
+      const code = body.join('\n');
+      blocks.push(<div className="md-code" key={key}><CodeCopy text={code} /><pre><code>{code}</code></pre></div>);
       continue;
     }
     if (trimmed.startsWith('|') && index + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[index + 1])) {

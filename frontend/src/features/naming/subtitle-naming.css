@@ -5,9 +5,22 @@
 .subtitle-naming-panel p, .subtitle-naming-panel span { overflow-wrap: anywhere; }
 .subtitle-naming-panel section { min-width: 0; }
 .subtitle-naming-panel .naming-hint { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-caption); line-height: 1.7; }
-.naming-summary { margin: 8px 0 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); line-height: 1.7; }
-.naming-analysis, .naming-scope { margin-top: 24px; }
-.naming-analysis { display: grid; gap: 12px; }
+/* 顶部一条共用模型选择：文件夹与字幕两个面板共用同一份选择，不再各放一个下拉。 */
+.naming-model-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  min-width: 0;
+  margin: 0 0 20px;
+  padding: 12px var(--card-inset, 24px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--color-surface-raised);
+}
+.naming-model-bar-title { flex: none; margin: 0; font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); }
+.naming-model-bar .agent-controls { flex: 1 1 260px; min-width: 0; margin-top: 0; }
+.naming-scope { margin-top: 24px; }
 .naming-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .naming-scope ul { padding: 4px 12px; margin: 0; list-style: none; max-height: 240px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 10px; }
 .naming-scope li + li { border-top: 1px solid var(--color-border); }
@@ -48,7 +61,7 @@
 .modern-app .tabs { flex-wrap: wrap; height: auto; min-height: var(--control-height-lg); }
 @media (max-width: 600px) {
   .subtitle-naming-panel { max-width: 100%; padding: var(--card-inset, 16px); }
-  .naming-analysis, .naming-scope { margin-top: 20px; }
+  .naming-scope { margin-top: 20px; }
   .naming-rows li, .naming-final-preview { padding: 12px; }
   .naming-row-fields { grid-template-columns: 72px minmax(0, 1fr); gap: 8px; }
   .naming-final-preview li { grid-template-columns: 28px 16px minmax(0, 1fr); gap: 4px; }

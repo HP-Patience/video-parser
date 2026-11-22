@@ -355,6 +355,7 @@
     "核对并解除失败状态": "Verify and clear failed state",
     "已恢复原文件夹，可重新预览。": "Original folder restored. You can preview again.",
     "改名未执行，原文件完整保留；已解除失败状态，可重新预览。": "No rename took place. Original files are intact; the failed state has been cleared. You can preview again.",
+    "改名没有完成，原文件仍在。": "The rename did not finish; the original files are unchanged.",
     "原文件夹仍在，目标文件夹未生成。确认后将核对文件完整性并解除失败状态，不会重新改名或调用模型。": "The original folder still exists and the destination was not created. Confirmation checks file integrity and clears the failed state without renaming or calling a model.",
 
     "AI 生成文件夹名": "Suggest folder name with AI",
@@ -367,6 +368,7 @@
     "恢复项目文件夹": "Restore project folder",
     "操作未完成，没有自动重试。": "The operation did not complete. No automatic retry was made.",
     "新文件夹名称": "New folder name",
+    "新的文件名": "New file name",
     "点击生成即同意发送项目标题和已存分集名称，可能联网并产生费用；不发送视频、字幕正文或学习记录。": "Generating sends the project and stored episode titles to the selected model and may incur network charges. Videos, subtitle contents and learning records are not sent.",
     "确认修改项目文件夹": "Confirm project folder rename",
     "确认恢复未完成的文件夹操作": "Confirm recovery of the unfinished folder operation",
@@ -467,8 +469,6 @@
   "AI 根据字幕智能选帧": "AI subtitle-based frame selection",
   "AI 阅读字幕，自行决定画面时间点与张数（最多 16 张），增加一次模型调用；开始分析后执行。": "AI reads subtitles and selects up to 16 frame timestamps. This adds one model call after analysis starts.",
   "Agent 工具开关 · 本机生效": "Agent switches · this device",
-  "Agent 已关闭：禁止新调用，当前调用不强制中断。": "Agent disabled. New calls are blocked; in-flight calls are not forcibly stopped.",
-  "Agent 已开启。": "Agent enabled.",
   "Embedding 接口地址": "Embedding API URL",
   "Embedding 模型 ID": "Embedding model ID",
   "Embedding 语义检索": "Embedding semantic search",
@@ -672,6 +672,7 @@
   "已有字幕": "Subtitles archived",
   "已读取本机模型列表。": "Local model list read.",
   "已重命名，项目文件夹和归档文件保持不变。": "Renamed. The project folder and archived files are unchanged.",
+  "已重命名归档文件。": "Renamed the archived files.",
   "已隐藏，默认改为 API。": "Hidden; the default is now API.",
   "所选分集都已有校验通过的平台字幕，可在项目文件夹中查看。": "All selected episodes already have verified platform subtitles; see the project folder.",
   "搜索任务": "Search tasks",
@@ -954,6 +955,9 @@
   "填写兼容 OpenAI Chat Completions 接口的地址；分析画面需要支持图片输入的模型。": "Enter an OpenAI Chat Completions–compatible endpoint; analyzing frames needs a model that accepts images.",
   "处理中": "Processing",
   "复制": "Copy",
+  "已复制": "Copied",
+  "请手动复制": "Copy it manually",
+  "AI 正在输入": "The AI is typing",
   "复制备用启动命令": "Copy fallback start command",
   "外部服务请使用 https 地址，避免密钥明文传输。": "Use an https URL for external services so the key isn't sent in plain text.",
   "大小不符合要求": "Size not allowed",
@@ -2941,6 +2945,7 @@
   ["^从 (.+) 导入$", "Import from $1"],
   ["^正在读取 (.+)…$", "Reading $1…"],
   ["^已从 (.+) 读取登录态。$", "Sign-in state imported from $1."],
-  ["^已配置：(.+)（(\\d+) 条 cookie）$", "Configured: $1 ($2 cookies)"]
+  ["^已配置：(.+)（(\\d+) 条 cookie）$", "Configured: $1 ($2 cookies)"],
+  ["^(.+)（双击改文件名）$", "$1 (double-click to rename the files)"]
  ]
 }

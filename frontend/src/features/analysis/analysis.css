@@ -92,7 +92,7 @@
 .video-context-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .video-context-heading { justify-content: space-between; min-width: 0; margin: 0 0 16px; padding: 12px 0; }
 .video-context-heading > div:first-child { flex: 1 1 220px; min-width: 0; }
-.video-context-heading strong { display: block; overflow-wrap: anywhere; font-size: var(--font-size-subheading); }
+.video-context-heading strong { display: block; overflow-wrap: anywhere; }
 .video-context-heading span { display: block; margin-top: 5px; font-size: var(--font-size-caption); color: var(--color-text-secondary); }
 
 .learning-materials .analysis-record-bar { flex-wrap: wrap; }

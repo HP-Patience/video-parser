@@ -20,6 +20,7 @@ export default function SubtitleNaming({ projectId, config, initialTaskId, visib
   const cancelRequest = useRef<AbortController | null>(null);
   const focusedDraft = useRef('');
   const [folderTask, setFolderTask] = useState<string | null>(null);
+  const [folderBusy, setFolderBusy] = useState(false);
   const [inventory, setInventory] = useState<NamingInventory | null>(null);
   const inventoryRef = useRef<NamingInventory | null>(null);
   const [plan, setPlan] = useState<NamingPlan | null>(null);
@@ -181,16 +182,16 @@ export default function SubtitleNaming({ projectId, config, initialTaskId, visib
   // Completed results belong to the persisted operation, not the next selection's draft preview.
   const resultRows = plan?.state === 'applied' ? plan.preview?.rows || rows : rows;
   return <>
-    <ProjectFolderNaming projectId={projectId} config={config} visible={visible} initialTaskId={folderTask} onChanged={onChanged} onBeforeApply={onBeforeApply} />
+    {/* One model choice for the whole view: folder naming and subtitle naming both read it. */}
+    <section className="naming-model-bar" aria-labelledby="naming-model-bar-title">
+      <h2 id="naming-model-bar-title" className="naming-model-bar-title">选择模型</h2>
+      <AgentModelPicker state={models} disabled={working || needsRecovery || folderBusy} onManage={onOpenSettings} />
+    </section>
+    <ProjectFolderNaming projectId={projectId} models={models} onBusyChange={setFolderBusy} visible={visible} initialTaskId={folderTask} onChanged={onChanged} onBeforeApply={onBeforeApply} />
     <section ref={container} className="subtitle-naming-panel" aria-labelledby="subtitle-naming-title" aria-busy={working}>
     <header className="subtitle-naming-heading"><h2 id="subtitle-naming-title">文件重命名</h2>
-      <p className="naming-summary">先生成新名字，确认后再同步修改视频与字幕。</p></header>
+      <p className="sr-only">先生成新名字，确认后再同步修改视频与字幕。</p></header>
     {inventory ? <>
-      <section className="naming-analysis" aria-labelledby="naming-model-title">
-        <h3 id="naming-model-title">选择模型</h3>
-        <AgentModelPicker state={models} disabled={working || needsRecovery} onManage={onOpenSettings} />
-        <p className="naming-hint">{inventory.entries.every(entry => entry.single_episode) ? '单集视频只使用名称，不添加层级序号。' : '逐集参考前序文件名和当前集字幕，延续语义章节编号。'}</p>
-      </section>
       <section className="naming-scope" aria-labelledby="naming-scope-title">
         <div className="naming-section-heading"><h3 id="naming-scope-title">选择分集</h3><span className="naming-hint">已选 {selected.length} 集</span></div>
         <ul>{inventory.entries.map(entry => <li key={entry.project_id}><label><input type="checkbox" checked={selected.includes(entry.project_id)}
@@ -201,7 +202,8 @@ export default function SubtitleNaming({ projectId, config, initialTaskId, visib
         {selected.length > inventory.max_selected && <p className="notice">一次最多选择 {inventory.max_selected} 集。</p>}
       </section>
       <div className="naming-generate">
-        <p className="naming-hint" id="naming-model-consent">点击生成即同意由所选模型处理字幕，可能联网并产生费用；不会自动重试。</p>
+        <p className="sr-only">{inventory.entries.every(entry => entry.single_episode) ? '单集视频只使用名称，不添加层级序号。' : '逐集参考前序文件名和当前集字幕，延续语义章节编号。'}</p>
+        <p className="sr-only" id="naming-model-consent">点击生成即同意由所选模型处理字幕，可能联网并产生费用；不会自动重试。</p>
         <button type="button" className="primary" aria-describedby="naming-model-consent"
           disabled={working || needsRecovery || !models.configured || !scopeReady || selected.length > inventory.max_selected}
           onClick={() => { void perform(generate); }}>{plan ? '重新生成新名字' : '生成新名字'}</button>

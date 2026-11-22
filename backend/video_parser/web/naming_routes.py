@@ -39,6 +39,11 @@ class ReuseBody(BaseModel):
     selected_ids: list[Identifier] | None = Field(default=None, min_length=1, max_length=150)
 
 
+class RenameFilesBody(BaseModel):
+    model_config = {'extra': 'forbid'}
+    title: str = Field(min_length=1, max_length=100)
+
+
 class AdjustBody(BaseModel):
     model_config = {'extra': 'forbid'}
     plan_id: Identifier
@@ -98,6 +103,12 @@ def read_plan(identifier: str):
     public = {key: plan.get(key) for key in ('id', 'project_id', 'title', 'state', 'source', 'adjusted_from', 'rename_scope', 'strategy', 'completed_episodes', 'rows', 'entries', 'excerpted', 'last_error', 'preview', 'preview_token')}
     public['job_id'] = plan.get('active_job_id') or plan.get('job_id')
     return public
+
+
+@router.post('/projects/{identifier}/rename', status_code=202)
+def rename_files(identifier: str, body: RenameFilesBody):
+    """Inline rename: one call that previews and starts the real file move."""
+    return guarded(names.start_inline_rename, identifier, body.title)
 
 
 @router.post('/naming/plans/{identifier}/preview')

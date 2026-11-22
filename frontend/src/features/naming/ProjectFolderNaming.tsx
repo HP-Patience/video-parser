@@ -1,17 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { request } from '../../lib/api';
-import type { Configuration } from '../../lib/api';
 import { cancelTask, isActive, pollJob } from '../../lib/jobs';
-import AgentModelPicker from '../learning/AgentModelPicker';
-import useAgentModels from '../learning/useAgentModels';
+import type { AgentModelsState } from '../learning/useAgentModels';
 import type { NamingJob } from './types';
 
 type Plan = { id: string; project_id: string; scope: string; state: string; suggestion?: string; last_error?: string;
   recovery_status?: 'not_moved' | 'moved' | 'conflict'; recovery_outcome?: string; preview_token?: string; folder_preview?: { old: string; new: string; projects: number; files: number }; job_id?: string; active_job_id?: string };
 type Inventory = { location: string; title: string; projects: number; latest: Plan | null };
-type Props = { projectId: string; config: Configuration | null; initialTaskId: string | null; visible: boolean; onChanged: () => Promise<void>; onBeforeApply: () => void };
-export default function ProjectFolderNaming({ projectId, config, initialTaskId, visible, onChanged, onBeforeApply }: Props) {
-  const models = useAgentModels(config?.ai || null, !!config?.ai_configured);
+type Props = { projectId: string; models: AgentModelsState; onBusyChange?: (busy: boolean) => void; initialTaskId: string | null; visible: boolean; onChanged: () => Promise<void>; onBeforeApply: () => void };
+export default function ProjectFolderNaming({ projectId, models, onBusyChange, initialTaskId, visible, onChanged, onBeforeApply }: Props) {
   const [inventory, setInventory] = useState<Inventory | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [title, setTitle] = useState('');
@@ -25,6 +22,9 @@ export default function ProjectFolderNaming({ projectId, config, initialTaskId, 
   const active = useRef<AbortController | null>(null);
   const working = busy || isActive(job?.state);
   const recovery = !!plan && ['applying', 'recovery_required'].includes(plan.state);
+  // The model picker now lives once at the top of the view, so the parent needs to know
+  // when this panel is mid-operation to lock it.
+  useEffect(() => { onBusyChange?.(working || recovery); }, [working, recovery, onBusyChange]);
   async function load(signal: AbortSignal) {
     const next = await request<Inventory>(`/projects/${projectId}/folder-naming`, signal);
     if (!signal.aborted) setInventory(next);
@@ -77,16 +77,14 @@ export default function ProjectFolderNaming({ projectId, config, initialTaskId, 
     {inventory && <p className="folder-current">当前文件夹 <code translate="no">{inventory.location}</code></p>}
     {!folderOpen && <p className="naming-hint" role="status">项目文件夹已重命名。</p>}
     <div id="folder-naming-body" className="folder-naming-body" hidden={!folderOpen}>
-    <p className="naming-summary">为整个项目生成简短、直观的名称。修改主文件夹并同步界面项目名称；原始来源标题、分集名称、视频与字幕文件名保持不变。</p>
-    <label className="folder-model-label">选择模型</label>
-    <AgentModelPicker state={models} disabled={working || recovery} />
-    <p className="naming-hint">点击生成即同意发送项目标题和已存分集名称，可能联网并产生费用；不发送视频、字幕正文或学习记录。</p>
+    <p className="sr-only">为整个项目生成简短、直观的名称。修改主文件夹并同步界面项目名称；原始来源标题、分集名称、视频与字幕文件名保持不变。</p>
+    <p className="sr-only">点击生成即同意发送项目标题和已存分集名称，可能联网并产生费用；不发送视频、字幕正文或学习记录。</p>
     <div className="naming-actions"><button type="button" disabled={working || recovery || !inventory || !models.configured} onClick={() => {
       setVerified(''); void perform(async signal => follow(await request<NamingJob>(`/projects/${projectId}/folder-naming/plan`, signal, { consent: true, agent: models.selected }), signal));
     }}>AI 生成文件夹名</button></div>
     <label className="folder-title-label">新文件夹名称<input aria-label="新文件夹名称" value={title} maxLength={100} disabled={working || recovery}
       onChange={e => { setTitle(e.target.value); setVerified(''); }} /></label>
-    <p className="naming-hint">可直接手动填写。保留视频 ID 后缀以区分同名项目；确认前不会修改目录。</p>
+    <p className="sr-only">可直接手动填写。保留视频 ID 后缀以区分同名项目；确认前不会修改目录。</p>
     <button type="button" disabled={working || recovery || !inventory || !title.trim()} onClick={() => {
       const draft = title; setVerified(''); void perform(async signal => {
         const result = await request<Plan>(`/projects/${projectId}/folder-naming/preview`, signal, { title: draft });

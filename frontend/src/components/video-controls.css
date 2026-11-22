@@ -78,3 +78,18 @@
   .vc-volume input { display: none; }
   .vc-preview img { width: 120px; height: 68px; }
 }
+
+/* 速度预设现在是分段控件（第 020 期），但它活在一块深色浮层里：
+   这里把浅色的 token 换成半透明白，跟随播放器而不是跟随页面主题。 */
+.vc-speed-menu .vp-segmented {
+  border-color: rgba(255, 255, 255, .18);
+  background: rgba(255, 255, 255, .08);
+}
+.modern-app .vc-speed-menu .vp-segmented > .vp-seg { color: rgba(255, 255, 255, .72); }
+.modern-app .vc-speed-menu .vp-segmented > .vp-seg:hover:not(:disabled) { color: #fff; background: transparent; }
+.modern-app .vc-speed-menu .vp-segmented.is-grid > .vp-seg[aria-checked="true"] {
+  color: #fff;
+  background: rgba(255, 255, 255, .24);
+  box-shadow: none;
+}
+.modern-app .vc-speed-menu .vp-segmented > .vp-seg:focus-visible { outline-color: #fff; }

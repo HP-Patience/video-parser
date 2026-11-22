@@ -30,7 +30,7 @@
 }
 
 /* Task identity is primary content, its description secondary, metadata tertiary. */
-.modern-app .task-list strong { font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); }
+.modern-app .task-list strong { font-size: var(--project-title-size); font-weight: var(--font-weight-semibold); }
 .modern-app .task-description p { font-size: var(--font-size-sm); }
 .modern-app .task-description small { font-size: var(--font-size-caption); }
 .modern-app .task-details { font-size: var(--font-size-sm); line-height: 1.7; }
@@ -49,3 +49,24 @@
   .modern-app .workspace-toolbar > .tabs { column-gap: 12px; }
   .modern-app .workspace-toolbar > .tabs button[aria-selected=true]::after { bottom: 0; }
 }
+
+/* 中英混排（第 007 期）：界面是中文、内容常夹英文与数字，这里是少数几条
+   真正影响成品的规则，全部可回退，不改变任何字号。
+   1) 标题用 balance 收紧末行，正文用 pretty 避免孤字；
+   2) 中文断行按 strict，不在标点前断开；英文长词按 anywhere 兜底；
+   3) 支持 text-spacing-trim 的浏览器把中文标点前后空气收掉一半，避免"字 字 字"；
+   4) 数字统一等宽，倒计时与进度条跳数时不抖。 */
+.modern-app :is(h1, h2, h3, .topbar-title, .panel-title) { text-wrap: balance; }
+.modern-app :is(p, li, blockquote, .markdown) { text-wrap: pretty; }
+.modern-app :is(.markdown, .ai-chat-log, .analysis-form, .settings-page) {
+  line-break: strict;
+  overflow-wrap: break-word;
+}
+@supports (text-spacing-trim: space-first) {
+  .modern-app :is(.markdown, .ai-chat-log) { text-spacing-trim: space-first; }
+}
+.modern-app :is(.md-time, .md-time-range, .progress-meta, .nav-count,
+  .ai-chat-actions small, .task-details time) { font-variant-numeric: tabular-nums; }
+
+/* 中文正文不需要额外字距；只有全大写的英文标签才加宽。 */
+.modern-app :is(.markdown p, .markdown li, .ai-chat-log p) { letter-spacing: normal; }

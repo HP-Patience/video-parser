@@ -12,7 +12,9 @@
 .model-source-state { font-size: var(--font-size-xs); color: var(--color-text-secondary); overflow-wrap: anywhere; }
 .model-source-actions { display: flex; align-items: center; gap: 20px; flex: none; flex-wrap: wrap; }
 .settings-page .model-source-row button { min-height: var(--control-height-md); min-width: 76px; flex: none; }
-.settings-page .model-source-actions .agent-tool-switch { margin: 0; white-space: normal; flex-wrap: wrap; gap: 7px; }
+/* 开关自带轨道 + 文字的排版（见 ChoiceControls），这里只负责对齐。
+   原来允许 label 内部换行，轨道变宽后会把「允许调用」挤到下一行，所以不再 wrap。 */
+.settings-page .model-source-actions .agent-tool-switch { margin: 0; white-space: nowrap; gap: 7px; }
 .agent-tool-switch small { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
 .model-source-config { padding: 0 0 24px; min-width: 0; }
 .model-source > :is(.error-text, .settings-hint, .settings-save-status) { margin-bottom: 12px; }
@@ -22,7 +24,6 @@
 .learning-model-meta-tools { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
 .settings-page .learning-model-meta-tools .settings-check { margin: 0; font-size: var(--font-size-control); }
 .learning-target-group { min-width: 0; border: 0; padding: 0; margin: 0; }
-.learning-target-group legend { font-size: var(--font-size-sm); margin-bottom: 6px; }
 .learning-target-group ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
 .learning-target-group li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 0; border-radius: var(--radius-sm); }
 .learning-target-group li.is-default { background: var(--color-surface-sunken); }

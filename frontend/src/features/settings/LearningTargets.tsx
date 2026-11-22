@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { request } from '../../lib/api';
 import type { AgentCatalog, AgentTarget, AISettings } from '../../lib/api';
 import { API_TARGET, isEnabled, saveAgentPreferences, targetKey, useAgentPreferences } from '../learning/agentPreferences';
+import { Switch } from '../../components/ChoiceControls';
 import './learning-targets.css';
 
 type Row = { key: string; target: AgentTarget; label: string; ready: boolean };
@@ -39,7 +40,9 @@ export default function LearningTargets({ api, children, focusRequest = 0 }: { a
     try {
       const next = await request<AgentCatalog>('/ai/agents/enabled', new AbortController().signal, { engine, enabled });
       setCatalog(next); window.dispatchEvent(new CustomEvent('video-parser:agents-changed'));
-      setFailed(false); setStatus(enabled ? 'Agent 已开启。' : 'Agent 已关闭：禁止新调用，当前调用不强制中断。');
+      // 开关的轨道本身就是结果，不再额外弹一句「已开启 / 已关闭」；
+      // 只清掉上一次的错误状态，失败提示仍走下面的 catch。
+      setFailed(false);
     } catch (error) { setCatalog(previous); setFailed(true); setStatus(error instanceof Error ? error.message : '保存失败'); }
     finally { setSavingAgent(''); }
   }
@@ -132,8 +135,9 @@ export default function LearningTargets({ api, children, focusRequest = 0 }: { a
           <div className="model-source-row">
             <div className="model-source-copy"><h4 id={'source-' + group.id} translate="no">{group.name}</h4><span className="model-source-state">{state}</span></div>
             <div className="model-source-actions">
-              <label className="settings-check agent-tool-switch"><input type="checkbox" role="switch" aria-label={group.name} checked={!!engine && engine.enabled !== false}
-                disabled={!engine || !!savingAgent || !!reading} onChange={event => { void toggleAgent(group.id, event.target.checked); }} /><span>允许调用</span></label>
+              <Switch className="settings-check agent-tool-switch" ariaLabel={group.name} label="允许调用"
+                checked={!!engine && engine.enabled !== false} disabled={!engine || !!savingAgent || !!reading}
+                onChange={next => { void toggleAgent(group.id, next); }} />
               <button type="button" aria-label={'管理 ' + group.name + ' 模型'} aria-expanded={open} aria-controls={'models-' + group.id}
                 onClick={() => setOpened(old => open ? old.filter(id => id !== group.id) : [...old, group.id])}>{open ? '收起' : '管理模型'}</button>
             </div>
@@ -146,8 +150,9 @@ export default function LearningTargets({ api, children, focusRequest = 0 }: { a
               <button type="button" disabled={!!reading || !!savingAgent || !engine?.installed || engine.enabled === false} aria-busy={reading === group.id}
                 title="只运行本机程序读取模型与命令，不发送课程内容" onClick={() => { void discover(group.id); }}>{reading === group.id ? '读取中…' : '读取本机模型'}</button>
             </div>
-            <div className="learning-model-meta-tools"><label className="settings-check"><input type="checkbox" checked={!!showIds[group.id]} onChange={event => setShowIds(old => ({ ...old, [group.id]: event.target.checked }))} />显示调用 ID</label></div>
-            <fieldset className="learning-target-group" aria-label={group.name}><legend>在模型选择器中显示</legend>
+            <div className="learning-model-meta-tools"><Switch className="settings-check" label="显示调用 ID"
+              checked={!!showIds[group.id]} onChange={next => setShowIds(old => ({ ...old, [group.id]: next }))} /></div>
+            <fieldset className="learning-target-group" aria-label={group.name}>
               <ul>{rows.map(row => <li key={row.key} className={row.key === current ? 'is-default' : undefined}>
                 <label className="settings-check"><input type="checkbox" checked={row.key === current || isEnabled(preferences, row.target)} disabled={row.key === current}
                   onChange={event => toggle(row, event.target.checked)} /><span className="learning-model-copy"><span translate={row.target.model ? 'no' : undefined}>{row.label}</span>

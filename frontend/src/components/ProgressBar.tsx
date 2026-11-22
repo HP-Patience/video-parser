@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatBytes, formatRate, formatEta } from '../lib/format';
 import type { TaskInfo } from '../lib/jobs';
 import './progress.css';
@@ -14,7 +14,15 @@ export default function ProgressBar({ progress }: Props) {
   const bytes = Math.max(0, progress.bytes || 0);
   const total = progress.total_bytes || 0;
   const known = total > 0 && !progress.estimated_total;
-  const percent = known ? Math.min(100, Math.floor(bytes / total * 100)) : undefined;
+  const raw = known ? Math.min(100, Math.floor(bytes / total * 100)) : undefined;
+  // 进度只能往前走：重连、重新取块、取值抖动都可能让百分比往回跳一格，
+  // 那会让人以为文件坏了。这里锁住已到达的最高值，换任务是 total 变化时重置。
+  const seen = useRef({ total: 0, percent: 0 });
+  if (raw !== undefined) {
+    if (seen.current.total !== total) seen.current = { total, percent: 0 };
+    if (raw > seen.current.percent) seen.current.percent = raw;
+  }
+  const percent = raw === undefined ? undefined : seen.current.percent;
   const fresh = !!progress.sampled_at && Math.abs(now / 1000 - progress.sampled_at) < 4;
   const speed = fresh ? progress.speed_bytes_per_second : undefined;
   const eta = speed && speed > 0 && total > bytes ? progress.eta_seconds : undefined;

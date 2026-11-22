@@ -201,9 +201,14 @@ input[type=checkbox], input[type=radio] { accent-color: var(--color-fill-primary
 [data-theme="dark"] .modern-app .transcription-upload .file-drop { background: transparent; }
 /* ---------- 音频转文字：来源切换与归档视频列表 ---------- */
 .transcription-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+/* 分段切换：外框画在轨道上，里面的按钮一律无描边，选中只靠填充。
+   soft-workbench.css 里的通用 button 规则会覆盖同名选择器，这里带上
+   .transcription-panel 提高权重，避免底色回填、又出现"描边感"。 */
 .source-switch { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-sunken); }
-.modern-app .source-switch button { --button-edge: transparent; min-height: 32px; padding: 5px 14px; border: 0; border-radius: calc(var(--radius-lg) - 3px); background: transparent; box-shadow: none; color: var(--color-text-secondary); font-size: var(--font-size-sm); gap: 6px; }
-.modern-app .source-switch button[aria-pressed="true"] { background: var(--color-bg); color: var(--color-text); font-weight: 600; box-shadow: 0 0 0 1px var(--color-border); }
+.modern-app .transcription-panel .source-switch button { --button-edge: transparent; min-height: 32px; padding: 5px 14px; border: 0; border-radius: calc(var(--radius-lg) - 3px); background: transparent; box-shadow: none; color: var(--color-text-secondary); font-size: var(--font-size-sm); gap: 6px; }
+.modern-app .transcription-panel .source-switch button:hover:not(:disabled) { border-color: transparent; box-shadow: none; }
+.modern-app .transcription-panel .source-switch button[aria-pressed="true"] { background: var(--color-surface-raised); color: var(--color-text); font-weight: 600; box-shadow: none; }
+.modern-app .transcription-panel .source-switch button[aria-pressed="true"]:hover:not(:disabled) { background: var(--color-surface-raised); box-shadow: none; }
 .switch-count { min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--color-fill-hover); color: var(--color-text-secondary); font-size: var(--font-size-caption); font-weight: 500; line-height: 18px; }
 .transcription-head .operation-button { min-height: 40px; }
 .source-picker { display: grid; gap: 10px; }
@@ -269,3 +274,15 @@ input[type=checkbox], input[type=radio] { accent-color: var(--color-fill-primary
 .settings-ai .settings-price span { padding-bottom: 9px; font-size: var(--font-size-xs); color: var(--color-text-tertiary); }
 .settings-ai .settings-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .settings-ai .settings-hint { overflow-wrap: anywhere; }
+
+/* 连续曲率圆角（第 004 期）：Chrome / Edge 139+ 支持 corner-shape 时，
+   大面积容器用 superellipse，圆角过渡更顺、没有"方肩"的折点。
+   其余浏览器直接跳过，退回普通 border-radius，所以这是一层纯增强。
+   只列大块面：胶囊、圆形、小控件保持正圆弧，不要跟着变形。 */
+@supports (corner-shape: superellipse(1.25)) {
+  .modern-app :is(.panel, .settings-card, .overview-video-card, .episode-learning-card,
+    .ai-runtime-card, .ai-provider-card, .conversation-picker, .playback-speed-panel,
+    .slash-command-menu, .markdown pre) {
+    corner-shape: superellipse(1.25);
+  }
+}
