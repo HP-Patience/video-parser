@@ -4,7 +4,7 @@ import { workspaceUrl } from '../../lib/api-base';
 
 export const IMAGE_LIMIT = 4;
 export const IMAGE_MAX_BYTES = 4 * 1024 * 1024;
-const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+export const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 /** A pasted image already stored beside the project; only the name travels. */
 export type StoredImage = { name: string; mime?: string; size?: number };
@@ -17,7 +17,7 @@ export function clipboardImages(event: { clipboardData: DataTransfer | null }): 
   if (!items) return [];
   const files: File[] = [];
   for (const item of Array.from(items)) {
-    if (item.kind !== 'file' || !ACCEPTED.includes(item.type)) continue;
+    if (item.kind !== 'file' || !IMAGE_TYPES.includes(item.type)) continue;
     const file = item.getAsFile();
     if (file) files.push(file);
   }

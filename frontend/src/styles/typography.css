@@ -18,7 +18,7 @@
   font-size: var(--font-size-section); font-weight: var(--font-weight-semibold); line-height: 1.5;
 }
 .modern-app :is(.settings-page h3, .subtitle-naming-panel h3, .ai-chat-heading h3,
-  .learning-progress-heading h3, .workspace-continue h3) {
+  .learning-progress-heading h3) {
   font-size: var(--font-size-subheading); font-weight: var(--font-weight-semibold); line-height: 1.5;
 }
 .modern-app :is(.panel-title-secondary,

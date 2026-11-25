@@ -95,7 +95,10 @@ class ChatIMEBrowserTests(unittest.TestCase):
         return field
 
     def learn(self):
-        self.f.parse()
+        self.page.goto(self.f.url)
+        self.page.get_by_role('textbox', name='视频链接或分享文本').fill(self.f.parsed()['source_url'])
+        self.page.get_by_role('button', name='解析视频', exact=True).click()
+        expect(self.page.locator('.preview-panel video')).to_be_visible()
         self.page.get_by_role('button', name='学习视图', exact=True).click()
         self.field = self.chat()
         self.field.focus()
@@ -248,8 +251,8 @@ class ChatIMEBrowserTests(unittest.TestCase):
         self.compose(['w', 'wen'], '问')
         self.page.locator('.ai-chat-actions button[type=submit]').click()
         expect(self.page.locator('.ai-chat-log > .is-pending')).to_have_count(1)
-        expect(self.page.locator('.ai-chat-actions button[type=submit]')).to_be_disabled()
-        self.field.evaluate('e=>e.form.requestSubmit()')
+        expect(self.page.get_by_role('button', name='停止回答', exact=True)).to_be_visible()
+        self.field.evaluate("e=>e.form.dispatchEvent(new SubmitEvent('submit', {bubbles:true,cancelable:true}))")
         expect(self.page.locator('.ai-chat-answer')).to_contain_text('中文问题已完整收到')
         expect(self.page.locator('.ai-chat-log > .is-pending')).to_have_count(0)
         expect(self.field).to_have_value('')

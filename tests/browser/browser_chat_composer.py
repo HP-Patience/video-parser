@@ -48,7 +48,10 @@ class ChatComposerLayoutTests(unittest.TestCase):
         self.f = self.Fixture('test_settings_cross_tab_updates')
         self.f.setUp()
         self.page = self.f.page
-        self.f.parse()
+        self.page.goto(self.f.url)
+        self.page.get_by_role('textbox', name='视频链接或分享文本').fill(self.f.parsed()['source_url'])
+        self.page.get_by_role('button', name='解析视频', exact=True).click()
+        expect(self.page.locator('.preview-panel video')).to_be_visible()
         self.page.get_by_role('button', name='学习视图', exact=True).click()
         self.page.get_by_role('tab', name='AI 对话', exact=True).click()
         expect(self.page.locator('.ai-chat-log > li')).to_have_count(3)
@@ -83,7 +86,8 @@ class ChatComposerLayoutTests(unittest.TestCase):
             data = self.geometry()
             self.assertFalse(data['aligned'], (width, data))
             self.assertFalse(data['horizontalOverflow'], (width, data))
-            self.assertEqual(data['logClient'], data['logScroll'], (width, data))
+            self.assertEqual(data['logOverflowY'], 'visible', (width, data))
+            self.assertEqual(data['logTop'], 0, (width, data))
             self.assert_composer_at_bottom(data)
             self.assertGreaterEqual(data['form']['top'], data['body']['top'] - 1, (width, data))
         self.page.set_viewport_size({'width': 1440, 'height': 1000})
@@ -105,3 +109,9 @@ class ChatComposerLayoutTests(unittest.TestCase):
         data = self.geometry()
         self.assertLessEqual(data['lastItemBottom'], data['log']['bottom'] + 1, data)
         self.assert_composer_at_bottom(data)
+
+    def test_model_and_submit_share_the_bottom_row(self):
+        model = self.page.locator('#study-panel-chat').get_by_label('引擎与模型').bounding_box()
+        submit = self.page.get_by_role('button', name='提问', exact=True).bounding_box()
+        self.assertAlmostEqual(model['y'] + model['height'] / 2, submit['y'] + submit['height'] / 2, delta=2)
+        self.assertLessEqual(model['x'] + model['width'], submit['x'])

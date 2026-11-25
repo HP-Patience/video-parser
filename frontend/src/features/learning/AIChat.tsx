@@ -17,7 +17,7 @@ import { completeCommand, matchingCommands, slashToken } from './slashCommands';
 import type { SlashCommand } from './slashCommands';
 import ImageTray from './ImageTray';
 import TypingMatrix from './TypingMatrix';
-import { IMAGE_LIMIT, clipboardImages, uploadClipboard } from './pastedImages';
+import { IMAGE_LIMIT, IMAGE_TYPES, clipboardImages, uploadClipboard } from './pastedImages';
 import type { StoredImage } from './pastedImages';
 import './ai-chat.css';
 
@@ -40,6 +40,7 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
   const [picker, setPicker] = useState(false), [sending, setSending] = useState(false);
   const [images, setImages] = useState<StoredImage[]>([]), [pasting, setPasting] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null), log = useRef<HTMLOListElement>(null);
+  const attachmentInput = useRef<HTMLInputElement>(null);
   const popup = useRef<HTMLDivElement>(null), ball = useRef<HTMLButtonElement>(null);
   const sendingNow = useRef(false), composingNow = useRef(false);
   const [composing, setComposing] = useState(false);
@@ -54,7 +55,8 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
   const pending = chat?.pending;
   const waiting = !!pending && pending.conversationId === session?.id;
   const answered = session?.messages.length || 0;
-  const blocked = !chat?.available || !chat.configured || busy !== null || sending || chat.creating || chat.clearing || composing || waiting;
+  const blocked = !chat?.available || !chat.configured || busy !== null || sending || pasting || chat.creating || chat.clearing || composing || waiting;
+  const canStop = waiting && busy === 'analyze';
   const commandToken = chat?.models.native && chat.configured && visible && commandState.focused && !commandState.dismissed && !composing
     ? slashToken(question, commandState.caret, commandState.end) : null;
   const commands = commandToken && !chat?.models.refreshing ? matchingCommands(chat?.models.commands || [], commandToken.query) : [];
@@ -101,7 +103,7 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
     const history = log.current, item = history?.lastElementChild;
     if (!visible || !changed || !history || !item || !item.getClientRects().length) return;
     // The rail's log scrolls itself; only the narrow layout falls back to scrolling the sidebar body.
-    const viewport = history.scrollHeight > history.clientHeight + 1
+    const viewport = getComputedStyle(history).overflowY === 'auto' && history.scrollHeight > history.clientHeight + 1
       ? history : history.closest<HTMLElement>('.study-sidebar-body') || history;
     viewport.scrollTop = viewport.scrollHeight;
   }, [answered, waiting, session?.id, visible]);
@@ -122,16 +124,17 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
     finally { sendingNow.current = false; setSending(false); }
   }
   // Pasting uploads straight away so only short file names reach the worker payload.
-  async function pasteImages(files: File[]) {
+  async function addImages(files: File[]) {
     if (!chat || !files.length || pasting) return;
     const room = IMAGE_LIMIT - images.length;
     if (room <= 0) { setFailure(`每条提问最多 ${IMAGE_LIMIT} 张图片。`); return; }
+    const scope = contextKey;
     setPasting(true); setFailure('');
     try {
       const stored = await uploadClipboard(chat.projectId, files, room);
-      setImages(current => [...current, ...stored].slice(0, IMAGE_LIMIT));
+      if (currentContext.current === scope) setImages(current => [...current, ...stored].slice(0, IMAGE_LIMIT));
     }
-    catch (reason) { setFailure(reason instanceof Error ? reason.message : '图片上传失败，请重试。'); }
+    catch (reason) { if (currentContext.current === scope) setFailure(reason instanceof Error ? reason.message : '图片上传失败，请重试。'); }
     finally { setPasting(false); }
   }
   async function newConversation() {
@@ -203,7 +206,7 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
           <ImageTray projectId={chat.projectId} images={images} disabled={sending || pasting}
             onRemove={name => setImages(current => current.filter(image => image.name !== name))} />
           <textarea ref={input} id={floating ? 'ai-chat-question' : 'analysis-conversation-question'} rows={3} maxLength={LIMIT} value={question} disabled={!chat.configured || sending || chat.clearing}
-            onPaste={event => { const files = clipboardImages(event); if (!files.length) return; event.preventDefault(); void pasteImages(files); }}
+            onPaste={event => { const files = clipboardImages(event); if (!files.length) return; event.preventDefault(); void addImages(files); }}
             aria-autocomplete="list" aria-controls={commandToken ? commandId + '-list' : undefined}
             aria-activedescendant={commandToken && commands.length ? `${commandId}-option-${commandIndex}` : undefined}
             placeholder={chat.models.native ? '输入 / 查找命令或 Skills，也可以直接提问…' : '问问 AI，例如：这一段的公式是怎么推出来的？'}
@@ -240,17 +243,27 @@ export default function AIChat({ chat, busy, status, error, task, cancelDisabled
             }} />
           </div>
           <div className="ai-chat-actions">
-            {pasting && <small role="status">正在保存图片…</small>}
-            {videoRef && <button type="button" disabled={!chat.configured || composing} onClick={insertTime}>插入当前时间</button>}
-            <button type="button" disabled={busy !== null || sending || waiting || chat.creating || chat.clearing || !session?.messages.length || session.context_after === session.messages.at(-1)?.id}
-              aria-busy={chat.clearing} onClick={() => { void clearContext(); }}>清空上下文</button>
+            <input ref={attachmentInput} type="file" hidden multiple accept={IMAGE_TYPES.join(',')} onChange={event => {
+              const files = Array.from(event.currentTarget.files ?? []);
+              event.currentTarget.value = '';
+              const supported = files.filter(file => IMAGE_TYPES.includes(file.type));
+              if (supported.length !== files.length) { setFailure('请选择 JPG、PNG、WebP 或 GIF 图片。'); return; }
+              void addImages(supported);
+            }} />
+            <button type="button" className="ai-chat-tool" aria-label="添加图片" title="添加图片" disabled={blocked || images.length >= IMAGE_LIMIT}
+              onClick={() => attachmentInput.current?.click()}><Icon name="image" /></button>
+            {videoRef && <button type="button" className="ai-chat-tool" aria-label="插入当前时间" title="插入当前时间" disabled={!chat.configured || composing} onClick={insertTime}><Icon name="clock" /><span>插入当前时间</span></button>}
+            <button type="button" className="ai-chat-tool" aria-label="清空上下文" title="清空上下文" disabled={busy !== null || sending || waiting || chat.creating || chat.clearing || !session?.messages.length || session.context_after === session.messages.at(-1)?.id}
+              aria-busy={chat.clearing} onClick={() => { void clearContext(); }}><Icon name="eraser" /><span>清空上下文</span></button>
             <small>{question.length} / {LIMIT}</small>
             <div className="ai-chat-submit-actions">
-            {waiting && busy === 'analyze' && <button type="button" disabled={cancelDisabled} onClick={onCancel}>停止回答</button>}
-            <button type="submit" className="primary" disabled={blocked || !question.trim()} aria-busy={waiting}>
-              <Icon name={waiting ? 'loader-circle' : 'send'} className={waiting ? 'spinner' : ''} />提问</button></div>
+              <AgentModelPicker state={chat.models} disabled={busy !== null || sending || chat.creating || chat.clearing || composing} onManage={onOpenSettings} />
+              {canStop ? <button key="stop" type="button" className="primary ai-chat-primary" aria-label="停止回答" title="停止回答" disabled={cancelDisabled} onClick={onCancel}><Icon name="square" /><span>停止回答</span></button>
+                : <button key="send" type="submit" className="primary ai-chat-primary" aria-label={sending ? '正在发送…' : waiting ? '等待回答…' : '提问'} title="提问" disabled={blocked || !question.trim()} aria-busy={sending || waiting}>
+                  <Icon name={sending || waiting ? 'loader-circle' : 'send'} className={sending || waiting ? 'spinner' : ''} /><span>{sending ? '正在发送…' : waiting ? '等待回答…' : '提问'}</span></button>}
+            </div>
+            {pasting && <div className="ai-chat-upload-status" role="status">正在保存图片…</div>}
           </div>
-          <AgentModelPicker state={chat.models} disabled={busy !== null || sending || chat.creating || chat.clearing || composing} onManage={onOpenSettings} />
           {!chat.configured && chat.models.native && <p className="error-text" role="status">未找到所选本地 agent，请检查安装后刷新。</p>}
           {draftStorageFailed && <p className="error-text ai-chat-failure" role="status">草稿暂时无法保存在本浏览器，刷新前请先复制。</p>}
         </form>

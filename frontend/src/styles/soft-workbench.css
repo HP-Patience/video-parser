@@ -325,7 +325,6 @@ input:where([type=text], [type=number], [type=search], [type=url], [type=passwor
 }
 .workspace-start-intro h2 { font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.045em; }
 .workspace-start .source-panel { box-shadow: none; }
-.workspace-continue { border-top-color: color-mix(in srgb, var(--color-border) 75%, transparent); }
 
 /* ---------- Common content highlights ---------- */
 .platform-mark { border-radius: var(--radius-full); padding: 2px 9px; background: var(--color-surface-sunken); }

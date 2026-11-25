@@ -31,8 +31,11 @@ export default function CacheManager({ activeCount }: { activeCount: number | nu
     setNotice(`清理完成：${bytes(result.size_bytes)}，跳过 ${result.skipped.length} 项变化或不可清理的缓存。`);
   }, '清理失败');
   const running = activeCount ?? 0;
-  return <section aria-labelledby="settings-cache"><h3 id="settings-cache">临时缓存</h3>
-    {!preview && <button type="button" disabled={busy} aria-busy={busy} onClick={() => { void loadPreview(); }}>缓存管理</button>}
+  return <section aria-labelledby="settings-cache">
+    <div className="cache-heading">
+      <h3 id="settings-cache">临时缓存</h3>
+      {!preview && <button type="button" disabled={busy} aria-busy={busy} onClick={() => { void loadPreview(); }}>缓存管理</button>}
+    </div>
     {preview && !preview.entries.length && <p className="settings-hint">暂无可清理的临时缓存。<button type="button" className="link-button" onClick={() => setPreview(null)}>知道了</button></p>}
     {preview && !!preview.entries.length && <div className="cache-preview"><h4>清理预览</h4><p>{preview.note}</p>
       <details className="cache-usage-details"><summary>查看缓存分类用量</summary><p>临时字幕副本：{bytes(preview.usage.subtitle_scratch || 0)} · 视频/分析临时副本：{bytes(preview.usage.workflow_scratch || 0)} · 可复用字幕缓存：{bytes(preview.usage.subtitle_reuse_cache || 0)}</p></details>

@@ -22,7 +22,7 @@ function savedWidth() {
 /** Divider between the player column and the study rail: drag, arrow keys or double-click to reset. */
 export default function StudySplitter() {
   const handle = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ x: number; width: number } | null>(null);
+  const drag = useRef<{ x: number; width: number; pointerId: number } | null>(null);
   const [width, setWidth] = useState(savedWidth);
   const workspace = () => handle.current?.closest<HTMLElement>('.study-workspace') ?? null;
   const bounds = () => {
@@ -38,22 +38,28 @@ export default function StudySplitter() {
   }, [width]);
   useEffect(() => () => { document.body.classList.remove('is-resizing-study-rail'); }, []);
   function start(event: PointerEvent<HTMLDivElement>) {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || drag.current) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    drag.current = { x: event.clientX, width: railWidth() };
+    drag.current = { x: event.clientX, width: railWidth(), pointerId: event.pointerId };
     document.body.classList.add('is-resizing-study-rail');
   }
   function move(event: PointerEvent<HTMLDivElement>) {
     const origin = drag.current;
-    if (!origin) return;
+    if (!origin || origin.pointerId !== event.pointerId) return;
     const { min, max } = bounds();
-    apply(clamp(origin.width - (event.clientX - origin.x), min, max));
+    const requested = origin.width - (event.clientX - origin.x);
+    const width = clamp(requested, min, max);
+    apply(width);
+    // Keep the actual grid clamped; only the line yields inside the divider's hit area.
+    const overshoot = width - requested;
+    event.currentTarget.style.setProperty('--study-divider-offset', `${8 * overshoot / (40 + Math.abs(overshoot))}px`);
   }
   function end(event: PointerEvent<HTMLDivElement>) {
-    if (!drag.current) return;
+    if (drag.current?.pointerId !== event.pointerId) return;
     drag.current = null;
     document.body.classList.remove('is-resizing-study-rail');
+    event.currentTarget.style.removeProperty('--study-divider-offset');
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     setWidth(railWidth());
   }

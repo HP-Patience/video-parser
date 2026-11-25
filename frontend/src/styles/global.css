@@ -82,9 +82,6 @@ a { color: var(--mint); }
 .source-row { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 14px; align-items: stretch; }
 .source-row textarea { display: block; min-height: 94px; }
 .parse-button { align-self: end; min-height: 46px; }
-.examples-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 13px; }
-.examples { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.examples > span { color: var(--muted); font-size: var(--font-size-caption); margin-right: 12px; }
 .chip { box-shadow: none; min-height: 32px; padding: 5px 15px; background: var(--color-surface); font-size: var(--font-size-control); border-radius: var(--radius-md); }
 .clear-button { box-shadow: none; font-size: var(--font-size-control); min-height: 32px; background: var(--color-surface); white-space: nowrap; padding: 5px 13px; }
 .work-grid { display: grid; grid-template-columns: minmax(0, 2.18fr) minmax(300px, 1fr); align-items: stretch; gap: 20px; }
@@ -155,9 +152,6 @@ img.progressive-image.is-error { background: var(--color-surface-sunken); filter
   .panel { padding: 16px; border-radius: var(--radius-lg); }
   .source-row { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .parse-button { width: 100%; min-height: 43px; }
-  .examples-row { align-items: flex-end; flex-direction: column; gap: 12px; }
-  .examples { width: 100%; gap: 7px; }
-  .examples > span { margin-right: 3px; }
   .chip { padding: 6px 10px; }
   .tabs { gap: 7px; margin-bottom: 18px; }
   .tabs button { padding: 6px 9px; }

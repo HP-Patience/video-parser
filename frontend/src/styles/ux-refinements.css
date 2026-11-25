@@ -1,13 +1,16 @@
 /* Task-first presentation; state and operation owners remain unchanged. */
-.modern-app .workspace-start { max-width: 960px; margin: 28px auto 0; }
+.modern-app .workspace-start { margin: 28px 0 0; }
 .workspace-start-intro { max-width: 660px; margin-bottom: 24px; }
 .workspace-start-intro h2 { margin: 10px 0 12px; font-size: clamp(24px, 3vw, 32px); line-height: 1.3; letter-spacing: -.02em; }
 .modern-app .workspace-start .source-panel { margin: 0; }
-.modern-app .workspace-start .examples-row { margin: 12px 0 0; }
-.workspace-continue { margin-top: 28px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding: 24px 0; border-top: 1px solid var(--color-border); }
-
-.workspace-continue h3 { flex: 1 1 250px; min-width: 0; margin: 0; font-size: var(--font-size-subheading); }
-.modern-app .workspace-continue > button { flex: none; min-height: 40px; }
+.source-local-marker { display: none; }
+.workspace-start .source-import-button { position: relative; }
+.workspace-start .source-local-marker {
+  position: absolute; top: 100%; left: -16px; display: grid; justify-items: start;
+  pointer-events: none; font-size: 12px; font-weight: 600; line-height: 1;
+}
+.workspace-start .source-local-marker svg { width: 20px; height: 20px; margin-left: 13px; color: #949494; }
+.workspace-start .source-local-marker span { color: #000; paint-order: stroke fill; -webkit-text-stroke: 2px #ddd; }
 .workspace-source-editor { margin: 0 0 16px; min-width: 0; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .workspace-source-editor > summary { display: flex; align-items: center; gap: 10px; padding: 10px 14px; min-width: 0; cursor: pointer; color: var(--color-text-secondary); font-size: var(--font-size-control); }
 .workspace-source-editor > summary > svg { flex: none; width: 16px; height: 16px; }
@@ -104,10 +107,6 @@
   .workspace-source-action { max-width: 112px; font-size: var(--font-size-control); }
   .workspace-start-intro { margin-bottom: 18px; }
   .modern-app .workspace-start { margin-top: 12px; }
-}
-@media (max-width: 420px) {
-  .workspace-continue { gap: 12px; padding-top: 18px; }
-  .workspace-continue > button { width: 100%; }
 }
 
 /* The completion control belongs to the current episode, beside (not inside) the picker. */

@@ -43,12 +43,6 @@ import FormField from './components/FormField';
 import { pageFromSearch, type Page } from './features/navigation/navigation';
 import type { AgentTarget, AISettings, AnalysisBody, AnalysisResult, Configuration, LearningEpisode, LocalVideoImport, Media, ParsedVideo, VideoProject, VideoProjectSummary } from './lib/api';
 
-// Re-tested 2026-10-14 (docs/mcp-platform-probe-20261014.md). 小红书 needs a login, so it has no example.
-const examples: Record<string, string> = {
-  "哔哩哔哩": "https://www.bilibili.com/video/BV1kKWA6uEyr",
-  "抖音": "https://www.douyin.com/video/7696088077957090575",
-  "YouTube": "https://www.youtube.com/watch?v=aqz-KE-bpKQ"
-};
 const tabs = [
   { name: '视频', id: 0, icon: 'circle-play' },
   { name: '字幕与转写', id: 3, icon: 'captions' },
@@ -727,11 +721,8 @@ export default function App() {
                 : <span translate="no">{[parsed.project.part ? `P${parsed.project.part}` : '', projectTitle !== videoTitle ? projectTitle : ''].filter(Boolean).join(' · ')}</span>}</div>
           </div>}
           </div>
-          {!learning && !parsed && tab !== '字幕与转写' && tab !== '文件重命名' && <WorkspaceStart onContinue={openLearning}>
+          {!learning && !parsed && tab !== '字幕与转写' && tab !== '文件重命名' && <WorkspaceStart>
             <Panel className="source-panel" aria-labelledby="source-label">{sourceEntry}</Panel>
-            {!source && <div className="examples-row"><div className="examples"><span>试试示例</span>
-              {Object.entries(examples).map(([name, url]) => <button key={name} className="chip" type="button" onClick={() => { setSource(url); sourceInput.current?.focus(); }}>{name}</button>)}
-            </div></div>}
           </WorkspaceStart>}
           {fullInspector && parsed && <Panel className="source-panel" aria-labelledby="source-label">{sourceEntry}</Panel>}
           <div key="workpanel" id="workpanel" hidden={(!parsed && !learning) || (!learning && (tab === '字幕与转写' || tab === '文件重命名'))} role={page === 'learning' ? 'region' : 'tabpanel'} aria-labelledby={page === 'learning' ? 'page-title-learning' : 'tab-' + tabs.find(item => item.name === tab)?.id} className={`work-grid study-workspace${!fullInspector ? ' compact-context' : ''}${learning && media && studyCollapsed ? ' study-workspace-collapsed' : ''}${managing || (learning && !parsed) ? ' study-single-column' : ''}`}>

@@ -275,25 +275,6 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,t
   min-height:38px;
   align-self:center
 }
-.examples-row {
-  margin:0 0 21px
-}
-.examples {
-  gap:10px;
-  font-size: var(--font-size-caption)
-}
-.examples>span {
-  margin-right:0;
-  font-size: var(--font-size-caption)
-}
-.examples .chip {
-  padding:0 2px;
-  min-height:24px;
-  border:0;
-  background:transparent;
-  font-size: var(--font-size-control);
-  color:var(--color-text-secondary)
-}
 .work-grid {
   grid-template-columns:minmax(0,1fr) 288px;
   gap:24px;
@@ -842,16 +823,6 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,t
     min-height:36px;
     font-size: var(--font-size-control)
   }
-  .examples-row {
-    align-items:flex-start;
-    margin-bottom:18px
-  }
-  .examples {
-    gap:7px
-  }
-  .examples>span,.examples .chip {
-    font-size: var(--font-size-control)
-  }
   .work-grid {
     gap:20px
   }
@@ -1043,7 +1014,6 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,t
 .modern-app .tabs { gap:12px; }
 .modern-app .tabs button { border-radius:var(--radius-md); padding-inline:8px; }
 .modern-app .tabs button[aria-selected=true] { background:var(--color-fill-hover); }
-.modern-app .examples .chip { padding:3px 7px; }
 .modern-app .project-actions button { padding-inline:10px; }
 .modern-app .nav-scrim {
   --button-edge:var(--color-border-strong);
@@ -1056,7 +1026,6 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,t
 @media(max-width:760px) {
   .modern-app .tabs { gap:8px; }
   .modern-app .tabs button { padding-inline:4px; }
-  .modern-app .examples .chip { padding-inline:5px; }
 }
 @media(max-width:350px) {
   .modern-app .tabs { gap:4px; }

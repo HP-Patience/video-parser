@@ -17,7 +17,7 @@ import { getApiBaseUrl, setApiBaseUrl } from '../../lib/api-base';
 import type { Language } from '../../lib/i18n';
 import './settings-page.css';
 
-const groups = { general: '常用设置', cloud: '登录与云端存储', ai: 'AI 模型', usage: '用量看板', health: '归档体检', maintenance: '存储与维护' } as const;
+const groups = { general: '常用设置', ai: 'AI 模型', usage: '用量看板' } as const;
 const LANGUAGES: [Language, string, string][] = [['zh', '中文', 'zh-CN'], ['en', 'English', 'en']];
 type Group = keyof typeof groups;
 function groupFromURL(): Group {
@@ -114,32 +114,12 @@ export default function SettingsPage({ settings, onChange, config, configError, 
         </section>
       </div>
       <div className="settings-actions"><button type="button" title="仅恢复常用偏好，不影响 AI 配置和归档数据" onClick={() => onChange({ ...DEFAULT_SETTINGS })}>恢复常用默认</button></div>
-    </div>
-    <div hidden={group !== 'cloud'}>
-      <h2 className="settings-group-title" id="settings-group-cloud" tabIndex={-1}>登录与云端存储</h2>
-      <CloudStorage visible={visible && group === 'cloud'} />
-    </div>
-    <div hidden={group !== 'ai'}>
-      <h2 className="settings-group-title sr-only" id="settings-group-ai" tabIndex={-1}>AI 模型</h2>
-      {(group === 'ai' || aiVisited) && <div className="settings-section-stack">
-        <LearningTargets api={config?.ai ?? loadedAI} focusRequest={focusAI && visible && focusAITarget === 'sources' ? focusAIRequest : 0}>
-          <AISettingsSection onChange={onAIChange} onLoad={setLoadedAI} autoFocus={focusAI && visible && focusAITarget === 'api'} visible={visible && group === 'ai'} />
-        </LearningTargets>
-        <section className="model-sources" aria-labelledby="settings-retrieval-title">
-          <h3 id="settings-retrieval-title">检索模型</h3>
-          <EmbeddingSettings />
-        </section>
-      </div>}
-    </div>
-    <div hidden={group !== 'usage'}>
-      <h2 className="settings-group-title" id="settings-group-usage" tabIndex={-1}>用量看板</h2>
-      <div className="settings-card settings-card-wide"><UsageDashboard visible={visible && group === 'usage'} /></div>
-    </div>
-    <div hidden={group !== 'health'}>
+      <div className="settings-general-section"><CloudStorage visible={visible && group === 'general'} /></div>
+    <section className="settings-general-section" aria-labelledby="settings-group-health">
       <h2 className="settings-group-title" id="settings-group-health" tabIndex={-1}>归档体检</h2>
-      <div className="settings-card settings-card-wide"><ArchiveHealthPanel visible={visible && group === 'health'} /></div>
-    </div>
-    <div hidden={group !== 'maintenance'}>
+      <div className="settings-card settings-card-wide"><ArchiveHealthPanel visible={visible && group === 'general'} /></div>
+    </section>
+    <section className="settings-general-section" aria-labelledby="settings-group-maintenance">
       <h2 className="settings-group-title" id="settings-group-maintenance" tabIndex={-1}>存储与维护</h2>
       <div className="settings-card-grid settings-maintenance-grid">
         <section className="settings-card" aria-labelledby="settings-storage"><h3 id="settings-storage">归档位置</h3>
@@ -165,6 +145,23 @@ export default function SettingsPage({ settings, onChange, config, configError, 
         <UpdatePanel currentVersion={config?.version || ''} />
         <div className="settings-card settings-card-wide"><CacheManager activeCount={activeCount} /></div>
       </div>
+    </section>
+    </div>
+    <div hidden={group !== 'ai'}>
+      <h2 className="settings-group-title sr-only" id="settings-group-ai" tabIndex={-1}>AI 模型</h2>
+      {(group === 'ai' || aiVisited) && <div className="settings-section-stack">
+        <LearningTargets api={config?.ai ?? loadedAI} focusRequest={focusAI && visible && focusAITarget === 'sources' ? focusAIRequest : 0}>
+          <AISettingsSection onChange={onAIChange} onLoad={setLoadedAI} autoFocus={focusAI && visible && focusAITarget === 'api'} visible={visible && group === 'ai'} />
+        </LearningTargets>
+        <section className="model-sources" aria-labelledby="settings-retrieval-title">
+          <h3 id="settings-retrieval-title">检索模型</h3>
+          <EmbeddingSettings />
+        </section>
+      </div>}
+    </div>
+    <div hidden={group !== 'usage'}>
+      <h2 className="settings-group-title" id="settings-group-usage" tabIndex={-1}>用量看板</h2>
+      <div className="settings-card settings-card-wide"><UsageDashboard visible={visible && group === 'usage'} /></div>
     </div>
   </div>;
 }

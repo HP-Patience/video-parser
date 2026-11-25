@@ -71,7 +71,6 @@ def check_updates(browser, base_url):
     try:
         page.goto(base_url)
         page.get_by_role('button', name='设置', exact=True).click()
-        page.get_by_role('button', name='存储与维护', exact=True).click()
         panel = page.locator('.update-panel')
         panel.get_by_role('button', name='检查更新', exact=True).click()
         expect(panel.get_by_role('link', name='前往发布页')).to_have_count(0)
@@ -82,7 +81,6 @@ def check_updates(browser, base_url):
         assert installs == [{'confirm': True}], installs
         page.reload()
         page.get_by_role('button', name='设置', exact=True).click()
-        page.get_by_role('button', name='存储与维护', exact=True).click()
         expect(panel.get_by_role('progressbar')).to_have_attribute('aria-valuenow', '50')
         assert len(installs) == 1, 'Reload must resume progress, never resubmit install'
         progress.update(state='verifying', downloaded_bytes=100)
@@ -102,7 +100,6 @@ def check_updates(browser, base_url):
         expect(services.get_by_role('progressbar')).to_have_attribute('aria-valuenow', '50')
         page.reload()
         page.get_by_role('button', name='设置', exact=True).click()
-        page.get_by_role('button', name='存储与维护', exact=True).click()
         expect(services.get_by_role('progressbar')).to_have_attribute('aria-valuenow', '50')
         assert transcription_installs == [{'confirm': True}], transcription_installs
         transcription.update(state='checking_cuda', downloaded_bytes=100)

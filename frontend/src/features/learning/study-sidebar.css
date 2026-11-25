@@ -79,6 +79,7 @@ body.is-resizing-study-sidebar, body.is-resizing-study-sidebar * { cursor: row-r
   .study-sidebar.is-collapsed .study-sidebar-heading { padding: 10px 12px; }
   .study-sidebar.is-collapsed .study-sidebar-heading h2 { display: block; }
   .study-sidebar-body { max-height: 65dvh; }
+  .study-sidebar .ai-chat-log { overflow: visible; }
   /* Stacked layouts size the sidebar by its content, so there is no bottom edge to drag. */
   .study-sidebar-resizer { display: none; }
 }

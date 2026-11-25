@@ -288,7 +288,6 @@ def main():
                 expect(page.get_by_label('归档完成提醒', exact=True)).not_to_be_checked()
                 assert page.evaluate("localStorage.getItem('video-parser:last-project')") == 'keep-project'
                 assert page.evaluate("localStorage.getItem('video-parser:last-quality')") == 'keep-quality'
-                page.get_by_role('button', name='存储与维护', exact=True).click()
                 expect(page.locator('.archive-root')).to_contain_text(str(Path(directory) / 'library'))
                 page.set_viewport_size({'width': 390, 'height': 844})
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Settings overflow at 390px'

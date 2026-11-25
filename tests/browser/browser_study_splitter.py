@@ -46,10 +46,18 @@ class StudySplitterTests(unittest.TestCase):
         self.page = self.f.page
         self.out = Path(os.environ.get('VIDEO_PARSER_TEST_OUTPUT', '.local/study-splitter'))
         self.out.mkdir(parents=True, exist_ok=True)
-        self.f.parse()
+        self.page.goto(self.f.url)
+        self.page.get_by_role('textbox', name='视频链接或分享文本').fill(self.f.parsed()['source_url'])
+        self.page.get_by_role('button', name='解析视频', exact=True).click()
+        expect(self.page.locator('.preview-panel video')).to_be_visible()
         self.page.get_by_role('button', name='学习视图', exact=True).click()
         expect(self.page.locator('.study-sidebar')).to_be_visible()
         expect(self.page.locator('.study-splitter')).to_be_visible()
+        self.page.wait_for_function('''() => {
+          const divider = document.querySelector('.study-splitter');
+          const box = divider.getBoundingClientRect();
+          return document.elementFromPoint(box.x + box.width / 2, box.y + 60) === divider;
+        }''')
 
     def tearDown(self):
         self.f.tearDown()
@@ -59,7 +67,7 @@ class StudySplitterTests(unittest.TestCase):
 
     def drag(self, pixels):
         box = self.page.locator('.study-splitter').bounding_box()
-        x, y = box['x'] + box['width'] / 2, box['y'] + box['height'] / 2
+        x, y = box['x'] + box['width'] / 2, box['y'] + 60
         self.page.mouse.move(x, y)
         self.page.mouse.down()
         self.page.mouse.move(x + pixels, y, steps=6)
@@ -111,6 +119,21 @@ class StudySplitterTests(unittest.TestCase):
         self.assertLess(narrow['rail']['width'], wide['rail']['width'], narrow)
         self.assertTrue(narrow['aligned'], narrow)
         self.assertFalse(narrow['overflow'], narrow)
+
+    def test_overshoot_moves_only_the_seam_then_returns_to_center(self):
+        divider = self.page.locator('.study-splitter')
+        transform = "e => getComputedStyle(e, '::before').transform"
+        centered = divider.evaluate(transform)
+        box = divider.bounding_box()
+        x, y = box['x'] + box['width'] / 2, box['y'] + 60
+        self.page.mouse.move(x, y)
+        self.page.mouse.down()
+        self.page.mouse.move(x + 200, y, steps=6)
+        self.assertAlmostEqual(self.geometry()['rail']['width'], 280, delta=1)
+        self.assertNotEqual(divider.evaluate(transform), centered)
+        self.page.mouse.up()
+        self.page.wait_for_function("value => getComputedStyle(document.querySelector('.study-splitter'), '::before').transform === value", arg=centered)
+        self.assertAlmostEqual(self.geometry()['rail']['width'], 280, delta=1)
 
     def test_width_survives_reload_and_hides_in_narrow_or_collapsed_layouts(self):
         self.drag(-100)

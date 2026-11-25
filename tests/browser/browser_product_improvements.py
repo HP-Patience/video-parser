@@ -149,6 +149,12 @@ class ProductImprovementsBrowserTests(unittest.TestCase):
         body = route.request.post_data_json if route.request.post_data else None
         self.requests.append((method, path, body))
         if method == 'GET':
+            if path == '/cloud/session':
+                return route.fulfill(json={'logged_in': False, 'state': 'idle', 'server': '', 'login': ''})
+            if path == '/updates/status':
+                return route.fulfill(json={'state': 'idle'})
+            if path == '/transcriptions/install':
+                return route.fulfill(status=404, json={'detail': 'Installer unavailable in fixture'})
             if path == '/config':
                 return route.fulfill(json={'platforms': ['哔哩哔哩'], 'ai_configured': True, 'media_ready': True,
                     'subtitles_ready': True, 'transcription_ready': True, 'transcription_upload_limit': 1000000,
@@ -298,17 +304,21 @@ class ProductImprovementsBrowserTests(unittest.TestCase):
         self.assertFalse(any(method == 'POST' for method, _, _ in self.requests))
         self.fit('separated-model-controls')
 
-    def test_workspace_empty_state_offers_import_or_existing_learning(self):
+    def test_workspace_empty_state_keeps_import_and_learning_navigation(self):
+        self.with_media = True
         self.page.goto(self.url)
         expect(self.page.get_by_role('heading', name='从一个链接开始', exact=True)).to_be_visible()
+        expect(self.page.get_by_text('试试示例', exact=True)).to_have_count(0)
+        expect(self.page.get_by_text('已经有归档资料？', exact=True)).to_have_count(0)
+        expect(self.page.get_by_role('button', name='继续已有学习', exact=True)).to_have_count(0)
         expect(self.page.get_by_role('textbox', name='视频链接或分享文本')).to_be_visible()
+        expect(self.page.get_by_role('button', name='选择本机视频', exact=True)).to_be_enabled()
         expect(self.page.get_by_role('button', name='解析视频', exact=True)).to_be_disabled()
         expect(self.page.locator('#workpanel')).to_be_hidden()
         expect(self.page.locator('#project-context')).to_be_hidden()
         self.assertFalse(any(method == 'POST' for method, _, _ in self.requests))
         self.fit('workspace-empty')
-        self.with_media = True
-        self.page.get_by_role('button', name='继续已有学习', exact=True).click()
+        self.page.get_by_role('button', name='学习视图', exact=True).click()
         picker = self.page.get_by_role('combobox', name='学习项目', exact=True)
         expect(picker).to_be_enabled(); select_project(picker, PROJECT_ID)
         expect(self.page.locator('video')).to_be_visible()
