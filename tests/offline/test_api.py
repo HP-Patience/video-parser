@@ -40,12 +40,12 @@ class APIEntrypointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('frontend not built', response.json()['message'])
 
-    def test_root_serves_built_frontend_with_no_cache(self):
+    def test_root_serves_built_frontend_with_no_store(self):
         (self.frontend / 'index.html').write_text('<!doctype html><title>workspace</title>', encoding='utf-8')
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertIn('<title>workspace</title>', response.text)
-        self.assertEqual(response.headers['cache-control'], 'no-cache')
+        self.assertEqual(response.headers['cache-control'], 'no-store')
 
     def test_workspace_keeps_cross_origin_rejection(self):
         response = self.client.get('/api/workspace/config', headers={'Origin': 'https://external.invalid'})

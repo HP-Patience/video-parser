@@ -26,14 +26,13 @@ class WebLauncherTests(unittest.TestCase):
         text = (ROOT / 'scripts/start-web.ps1').read_text(encoding='utf-8')
         self.assertIn('[switch]$OpenBrowser', text)
         self.assertIn("node_modules\\.bin\\vite.cmd", text)
-        self.assertIn('Start-Job', text)
         self.assertIn('/health', text)
         self.assertIn("'healthy'", text)
         self.assertIn('Start-Process', text)
+        self.assertIn("$env:VIDEO_PARSER_OPEN_BROWSER = '1'", text)
+        self.assertIn('$env:VIDEO_PARSER_OPEN_URL = $url', text)
         self.assertIn('--host 127.0.0.1', text)
         self.assertNotIn('Set-ExecutionPolicy', text)
-        self.assertIn('Stop-Job', text)
-        self.assertIn('Remove-Job', text)
 
     @unittest.skipUnless(shutil.which('powershell.exe'), 'Windows PowerShell required')
     def test_powershell_syntax_and_missing_environment_failure(self):
